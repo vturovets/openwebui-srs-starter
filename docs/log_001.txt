@@ -12,7 +12,7 @@ backend\tests\pipeline\test_pipeline_components.py E.EEEEEEEEEEE                
 backend\tests\test_openwebui_connector.py ...                                                                                                                                    [100%]
 
 ======================================================================================= ERRORS ========================================================================================
-_________________________________________________________ ERROR at setup of test_language_detector_accepts_supported_language _________________________________________________________
+_________________________________________________________ ERROR at setup of test_language_detector_accepts_supported_language _________________________________________________________ 
 
 self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
 
@@ -49,7 +49,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -70,7 +70,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_language_detector_accepts0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_language_detector_accepts0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -148,7 +148,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -169,7 +169,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_extractor_recognises_enti0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_extractor_recognises_enti0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -247,7 +247,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -268,7 +268,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_extractor_recognises_enti1')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_extractor_recognises_enti1')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -346,7 +346,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -367,7 +367,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_normalizer_expands_flex_w0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_normalizer_expands_flex_w0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -445,7 +445,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -466,7 +466,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_normalizer_handles_invali0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_normalizer_handles_invali0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -544,7 +544,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -565,7 +565,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_normalizer_respects_disab0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_normalizer_respects_disab0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -643,7 +643,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -664,7 +664,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_normalizer_preserves_iso_0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_normalizer_preserves_iso_0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -742,7 +742,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -763,7 +763,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_validator_accepts_require0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_validator_accepts_require0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -841,7 +841,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -862,7 +862,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_validator_requires_depart0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_validator_requires_depart0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -940,7 +940,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -961,7 +961,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_validator_requires_depart1')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_validator_requires_depart1')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
@@ -1039,7 +1039,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -1060,7 +1060,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_parse_endpoint_success_lo0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_parse_endpoint_success_lo0')
 
     @pytest.fixture()
     def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
@@ -1138,7 +1138,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -1159,7 +1159,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_parse_endpoint_failure_lo0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_parse_endpoint_failure_lo0')
 
     @pytest.fixture()
     def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
@@ -1243,4 +1243,4 @@ ERROR backend/tests/pipeline/test_pipeline_components.py::test_validator_require
 ERROR backend/tests/pipeline/test_pipeline_components.py::test_validator_requires_departure_or_destination_with_date - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
 ERROR backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
 ERROR backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
-====================================================================== 7 passed, 4 warnings, 12 errors in 1.25s ======================================================================= 
+====================================================================== 7 passed, 4 warnings, 12 errors in 1.24s ======================================================================= 
