@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from time import perf_counter
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..config import Settings
-from ..dependencies import get_pipeline, get_settings
+from ..dependencies import get_csv_logger, get_pipeline, get_settings
+from ..logging.csv_logger import CSVLogger
 from ..pipeline.pipeline import HolidaySearchPipeline
 from ..pipeline.validator import ValidationError
 
@@ -59,6 +62,7 @@ async def parse_text(
     payload: ParseRequest,
     settings: Settings = Depends(get_settings),
     pipeline: HolidaySearchPipeline = Depends(get_pipeline),
+    logger: CSVLogger = Depends(get_csv_logger),
 ) -> ParseResponse:
     """Run the NLP pipeline and expose timings plus validation metadata."""
 
@@ -70,6 +74,8 @@ async def parse_text(
     normalized = None
     validation_meta: dict[str, object] = {"status": "passed", "errors": []}
     status = "success"
+    error_detail: str | None = None
+    http_error: HTTPException | None = None
 
     try:
         detection = _measure(
@@ -99,14 +105,29 @@ async def parse_text(
             ],
         }
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        error_detail = str(exc)
+        status = "error"
+        validation_meta = {
+            "status": "error",
+            "errors": [
+                {
+                    "message": error_detail,
+                }
+            ],
+        }
+        http_error = HTTPException(status_code=400, detail=error_detail)
 
     total_ms = (perf_counter() - total_start) * 1000
     timings["totalMs"] = total_ms
+    threshold_ms = settings.processing_threshold_ms
+    threshold_breached = total_ms > threshold_ms
+    timings["thresholdBreached"] = threshold_breached
 
     data_payload: dict[str, object] = {}
-    if normalized is not None:
+    if normalized is not None and status != "error":
         data_payload = normalized.to_payload()
+    elif status == "error" and error_detail:
+        data_payload = {"error": error_detail}
 
     metadata: dict[str, object] = {
         "mode": payload.mode or settings.interaction_mode,
@@ -131,6 +152,22 @@ async def parse_text(
             "code": detection.language,
             "confidence": detection.confidence,
         }
+
+    stt_source = settings.stt_engine if settings.stt_engine else ("voice" if settings.voice_enabled else "text")
+    log_entry = {
+        "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        "Input": payload.text,
+        "Language": detection.language if detection is not None else "",
+        "Method": metadata["method"],
+        "STT": stt_source or "",
+        "ProcessingTime": f"{total_ms:.2f}",
+        "Output": data_payload,
+        "Status": f"{status}|threshold" if threshold_breached else status,
+    }
+    logger.log(log_entry)
+
+    if http_error is not None:
+        raise http_error
 
     return ParseResponse(status=status, data=data_payload, metadata=metadata)
 
