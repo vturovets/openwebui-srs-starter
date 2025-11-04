@@ -222,6 +222,7 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     assert log_entry["Status"] == "failed"
     expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
     assert log_entry["ThresholdBreached"] == expected_threshold
+    assert "Utterance" in log_entry["Output"]
 
     parsed_output = json.loads(log_entry["Output"])
     assert parsed_output["status"] == "failed"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from time import perf_counter
 
 from datetime import datetime, timezone
@@ -161,6 +162,7 @@ async def parse_text(
     }
     if status == "error" and error_detail:
         log_output["error"] = error_detail
+    output_serialised = json.dumps(log_output, ensure_ascii=False)
 
     log_entry = {
         "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
@@ -169,7 +171,7 @@ async def parse_text(
         "Method": metadata["method"],
         "STT": stt_source or "",
         "ProcessingTime": f"{total_ms:.2f}",
-        "Output": log_output,
+        "Output": output_serialised,
         "Status": status,
         "ThresholdBreached": "true" if threshold_breached else "false",
     }
