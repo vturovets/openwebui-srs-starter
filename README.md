@@ -187,7 +187,7 @@ CSV audit entries are appended to `CSV_PATH` on each parse request using the fix
 Timestamp, Input, Language, Method, STT, ProcessingTime, Output, Status, ThresholdBreached
 ```
 
-If total processing time exceeds `PROCESSING_THRESHOLD_MS`, the dedicated `ThresholdBreached` column records `true`; otherwise it records `false`. Validation failures still produce HTTP 200 responses but carry `status="failed"` so downstream systems can react without treating them as transport errors.
+If total processing time exceeds `PROCESSING_THRESHOLD_MS`, the dedicated `ThresholdBreached` column records `true`; otherwise it records `false`. The `Output` column always captures a JSON object containing the pipeline `status`, the structured `data` payload, and the `validation` block emitted by the API. This guarantees validation error messages are preserved alongside the normalized data even when the overall status is `failed`.
 
 ## Testing and quality checks
 

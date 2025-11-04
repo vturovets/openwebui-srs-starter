@@ -154,12 +154,13 @@ async def parse_text(
         }
 
     stt_source = settings.stt_engine if settings.stt_engine else ("voice" if settings.voice_enabled else "text")
-    log_output: object = data_payload
-    if status == "failed":
-        log_output = {
-            "errors": validation_meta.get("errors", []),
-            "data": data_payload,
-        }
+    log_output: dict[str, object] = {
+        "status": status,
+        "data": data_payload,
+        "validation": validation_meta,
+    }
+    if status == "error" and error_detail:
+        log_output["error"] = error_detail
 
     log_entry = {
         "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),

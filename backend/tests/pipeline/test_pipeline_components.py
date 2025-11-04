@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -221,4 +222,8 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     assert log_entry["Status"] == "failed"
     expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
     assert log_entry["ThresholdBreached"] == expected_threshold
-    assert "Utterance" in log_entry["Output"]
+
+    parsed_output = json.loads(log_entry["Output"])
+    assert parsed_output["status"] == "failed"
+    assert parsed_output["data"]["language"] == "en"
+    assert parsed_output["validation"]["errors"][0]["message"].startswith("Utterance must include")
