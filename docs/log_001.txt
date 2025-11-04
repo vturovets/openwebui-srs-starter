@@ -5,36 +5,199 @@ rootdir: C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-start
 configfile: pyproject.toml
 testpaths: backend/tests
 plugins: anyio-4.11.0
-collected 3 items / 1 error                                                                                                                                          
+collected 16 items                                                                                                                                                   
+
+backend\tests\fixtures\test_repository.py ...                                                                                                                  [ 18%]
+backend\tests\pipeline\test_pipeline_components.py .......FFFFEE                                                                                               [100%]
 
 ============================================================================== ERRORS ===============================================================================
-________________________________________________ ERROR collecting backend/tests/pipeline/test_pipeline_components.py ________________________________________________
-ImportError while importing test module 'C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\tests\pipeline\test_pipeline_components.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-backend\tests\pipeline\test_pipeline_components.py:14: in <module>
-    from backend.app.config import Settings
-backend\app\__init__.py:3: in <module>
-    from .main import app
-backend\app\main.py:7: in <module>
-    from .api import api_router
-backend\app\api\__init__.py:3: in <module>
-    from .routes import api_router
-backend\app\api\routes.py:13: in <module>
-    from ..dependencies import get_csv_logger, get_pipeline, get_settings
-backend\app\dependencies.py:10: in <module>
-    from .pipeline.pipeline import HolidaySearchPipeline
-backend\app\pipeline\__init__.py:6: in <module>
-    from .validator import ValidationError, Validator
-backend\app\pipeline\validator.py:9: in <module>
-    from .pipeline import SearchConfiguration
-backend\app\pipeline\pipeline.py:15: in <module>
-    from .validator import Validator
-E   ImportError: cannot import name 'Validator' from partially initialized module 'backend.app.pipeline.validator' (most likely due to a circular import) (C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\app\pipeline\validator.py)
+______________________________________________ ERROR at setup of test_parse_endpoint_success_logs_and_returns_payload _______________________________________________
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-160/test_parse_endpoint_success_lo0')
+
+    @pytest.fixture()
+    def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
+        settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "api-log.csv")
+        pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
+>       logger = CSVLogger(
+            path=settings.csv_path,
+            fieldnames=(
+                "Timestamp",
+                "Input",
+                "Language",
+                "Method",
+                "STT",
+                "ProcessingTime",
+                "Output",
+                "Status",
+            ),
+        )
+
+backend\tests\pipeline\test_pipeline_components.py:38:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<string>:5: in __init__
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = CSVLogger(path=WindowsPath('data/log.csv'), fieldnames=('Timestamp', 'Input', 'Language', 'Method', 'STT', 'ProcessingTime', 'Output', 'Status'))
+
+    def __post_init__(self) -> None:
+        self.path = Path(self.path)
+>       self._fieldnames = list(self.fieldnames)
+        ^^^^^^^^^^^^^^^^
+E       AttributeError: 'CSVLogger' object has no attribute '_fieldnames'
+
+backend\app\logging\csv_logger.py:31: AttributeError
+_______________________________________________ ERROR at setup of test_parse_endpoint_failure_logs_validation_errors ________________________________________________ 
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-160/test_parse_endpoint_failure_lo0')
+
+    @pytest.fixture()
+    def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
+        settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "api-log.csv")
+        pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
+>       logger = CSVLogger(
+            path=settings.csv_path,
+            fieldnames=(
+                "Timestamp",
+                "Input",
+                "Language",
+                "Method",
+                "STT",
+                "ProcessingTime",
+                "Output",
+                "Status",
+            ),
+        )
+
+backend\tests\pipeline\test_pipeline_components.py:38:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<string>:5: in __init__
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = CSVLogger(path=WindowsPath('data/log.csv'), fieldnames=('Timestamp', 'Input', 'Language', 'Method', 'STT', 'ProcessingTime', 'Output', 'Status'))
+
+    def __post_init__(self) -> None:
+        self.path = Path(self.path)
+>       self._fieldnames = list(self.fieldnames)
+        ^^^^^^^^^^^^^^^^
+E       AttributeError: 'CSVLogger' object has no attribute '_fieldnames'
+
+backend\app\logging\csv_logger.py:31: AttributeError
+============================================================================= FAILURES ============================================================================== 
+________________________________________________________ test_normalizer_preserves_iso_for_unavailable_date _________________________________________________________ 
+
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x0000021C5A0FA360>
+
+    def test_normalizer_preserves_iso_for_unavailable_date(pipeline: HolidaySearchPipeline) -> None:
+        extraction = _make_extraction_with_date(datetime(2024, 1, 1))
+
+        normalized = pipeline.normalizer.normalize("en", extraction)
+
+>       assert normalized.departure_dates == ["2024-01-01"]
+E       AssertionError: assert ['2023-12-29', '2024-01-04'] == ['2024-01-01']
+E
+E         At index 0 diff: '2023-12-29' != '2024-01-01'
+E         Left contains one more item: '2024-01-04'
+E         Use -v to get more diff
+
+backend\tests\pipeline\test_pipeline_components.py:131: AssertionError
+_________________________________________________________ test_validator_accepts_required_field_combination _________________________________________________________ 
+
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x0000021C5A0FB1D0>
+
+    def test_validator_accepts_required_field_combination(pipeline: HolidaySearchPipeline) -> None:
+        utterance = "Plan a trip from Amsterdam to Spain on 10 October 2025 for a week"
+        extraction = pipeline.extractor.extract(utterance)
+        normalized = pipeline.normalizer.normalize("en", extraction)
+
+>       pipeline.validator.validate(normalized)
+
+backend\tests\pipeline\test_pipeline_components.py:140:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+backend\app\pipeline\validator.py:103: in validate
+    self._validate_dates(normalized)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <backend.app.pipeline.validator.Validator object at 0x0000021C5A0FBF80>
+normalized = NormalizedResult(language='en', from_codes=['AMS'], to_ids=['d7b4bb39-123c-1234-1234-1234567s:COUNTRY'], departure_dat..., 0))], 'dates_base': datetime.date(2025, 10, 10), 'flex_option': {'id': '3', 'name': '+- 3 days', 'isDefault': True}})
+
+    def _validate_dates(self, normalized: NormalizedResult) -> None:
+        if not normalized.departure_dates:
+            raise ValidationError("Departure date is required")
+        for iso_date in normalized.departure_dates:
+            if iso_date not in self._allowed_departure_dates:
+>               raise ValidationError(f"Departure date '{iso_date}' is not available")
+E               backend.app.pipeline.validator.ValidationError: Departure date '2025-10-07' is not available
+
+backend\app\pipeline\validator.py:54: ValidationError
+______________________________________________________________ test_validator_requires_departure_date _______________________________________________________________ 
+
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x0000021C5A0FABA0>
+
+    def test_validator_requires_departure_date(pipeline: HolidaySearchPipeline) -> None:
+        utterance = "I am looking for a trip departing from Amsterdam or Ostend to Spain or Italy."
+        extraction = pipeline.extractor.extract(utterance)
+        normalized = pipeline.normalizer.normalize("en", extraction)
+
+>       with pytest.raises(ValidationError) as exc:
+E       Failed: DID NOT RAISE <class 'backend.app.pipeline.validator.ValidationError'>
+
+backend\tests\pipeline\test_pipeline_components.py:148: Failed
+____________________________________________________ test_validator_requires_departure_or_destination_with_date _____________________________________________________ 
+
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x0000021C59FAE630>
+
+    def test_validator_requires_departure_or_destination_with_date(pipeline: HolidaySearchPipeline) -> None:
+        utterance = "I am looking for a trip starting on October 10 2025."
+        extraction = pipeline.extractor.extract(utterance)
+        normalized = pipeline.normalizer.normalize("en", extraction)
+
+        with pytest.raises(ValidationError) as exc:
+            pipeline.validator.validate(normalized)
+
+>       assert "Utterance must include departure date" in str(exc.value)
+E       assert 'Utterance must include departure date' in "Departure date '2025-10-07' is not available"
+E        +  where "Departure date '2025-10-07' is not available" = str(ValidationError("Departure date '2025-10-07' is not available"))
+E        +    where ValidationError("Departure date '2025-10-07' is not available") = <ExceptionInfo ValidationError("Departure date '2025-10-07' is not available") tblen=3>.value
+
+backend\tests\pipeline\test_pipeline_components.py:162: AssertionError
+========================================================================= warnings summary ========================================================================== 
+backend\app\main.py:17
+  C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\app\main.py:17: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+.venv\Lib\site-packages\fastapi\applications.py:4575
+.venv\Lib\site-packages\fastapi\applications.py:4575
+  C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\.venv\Lib\site-packages\fastapi\applications.py:4575: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)
+
+backend\app\main.py:22
+  C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\app\main.py:22: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 ====================================================================== short test summary info ====================================================================== 
-ERROR backend/tests/pipeline/test_pipeline_components.py
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-========================================================================= 1 error in 1.34s ========================================================================== 
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_normalizer_preserves_iso_for_unavailable_date - AssertionError: assert ['2023-12-29', '2024-01-04'] == ['2024-01-01']
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_validator_accepts_required_field_combination - backend.app.pipeline.validator.ValidationError: Departure date '2025-10-07' is not available
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_validator_requires_departure_date - Failed: DID NOT RAISE <class 'backend.app.pipeline.validator.ValidationError'>
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_validator_requires_departure_or_destination_with_date - assert 'Utterance must include departure date' in "Departure date '2025-10-07' is not available"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload - AttributeError: 'CSVLogger' object has no attribute '_fieldnames'
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors - AttributeError: 'CSVLogger' object has no attribute '_fieldnames'
+======================================================== 4 failed, 10 passed, 4 warnings, 2 errors in 1.71s ========================================================= 
