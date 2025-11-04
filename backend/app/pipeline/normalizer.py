@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import timedelta
-from typing import TYPE_CHECKING, Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
 from .extractor_rules import ExtractionResult
 
@@ -40,8 +40,18 @@ class NormalizedResult:
 class Normalizer:
     """Normalize extraction results to canonical representations."""
 
-    def __init__(self, configuration: SearchConfiguration) -> None:
+    def __init__(
+        self,
+        configuration: SearchConfiguration,
+        *,
+        available_checkin_dates: Sequence[str] | None = None,
+    ) -> None:
         self._config = configuration
+        self._available_dates = {
+            datetime.strptime(date_str, "%d-%m-%Y").date().isoformat()
+            for date_str in available_checkin_dates or []
+            if isinstance(date_str, str) and date_str.strip()
+        }
 
     def _normalize_dates(self, extraction: ExtractionResult) -> Dict[str, object]:
         if not extraction.dates:
@@ -68,7 +78,23 @@ class Normalizer:
         else:
             start = base_date - timedelta(days=window_days)
             end = base_date + timedelta(days=window_days)
-            normalized = [start.isoformat(), end.isoformat()]
+            start_iso = start.isoformat()
+            end_iso = end.isoformat()
+
+            if self._available_dates:
+                candidates = sorted(
+                    date_iso
+                    for date_iso in self._available_dates
+                    if start_iso <= date_iso <= end_iso
+                )
+                if len(candidates) > 1:
+                    normalized = [candidates[0], candidates[-1]]
+                elif candidates:
+                    normalized = candidates
+                else:
+                    normalized = [base_date.isoformat()]
+            else:
+                normalized = [start_iso, end_iso]
 
         return {
             "dates": normalized,
