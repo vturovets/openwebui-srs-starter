@@ -83,7 +83,7 @@ uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ngrok http 8000
 ```
 
-Use the HTTPS forwarding URL reported by your tunnel as the base URL when configuring Open-WebUI. See [`docs/ui_integration_contracts.md`](docs/ui_integration_contracts.md) for the full endpoint contracts and runtime variables to surface in the UI.
+Use the HTTPS forwarding URL reported by your tunnel as the base URL when configuring Open-WebUI. See [`docs/ui_integration_contracts.md`](docs/ui_integration_contracts.md) for the full endpoint contracts, and [`docs/openwebui_configuration.md`](docs/openwebui_configuration.md) for step-by-step instructions on wiring the custom Open-WebUI connector and renderer.
 
 Behind the scenes, the app initialises reusable settings, the holiday search pipeline, and a CSV logger through dependency injection helpers defined in [`backend/app/dependencies.py`](backend/app/dependencies.py). Each dependency uses `functools.lru_cache` so reloads remain quick while preserving deterministic behaviour during tests.
 
