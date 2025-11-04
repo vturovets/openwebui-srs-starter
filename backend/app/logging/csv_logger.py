@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping, MutableMapping, Sequence
 
@@ -25,6 +25,7 @@ class CSVLogger:
 
     path: Path
     fieldnames: Sequence[str]
+    _fieldnames: list[str] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.path = Path(self.path)

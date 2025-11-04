@@ -32,7 +32,10 @@ class HolidaySearchPipeline:
 
         self._language = LanguageDetector(self._settings.allowed_langs)
         self._extractor = RulesExtractor(self._fixtures, self._configuration)
-        self._normalizer = Normalizer(self._configuration)
+        self._normalizer = Normalizer(
+            self._configuration,
+            available_checkin_dates=self._fixtures.list_checkin_dates(),
+        )
         self._validator = Validator(self._fixtures, self._configuration)
 
     def _load_search_configuration(self, fixtures_root: Path) -> SearchConfiguration:
