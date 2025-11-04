@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Iterator
 
 from .config import Settings
+from .logging.csv_logger import CSVLogger
 from .pipeline.pipeline import HolidaySearchPipeline
 
 
@@ -32,4 +33,24 @@ def get_pipeline() -> HolidaySearchPipeline:
     return HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
 
 
-__all__ = ["get_settings", "settings_dependency", "get_pipeline"]
+@lru_cache
+def get_csv_logger() -> CSVLogger:
+    """Provide a shared CSV logger configured from application settings."""
+
+    settings = get_settings()
+    return CSVLogger(
+        path=settings.csv_path,
+        fieldnames=(
+            "Timestamp",
+            "Input",
+            "Language",
+            "Method",
+            "STT",
+            "ProcessingTime",
+            "Output",
+            "Status",
+        ),
+    )
+
+
+__all__ = ["get_settings", "settings_dependency", "get_pipeline", "get_csv_logger"]
