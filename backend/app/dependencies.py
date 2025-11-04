@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Iterator
 
 from .config import Settings
+from .pipeline.pipeline import HolidaySearchPipeline
 
 
 @lru_cache
@@ -23,4 +24,12 @@ def settings_dependency() -> Iterator[Settings]:
     yield get_settings()
 
 
-__all__ = ["get_settings", "settings_dependency"]
+@lru_cache
+def get_pipeline() -> HolidaySearchPipeline:
+    """Return a shared pipeline instance configured from application settings."""
+
+    settings = get_settings()
+    return HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
+
+
+__all__ = ["get_settings", "settings_dependency", "get_pipeline"]

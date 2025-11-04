@@ -143,5 +143,41 @@ class HolidaySearchPipeline:
         payload["status"] = "success"
         return payload
 
+    @property
+    def language_detector(self) -> LanguageDetector:
+        """Expose the language detector for instrumentation consumers."""
+
+        return self._language
+
+    @property
+    def extractor(self) -> RulesExtractor:
+        """Expose the extractor instance for instrumentation consumers."""
+
+        return self._extractor
+
+    @property
+    def normalizer(self) -> Normalizer:
+        """Expose the normalizer instance for instrumentation consumers."""
+
+        return self._normalizer
+
+    @property
+    def validator(self) -> Validator:
+        """Expose the validator instance for instrumentation consumers."""
+
+        return self._validator
+
+    @property
+    def fixtures(self) -> FixtureRepository:
+        """Return the fixture repository backing the pipeline."""
+
+        return self._fixtures
+
+    @property
+    def configuration(self) -> SearchConfiguration:
+        """Return the search configuration used across the pipeline."""
+
+        return self._configuration
+
 
 __all__ = ["HolidaySearchPipeline", "SearchConfiguration"]
