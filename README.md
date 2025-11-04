@@ -76,14 +76,6 @@ uvicorn backend.app.main:app --reload
 ```
 
 The service starts on `http://127.0.0.1:8000` by default. FastAPI’s interactive docs are available at `/docs` and `/redoc`.
-To make the API reachable by Open-WebUI or other remote clients, bind to all interfaces and front it with a tunnel or reverse proxy, for example:
-
-```bash
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
-ngrok http 8000
-```
-
-Use the HTTPS forwarding URL reported by your tunnel as the base URL when configuring Open-WebUI. See [`docs/ui_integration_contracts.md`](docs/ui_integration_contracts.md) for the full endpoint contracts, and [`docs/openwebui_configuration.md`](docs/openwebui_configuration.md) for step-by-step instructions on wiring the custom Open-WebUI connector and renderer.
 
 Behind the scenes, the app initialises reusable settings, the holiday search pipeline, and a CSV logger through dependency injection helpers defined in [`backend/app/dependencies.py`](backend/app/dependencies.py). Each dependency uses `functools.lru_cache` so reloads remain quick while preserving deterministic behaviour during tests.
 
@@ -184,10 +176,10 @@ Adjusting these files lets you experiment with new markets or validation constra
 CSV audit entries are appended to `CSV_PATH` on each parse request using the fixed columns:
 
 ```
-Timestamp, Input, Language, Method, STT, ProcessingTime, Output, Status, ThresholdBreached
+Timestamp, Input, Language, Method, STT, ProcessingTime, Output, Status
 ```
 
-If total processing time exceeds `PROCESSING_THRESHOLD_MS`, the dedicated `ThresholdBreached` column records `true`; otherwise it records `false`. The `Output` column always captures a JSON object containing the pipeline `status`, the structured `data` payload, and the `validation` block emitted by the API. This guarantees validation error messages are preserved alongside the normalized data even when the overall status is `failed`.
+If total processing time exceeds `PROCESSING_THRESHOLD_MS`, the `Status` column records `failed|threshold` or `success|threshold` to highlight breaches. Validation failures still produce HTTP 200 responses but carry `status="failed"` so downstream systems can react without treating them as transport errors.
 
 ## Testing and quality checks
 

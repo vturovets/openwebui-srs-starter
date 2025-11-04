@@ -4,9 +4,6 @@ services:
     ports: ["3000:8080"]
     environment:
       - WEBUI_AUTH=False
-      - HOLIDAY_TOOL_BASE_URL=http://nlp-api:8000
-      - HOLIDAY_TOOL_MODE=direct-parse
-      - HOLIDAY_TOOL_METHOD=rules
     volumes:
       - webui_data:/app/backend/data
 
