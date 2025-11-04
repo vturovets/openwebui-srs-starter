@@ -169,7 +169,8 @@ async def parse_text(
         "STT": stt_source or "",
         "ProcessingTime": f"{total_ms:.2f}",
         "Output": log_output,
-        "Status": f"{status}|threshold" if threshold_breached else status,
+        "Status": status,
+        "ThresholdBreached": "true" if threshold_breached else "false",
     }
     logger.log(log_entry)
 

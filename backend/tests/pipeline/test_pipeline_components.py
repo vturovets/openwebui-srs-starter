@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
-from fastapi.testclient import TestClient
+import asyncio
 
 from backend.app.config import Settings
 from backend.app.logging.csv_logger import CSVLogger
-from backend.app.main import create_app
+from backend.app.api.routes import ParseRequest, parse_text
 from backend.app.pipeline.extractor_rules import ExtractionResult
 from backend.app.pipeline.language import LanguageDetector
 from backend.app.pipeline.normalizer import Normalizer
@@ -46,6 +46,7 @@ def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPi
             "ProcessingTime",
             "Output",
             "Status",
+            "ThresholdBreached",
         ),
     )
     yield settings, pipeline, logger
@@ -162,37 +163,28 @@ def test_validator_requires_departure_or_destination_with_date(pipeline: Holiday
     assert "Utterance must include departure date" in str(exc.value)
 
 
-def _build_test_app(settings: Settings, pipeline: HolidaySearchPipeline, logger: CSVLogger):
-    app = create_app()
-
-    from backend.app.dependencies import get_csv_logger, get_pipeline, get_settings
-
-    app.dependency_overrides[get_settings] = lambda: settings
-    app.dependency_overrides[get_pipeline] = lambda: pipeline
-    app.dependency_overrides[get_csv_logger] = lambda: logger
-
-    return app
+def _call_parse(
+    payload: ParseRequest,
+    settings: Settings,
+    pipeline: HolidaySearchPipeline,
+    logger: CSVLogger,
+):
+    return asyncio.run(parse_text(payload, settings=settings, pipeline=pipeline, logger=logger))
 
 
 def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> None:
     settings, pipeline, logger = app_dependencies
-    app = _build_test_app(settings, pipeline, logger)
+    payload = ParseRequest(
+        text="Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
+        mode="dialog",
+        method="sut",
+    )
 
-    with TestClient(app) as client:
-        response = client.post(
-            "/v1/parse",
-            json={
-                "text": "Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
-                "mode": "dialog",
-                "method": "sut",
-            },
-        )
+    response = _call_parse(payload, settings, pipeline, logger)
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["status"] == "success"
-    assert payload["data"]["from"] == ["AMS"]
-    assert payload["metadata"]["validation"]["status"] == "passed"
+    assert response.status == "success"
+    assert response.data["from"] == ["AMS"]
+    assert response.metadata["validation"]["status"] == "passed"
 
     with settings.csv_path.open("r", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
@@ -202,26 +194,22 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
     assert log_entry["Input"].startswith("Book a trip")
     assert log_entry["Language"] == "en"
     assert log_entry["Status"] == "success"
+    expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
+    assert log_entry["ThresholdBreached"] == expected_threshold
 
 
 def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
     settings, pipeline, logger = app_dependencies
-    app = _build_test_app(settings, pipeline, logger)
+    payload = ParseRequest(
+        text="I am looking for a trip starting on October 10 2025.",
+    )
 
-    with TestClient(app) as client:
-        response = client.post(
-            "/v1/parse",
-            json={
-                "text": "I am looking for a trip starting on October 10 2025.",
-            },
-        )
+    response = _call_parse(payload, settings, pipeline, logger)
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["status"] == "failed"
-    assert payload["metadata"]["validation"]["status"] == "failed"
-    assert payload["metadata"]["validation"]["errors"]
-    assert payload["metadata"]["validation"]["errors"][0]["message"].startswith(
+    assert response.status == "failed"
+    assert response.metadata["validation"]["status"] == "failed"
+    assert response.metadata["validation"]["errors"]
+    assert response.metadata["validation"]["errors"][0]["message"].startswith(
         "Utterance must include"
     )
 
@@ -231,4 +219,6 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     assert len(rows) == 1
     log_entry = rows[0]
     assert log_entry["Status"] == "failed"
+    expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
+    assert log_entry["ThresholdBreached"] == expected_threshold
     assert "Utterance" in log_entry["Output"]
