@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 from .extractor_rules import ExtractionResult
 
 if TYPE_CHECKING:
-    from .pipeline import SearchConfiguration
+    from .configuration import SearchConfiguration
 
 
 @dataclass
