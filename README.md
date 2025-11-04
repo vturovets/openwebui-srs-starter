@@ -76,6 +76,14 @@ uvicorn backend.app.main:app --reload
 ```
 
 The service starts on `http://127.0.0.1:8000` by default. FastAPI’s interactive docs are available at `/docs` and `/redoc`.
+To make the API reachable by Open-WebUI or other remote clients, bind to all interfaces and front it with a tunnel or reverse proxy, for example:
+
+```bash
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+ngrok http 8000
+```
+
+Use the HTTPS forwarding URL reported by your tunnel as the base URL when configuring Open-WebUI. See [`docs/ui_integration_contracts.md`](docs/ui_integration_contracts.md) for the full endpoint contracts and runtime variables to surface in the UI.
 
 Behind the scenes, the app initialises reusable settings, the holiday search pipeline, and a CSV logger through dependency injection helpers defined in [`backend/app/dependencies.py`](backend/app/dependencies.py). Each dependency uses `functools.lru_cache` so reloads remain quick while preserving deterministic behaviour during tests.
 
