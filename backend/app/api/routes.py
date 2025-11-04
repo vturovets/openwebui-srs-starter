@@ -154,6 +154,13 @@ async def parse_text(
         }
 
     stt_source = settings.stt_engine if settings.stt_engine else ("voice" if settings.voice_enabled else "text")
+    log_output: object = data_payload
+    if status == "failed":
+        log_output = {
+            "errors": validation_meta.get("errors", []),
+            "data": data_payload,
+        }
+
     log_entry = {
         "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         "Input": payload.text,
@@ -161,7 +168,7 @@ async def parse_text(
         "Method": metadata["method"],
         "STT": stt_source or "",
         "ProcessingTime": f"{total_ms:.2f}",
-        "Output": data_payload,
+        "Output": log_output,
         "Status": f"{status}|threshold" if threshold_breached else status,
     }
     logger.log(log_entry)
