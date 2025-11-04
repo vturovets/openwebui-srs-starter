@@ -46,6 +46,7 @@ def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPi
             "ProcessingTime",
             "Output",
             "Status",
+            "ThresholdBreached",
         ),
     )
     yield settings, pipeline, logger
@@ -193,6 +194,8 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
     assert log_entry["Input"].startswith("Book a trip")
     assert log_entry["Language"] == "en"
     assert log_entry["Status"] == "success"
+    expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
+    assert log_entry["ThresholdBreached"] == expected_threshold
 
 
 def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
@@ -216,4 +219,6 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     assert len(rows) == 1
     log_entry = rows[0]
     assert log_entry["Status"] == "failed"
+    expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
+    assert log_entry["ThresholdBreached"] == expected_threshold
     assert "Utterance" in log_entry["Output"]

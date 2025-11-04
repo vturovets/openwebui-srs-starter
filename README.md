@@ -184,10 +184,10 @@ Adjusting these files lets you experiment with new markets or validation constra
 CSV audit entries are appended to `CSV_PATH` on each parse request using the fixed columns:
 
 ```
-Timestamp, Input, Language, Method, STT, ProcessingTime, Output, Status
+Timestamp, Input, Language, Method, STT, ProcessingTime, Output, Status, ThresholdBreached
 ```
 
-If total processing time exceeds `PROCESSING_THRESHOLD_MS`, the `Status` column records `failed|threshold` or `success|threshold` to highlight breaches. Validation failures still produce HTTP 200 responses but carry `status="failed"` so downstream systems can react without treating them as transport errors.
+If total processing time exceeds `PROCESSING_THRESHOLD_MS`, the dedicated `ThresholdBreached` column records `true`; otherwise it records `false`. Validation failures still produce HTTP 200 responses but carry `status="failed"` so downstream systems can react without treating them as transport errors.
 
 ## Testing and quality checks
 
