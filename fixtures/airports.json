@@ -1,0 +1,28 @@
+{
+	"error": null,
+	"errorCode": 0,
+	"data": {
+		"airports": [
+			{
+				"id": "AMS",
+				"name": "Amsterdam",
+				"available": true
+			},
+			{
+				"id": "ANR",
+				"name": "Antwerp",
+				"available": true
+			},
+			{
+				"id": "OST",
+				"name": "Ostend",
+				"available": true
+			},
+			{
+				"id": "BRU",
+				"name": "Brussels",
+				"available": true
+			}
+		]
+	}
+}

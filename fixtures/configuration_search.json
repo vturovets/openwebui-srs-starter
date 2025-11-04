@@ -1,0 +1,142 @@
+{
+	"holidaySearchConfiguration": {
+		"defaults": {
+			"adults": 2,
+			"nonAdults": 0
+		},
+		"party": {
+			"maxParty": 9,
+			"maxAdults": 9,
+			"maxNonAdults": 8,
+			"infantMaxAge": 1,
+			"childrenMaxAge": 17,
+			"maxInfantPerAdult": 1,
+			"maxChildrenPerAdult": 8,
+			"minAdultsPerBooking": 1,
+			"minAdultsPerInfant": 1
+		},
+		"departureAirport": {
+			"isMultiSelectAllowed": true,
+			"maxAllowedToSelect": 10
+		},
+		"destinationList": {
+			"isMultiSelectAllowed": true,
+			"maxAllowedToSelect": 100
+		},
+		"durations": [
+                {
+                    "id": "2007",
+                    "name": "7 nights",
+                    "isDefault": true
+                },
+                {
+                    "id": "2002",
+                    "name": "2 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2010",
+                    "name": "10 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2011",
+                    "name": "11 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2012",
+                    "name": "12 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2013",
+                    "name": "13 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2014",
+                    "name": "14 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2099",
+                    "name": "More than 14 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2003",
+                    "name": "3 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2004",
+                    "name": "4 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2005",
+                    "name": "5 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2006",
+                    "name": "6 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2008",
+                    "name": "8 nights",
+                    "isDefault": false
+                },
+                {
+                    "id": "2009",
+                    "name": "9 nights",
+                    "isDefault": false
+                }
+            ],
+		"flexibility": {
+			"isFlexibleAllowed": true,
+			"flexibleList": [
+				{
+					"id": "3",
+					"name": "+- 3 days",
+					"isDefault": true
+				},
+				{
+					"id": "0",
+					"name": "Not flexible",
+					"isDefault": false
+				},
+				{
+					"id": "7",
+					"name": "+- 7 days",
+					"isDefault": false
+				},
+				{
+					"id": "14",
+					"name": "+- 14 days",
+					"isDefault": false
+				}
+			]
+		},
+		"roomsConfiguration": {
+			"autoRoomAllocationSwitch": true,
+			"villaAvailable": false,
+			"maxPaxSwitch": true,
+			"defaultNoOfRooms": 1,
+			"maxNoOfRooms": 9,
+			"singleRoom": false
+		},
+		"requiredFieldsForSearch": [
+			[
+				"from",
+				"departureDate"
+			],
+			[
+				"to",
+				"departureDate"
+			]
+		]
+	}
+}

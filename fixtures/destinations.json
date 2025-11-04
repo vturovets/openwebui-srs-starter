@@ -1,0 +1,52 @@
+{
+	"error": null,
+	"errorCode": 0,
+	"data": {
+		"countries": [
+			{
+				"id": "d7b4bb39-123d-1234-123f-1234567f",
+				"name": "France",
+				"type": "COUNTRY",
+				"multiSelect": true,
+				"fewDaysFlag": false,
+				"url": null,
+				"parentCode": null,
+				"available": true,
+				"synonym": null
+			},
+			{
+				"id": "d7b4bb39-123e-1234-123d-1234567g",
+				"name": "Greece",
+				"type": "COUNTRY",
+				"multiSelect": true,
+				"fewDaysFlag": false,
+				"url": null,
+				"parentCode": null,
+				"available": true,
+				"synonym": null
+			},
+			{
+				"id": "d7b4bb39-123c-1234-b123-1234567i",
+				"name": "Italy",
+				"type": "COUNTRY",
+				"multiSelect": true,
+				"fewDaysFlag": false,
+				"url": null,
+				"parentCode": null,
+				"available": true,
+				"synonym": null
+			},
+			{
+				"id": "d7b4bb39-123c-1234-1234-1234567s",
+				"name": "Spain",
+				"type": "COUNTRY",
+				"multiSelect": true,
+				"fewDaysFlag": false,
+				"url": null,
+				"parentCode": null,
+				"available": true,
+				"synonym": null
+			}
+		]
+	}
+}
