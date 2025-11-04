@@ -1,0 +1,40 @@
+(.venv) PS C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter> pytest
+======================================================================== test session starts ========================================================================
+platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
+rootdir: C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter
+configfile: pyproject.toml
+testpaths: backend/tests
+plugins: anyio-4.11.0
+collected 3 items / 1 error                                                                                                                                          
+
+============================================================================== ERRORS =============================================================================== 
+________________________________________________ ERROR collecting backend/tests/pipeline/test_pipeline_components.py ________________________________________________ 
+ImportError while importing test module 'C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\tests\pipeline\test_pipeline_components.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\pipeline\test_pipeline_components.py:14: in <module>
+    from backend.app.config import Settings
+backend\app\__init__.py:3: in <module>
+    from .main import app
+backend\app\main.py:7: in <module>
+    from .api import api_router
+backend\app\api\__init__.py:3: in <module>
+    from .routes import api_router
+backend\app\api\routes.py:13: in <module>
+    from ..dependencies import get_csv_logger, get_pipeline, get_settings
+backend\app\dependencies.py:10: in <module>
+    from .pipeline.pipeline import HolidaySearchPipeline
+backend\app\pipeline\__init__.py:5: in <module>
+    from .normalizer import NormalizedResult, Normalizer
+backend\app\pipeline\normalizer.py:10: in <module>
+    from .pipeline import SearchConfiguration
+backend\app\pipeline\pipeline.py:14: in <module>
+    from .normalizer import Normalizer
+E   ImportError: cannot import name 'Normalizer' from partially initialized module 'backend.app.pipeline.normalizer' (most likely due to a circular import) (C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\app\pipeline\normalizer.py)
+====================================================================== short test summary info ====================================================================== 
+ERROR backend/tests/pipeline/test_pipeline_components.py
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+========================================================================= 1 error in 1.81s ==========================================================================
