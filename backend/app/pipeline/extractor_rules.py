@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Tuple
 from dateparser.search import search_dates
 
 from ..fixtures.repository import FixtureRepository
-from .pipeline import SearchConfiguration
 
 _DATEPARSER_SETTINGS = {
     "PREFER_DATES_FROM": "future",
@@ -40,7 +39,7 @@ class RulesExtractor:
         "one week": "7 nights",
     }
 
-    def __init__(self, fixtures: FixtureRepository, configuration: SearchConfiguration) -> None:
+    def __init__(self, fixtures: FixtureRepository, configuration: "SearchConfiguration") -> None:
         self._airports_by_name = {meta["name"].lower(): meta for meta in fixtures._airports_by_id.values()}  # type: ignore[attr-defined]
         self._destinations_by_name = {
             meta["name"].lower(): meta for meta in fixtures._destinations_by_id.values()  # type: ignore[attr-defined]
