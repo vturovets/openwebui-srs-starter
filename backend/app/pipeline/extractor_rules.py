@@ -83,6 +83,8 @@ class RulesExtractor:
                 continue
             if re.fullmatch(r"\d+", cleaned):
                 continue
+            if not any(char.isdigit() for char in cleaned):
+                continue
             results.append((phrase, dt))
         return results
 

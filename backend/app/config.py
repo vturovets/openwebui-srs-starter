@@ -68,6 +68,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         extra="ignore",
+        populate_by_name=True,
     )
 
     @field_validator("allowed_langs", mode="before")
