@@ -1,55 +1,1207 @@
 (.venv) PS C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter> pytest
-======================================================================== test session starts ========================================================================
+================================================================================= test session starts =================================================================================
 platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
 rootdir: C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter
 configfile: pyproject.toml
 testpaths: backend/tests
 plugins: anyio-4.11.0
-collected 16 items                                                                                                                                                   
+collected 19 items                                                                                                                                                                     
 
-backend\tests\fixtures\test_repository.py ...                                                                                                                  [ 18%]
-backend\tests\pipeline\test_pipeline_components.py ............F                                                                                               [100%]
+backend\tests\fixtures\test_repository.py ...                                                                                                                                    [ 15%]
+backend\tests\pipeline\test_pipeline_components.py E.EEEEEEEEEEE                                                                                                                 [ 84%]
+backend\tests\test_openwebui_connector.py ...                                                                                                                                    [100%]
 
-============================================================================= FAILURES ==============================================================================
-________________________________________________________ test_parse_endpoint_failure_logs_validation_errors _________________________________________________________
+======================================================================================= ERRORS ========================================================================================
+_________________________________________________________ ERROR at setup of test_language_detector_accepts_supported_language _________________________________________________________
 
-app_dependencies = (Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('C:/Users/votu/AppData/Local/Tem...0/api-log.csv'), fieldnames=('Timestamp', 'Input', 'Language', 'Method', 'STT', 'ProcessingTime', 'Output', 'Status')))
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
 
-    def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
-        settings, pipeline, logger = app_dependencies
-        app = _build_test_app(settings, pipeline, logger)
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
 
-        with TestClient(app) as client:
-            response = client.post(
-                "/v1/parse",
-                json={
-                    "text": "I am looking for a trip starting on October 10 2025.",
-                },
-            )
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
 
-        assert response.status_code == 200
-        payload = response.json()
-        assert payload["status"] == "failed"
-        assert payload["metadata"]["validation"]["status"] == "failed"
-        assert payload["metadata"]["validation"]["errors"]
-        assert payload["metadata"]["validation"]["errors"][0]["message"].startswith(
-            "Utterance must include"
-        )
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        with settings.csv_path.open("r", encoding="utf-8") as handle:
-            rows = list(csv.DictReader(handle))
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-        assert len(rows) == 1
-        log_entry = rows[0]
-        assert log_entry["Status"] == "failed"
->       assert "Utterance" in log_entry["Output"]
-E       assert 'Utterance' in '{"language": "en", "from": [], "to": [], "departureDate": ["2025-10-09", "2025-10-13"], "durationId": "2007", "party": {"adults": 2, "nonAdults": 0}, "rooms": null}'
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
 
-backend\tests\pipeline\test_pipeline_components.py:234: AssertionError
-========================================================================= warnings summary ========================================================================== 
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_language_detector_accepts0')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+_________________________ ERROR at setup of test_extractor_recognises_entities[Need a family holiday from Amsterdam to Italy on 10 October 2025 for 7 nights] _________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_extractor_recognises_enti0')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+__________________________ ERROR at setup of test_extractor_recognises_entities[Looking to travel from Ostend to Spain around October 11 2025 for +- 3 days] __________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_extractor_recognises_enti1')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+________________________________________________________________ ERROR at setup of test_normalizer_expands_flex_window ________________________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_normalizer_expands_flex_w0')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+__________________________________________________________ ERROR at setup of test_normalizer_handles_invalid_flex_identifier __________________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_normalizer_handles_invali0')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+___________________________________________________________ ERROR at setup of test_normalizer_respects_disabled_flexibility ___________________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_normalizer_respects_disab0')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+________________________________________________________ ERROR at setup of test_normalizer_preserves_iso_for_unavailable_date _________________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_normalizer_preserves_iso_0')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+_________________________________________________________ ERROR at setup of test_validator_accepts_required_field_combination _________________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_validator_accepts_require0')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+______________________________________________________________ ERROR at setup of test_validator_requires_departure_date _______________________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_validator_requires_depart0')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+____________________________________________________ ERROR at setup of test_validator_requires_departure_or_destination_with_date _____________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_validator_requires_depart1')
+
+    @pytest.fixture()
+    def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+_______________________________________________________ ERROR at setup of test_parse_endpoint_success_logs_and_returns_payload ________________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_parse_endpoint_success_lo0')
+
+    @pytest.fixture()
+    def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "api-log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:36:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+________________________________________________________ ERROR at setup of test_parse_endpoint_failure_logs_validation_errors _________________________________________________________ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+>               field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:496:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:120: in prepare_field_value
+    raise e
+.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py:117: in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:188: in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x00000201233F03E0>, s = 'en', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: JSONDecodeError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-168/test_parse_endpoint_failure_lo0')
+
+    @pytest.fixture()
+    def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
+>       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "api-log.csv")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:36:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
+    **__pydantic_self__._settings_build_values(
+.venv\Lib\site-packages\pydantic_settings\main.py:436: in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py:106: in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = DotEnvSettingsSource(env_file='.env', env_file_encoding='utf-8', env_nested_delimiter='__', env_prefix_len=0)
+
+    def __call__(self) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+
+        for field_name, field in self.settings_cls.model_fields.items():
+            try:
+                field_value, field_key, value_is_complex = self._get_resolved_field_value(field, field_name)
+            except Exception as e:
+                raise SettingsError(
+                    f'error getting value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+
+            try:
+                field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+            except ValueError as e:
+>               raise SettingsError(
+                    f'error parsing value for field "{field_name}" from source "{self.__class__.__name__}"'
+                ) from e
+E               pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+
+.venv\Lib\site-packages\pydantic_settings\sources\base.py:498: SettingsError
+================================================================================== warnings summary =================================================================================== 
 backend\app\main.py:17
-backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload
-backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors
   C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\app\main.py:17: DeprecationWarning:
           on_event is deprecated, use lifespan event handlers instead.
 
@@ -60,10 +1212,6 @@ backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_
 
 .venv\Lib\site-packages\fastapi\applications.py:4575
 .venv\Lib\site-packages\fastapi\applications.py:4575
-backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload
-backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload
-backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors
-backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors
   C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\.venv\Lib\site-packages\fastapi\applications.py:4575: DeprecationWarning:
           on_event is deprecated, use lifespan event handlers instead.
 
@@ -73,8 +1221,6 @@ backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_
     return self.router.on_event(event_type)
 
 backend\app\main.py:22
-backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload
-backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors
   C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\app\main.py:22: DeprecationWarning:
           on_event is deprecated, use lifespan event handlers instead.
 
@@ -84,6 +1230,17 @@ backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_
     @app.on_event("shutdown")
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-====================================================================== short test summary info ====================================================================== 
-FAILED backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors - assert 'Utterance' in '{"language": "en", "from": [], "to": [], "departureDate": ["2025-10-09", "2025-10-13"], "durationId": "2007", "party": {"adults": 2, "nonA...
-============================================================= 1 failed, 15 passed, 12 warnings in 1.78s ============================================================= 
+=============================================================================== short test summary info =============================================================================== 
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_language_detector_accepts_supported_language - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_extractor_recognises_entities[Need a family holiday from Amsterdam to Italy on 10 October 2025 for 7 nights] - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_extractor_recognises_entities[Looking to travel from Ostend to Spain around October 11 2025 for +- 3 days] - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_normalizer_expands_flex_window - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_normalizer_handles_invalid_flex_identifier - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_normalizer_respects_disabled_flexibility - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_normalizer_preserves_iso_for_unavailable_date - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_validator_accepts_required_field_combination - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_validator_requires_departure_date - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_validator_requires_departure_or_destination_with_date - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+ERROR backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors - pydantic_settings.exceptions.SettingsError: error parsing value for field "allowed_langs" from source "DotEnvSettingsSource"
+====================================================================== 7 passed, 4 warnings, 12 errors in 1.25s ======================================================================= 
