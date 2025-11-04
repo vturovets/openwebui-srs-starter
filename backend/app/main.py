@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from fastapi import Depends, FastAPI
 
+from .api import api_router
 from .config import Settings
-from .dependencies import get_settings
+from .dependencies import get_pipeline, get_settings
 
 
 def create_app() -> FastAPI:
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
         # FastAPI lifespan should eventually replace this when we have more
         # resources to manage, but for now this keeps caches fresh across reloads.
         get_settings.cache_clear()  # type: ignore[attr-defined]
+        get_pipeline.cache_clear()  # type: ignore[attr-defined]
 
     @app.get("/health", tags=["health"])
     async def healthcheck(settings: Settings = Depends(get_settings)) -> dict[str, str]:
@@ -30,6 +32,8 @@ def create_app() -> FastAPI:
             "status": "ok",
             "interaction_mode": settings.interaction_mode,
         }
+
+    app.include_router(api_router)
 
     return app
 

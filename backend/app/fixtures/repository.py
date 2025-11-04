@@ -56,6 +56,16 @@ class FixtureRepository:
 
         return list(self._checkin_dates)
 
+    def list_airports(self) -> List[Dict[str, Any]]:
+        """Return metadata for all airports in the fixture set."""
+
+        return [dict(meta) for meta in self._airports_by_id.values()]
+
+    def list_destinations(self) -> List[Dict[str, Any]]:
+        """Return metadata for all destinations in the fixture set."""
+
+        return [dict(meta) for meta in self._destinations_by_id.values()]
+
     # ------------------------------------------------------------------
     # Loading and validation helpers
     # ------------------------------------------------------------------
