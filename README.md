@@ -2,6 +2,8 @@
 
 Prototype backend for the **NLP-Powered Holiday Request** project described in the accompanying Software Requirements Specification (SRS) and Software Design Description (SDD). The service exposes a FastAPI application that receives natural-language holiday requests, extracts structured search parameters, validates them against curated fixtures, and records every transaction for benchmarking.
 
+The implementation is intentionally deterministic so that teams can benchmark alternative NLP approaches against a clear baseline. The codebase is organised into a language detector, rule-based extractor, normaliser, and validator backed by configuration fixtures. Each request is timed, logged, and returned with detailed metadata to support UI instrumentation.
+
 ## Features
 
 - **Deterministic NLP pipeline** – language detection, rule-based entity extraction, normalization, and validation sequenced as defined in the SRS baseline.
@@ -14,10 +16,11 @@ Prototype backend for the **NLP-Powered Holiday Request** project described in t
 
 ```
 .
-├── backend/            # FastAPI application and NLP pipeline modules
+├── backend/
+│   ├── app/            # FastAPI application, pipeline stages, dependencies
+│   └── tests/          # Pytest coverage for fixtures, pipeline, and API
 ├── docs/               # SRS and SDD reference material
 ├── fixtures/           # Airports, destinations, dates, and configuration JSON
-├── backend/tests/      # Pytest coverage for fixtures, pipeline, and API
 ├── Makefile            # Convenience targets for linting and tests
 └── pyproject.toml      # Project metadata and dependency list
 ```
@@ -41,7 +44,7 @@ The editable install pulls both runtime and development dependencies (FastAPI, u
 
 ## Configuration
 
-Runtime settings come from environment variables or a local `.env` file at the repository root. Key options mirror the SRS:
+Runtime settings come from environment variables or a local `.env` file at the repository root. The `Settings` class in [`backend/app/config.py`](backend/app/config.py) controls the available options and ensures required directories exist before serving traffic. Key options mirror the SRS:
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -66,13 +69,15 @@ PROCESSING_THRESHOLD_MS=750
 
 ## Running the API
 
-Launch the FastAPI app with uvicorn:
+Launch the FastAPI app with uvicorn (after activating your virtual environment):
 
 ```bash
 uvicorn backend.app.main:app --reload
 ```
 
 The service starts on `http://127.0.0.1:8000` by default. FastAPI’s interactive docs are available at `/docs` and `/redoc`.
+
+Behind the scenes, the app initialises reusable settings, the holiday search pipeline, and a CSV logger through dependency injection helpers defined in [`backend/app/dependencies.py`](backend/app/dependencies.py). Each dependency uses `functools.lru_cache` so reloads remain quick while preserving deterministic behaviour during tests.
 
 ### Endpoints
 
@@ -81,6 +86,7 @@ The service starts on `http://127.0.0.1:8000` by default. FastAPI’s interactiv
 | `GET /health` | Returns `{ "status": "ok" }` plus the active interaction mode for readiness checks. |
 | `POST /v1/parse` | Core endpoint that parses a natural-language utterance and responds with structured holiday parameters, validation metadata, and timing metrics. |
 | `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, and configuration defaults so clients can pre-populate UI controls. |
+| `POST /v1/voice` | Stub endpoint that mirrors the voice-processing metadata and configuration flags exposed to the UI. |
 
 ### Sample `/v1/parse` request
 
@@ -143,9 +149,20 @@ Content-Type: application/json
 
 Values in the `timings` block are illustrative; actual measurements depend on your environment and configuration. When validation fails, `status` becomes `failed` and `metadata.validation.errors` explains the reason while still returning HTTP 200 (per the SRS requirement).
 
+## Pipeline anatomy
+
+The [`HolidaySearchPipeline`](backend/app/pipeline/pipeline.py) coordinates the deterministic stages described in the SRS:
+
+1. **Language detection** (`pipeline/language.py`) – lightweight heuristics confirm that English is supported and emit a confidence score.
+2. **Rule-based extraction** (`pipeline/extractor_rules.py`) – dictionary-driven entity detection maps airports, destinations, date phrases, durations, and flexibility references.
+3. **Normalisation** (`pipeline/normalizer.py`) – converts extracted entities into canonical IDs, expands flexible date windows against available check-in dates, and applies configuration defaults for party/rooms.
+4. **Validation** (`pipeline/validator.py`) – enforces availability, selection limits, date ranges, and required field combinations; failures are reported as `status="failed"` with HTTP 200, matching the SRS.
+
+Each `/v1/parse` call measures the time spent in every stage, adds a total, and highlights threshold breaches relative to `PROCESSING_THRESHOLD_MS`. The CSV logger in [`backend/app/logging/csv_logger.py`](backend/app/logging/csv_logger.py) records the raw input, method metadata, timings, and structured output (or validation errors) for downstream benchmarking.
+
 ## Fixtures and validation rules
 
-Fixture files in `fixtures/` contain the canonical data used during extraction and validation:
+Fixture files in `fixtures/` contain the canonical data used during extraction and validation. They are loaded by [`FixtureRepository`](backend/app/fixtures/repository.py), which eagerly validates schema expectations so mistakes surface during startup:
 
 - `airports.json` – available departure airports and availability flags.
 - `destinations.json` – supported destinations with IDs and types.
@@ -162,7 +179,7 @@ CSV audit entries are appended to `CSV_PATH` on each parse request using the fix
 Timestamp, Input, Language, Method, STT, ProcessingTime, Output, Status
 ```
 
-If total processing time exceeds `PROCESSING_THRESHOLD_MS`, the `Status` column records `failed|threshold` or `success|threshold` to highlight breaches.
+If total processing time exceeds `PROCESSING_THRESHOLD_MS`, the `Status` column records `failed|threshold` or `success|threshold` to highlight breaches. Validation failures still produce HTTP 200 responses but carry `status="failed"` so downstream systems can react without treating them as transport errors.
 
 ## Testing and quality checks
 
@@ -171,7 +188,7 @@ pytest            # run unit tests covering fixtures, pipeline, and API endpoint
 ruff check .      # linting based on the configured Ruff rules
 ```
 
-The Makefile offers shortcuts (`make test`, `make lint`) if you prefer.
+The Makefile offers shortcuts (`make test`, `make lint`) if you prefer. Continuous integration should run both commands to preserve deterministic behaviour across fixtures, configuration, and API contracts.
 
 ## Further reading
 
