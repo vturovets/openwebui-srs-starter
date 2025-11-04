@@ -7,8 +7,8 @@ testpaths: backend/tests
 plugins: anyio-4.11.0
 collected 3 items / 1 error                                                                                                                                          
 
-============================================================================== ERRORS =============================================================================== 
-________________________________________________ ERROR collecting backend/tests/pipeline/test_pipeline_components.py ________________________________________________ 
+============================================================================== ERRORS ===============================================================================
+________________________________________________ ERROR collecting backend/tests/pipeline/test_pipeline_components.py ________________________________________________
 ImportError while importing test module 'C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\tests\pipeline\test_pipeline_components.py'.
 Hint: make sure your test modules/packages have valid Python names.
 Traceback:
@@ -27,14 +27,14 @@ backend\app\api\routes.py:13: in <module>
     from ..dependencies import get_csv_logger, get_pipeline, get_settings
 backend\app\dependencies.py:10: in <module>
     from .pipeline.pipeline import HolidaySearchPipeline
-backend\app\pipeline\__init__.py:5: in <module>
-    from .normalizer import NormalizedResult, Normalizer
-backend\app\pipeline\normalizer.py:10: in <module>
+backend\app\pipeline\__init__.py:6: in <module>
+    from .validator import ValidationError, Validator
+backend\app\pipeline\validator.py:9: in <module>
     from .pipeline import SearchConfiguration
-backend\app\pipeline\pipeline.py:14: in <module>
-    from .normalizer import Normalizer
-E   ImportError: cannot import name 'Normalizer' from partially initialized module 'backend.app.pipeline.normalizer' (most likely due to a circular import) (C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\app\pipeline\normalizer.py)
+backend\app\pipeline\pipeline.py:15: in <module>
+    from .validator import Validator
+E   ImportError: cannot import name 'Validator' from partially initialized module 'backend.app.pipeline.validator' (most likely due to a circular import) (C:\Users\votu\Documents\!Projects\TUI\!Northstar\AI\openwebui-srs-starter\backend\app\pipeline\validator.py)
 ====================================================================== short test summary info ====================================================================== 
 ERROR backend/tests/pipeline/test_pipeline_components.py
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-========================================================================= 1 error in 1.81s ==========================================================================
+========================================================================= 1 error in 1.34s ========================================================================== 
