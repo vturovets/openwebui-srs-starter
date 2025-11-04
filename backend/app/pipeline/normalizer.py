@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from .extractor_rules import ExtractionResult
-from .pipeline import SearchConfiguration
+
+if TYPE_CHECKING:
+    from .configuration import SearchConfiguration
 
 
 @dataclass

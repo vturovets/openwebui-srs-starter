@@ -2,9 +2,10 @@
 
 from .language import LanguageDetector
 from .extractor_rules import ExtractionResult, RulesExtractor
+from .configuration import SearchConfiguration
 from .normalizer import NormalizedResult, Normalizer
 from .validator import ValidationError, Validator
-from .pipeline import HolidaySearchPipeline, SearchConfiguration
+from .pipeline import HolidaySearchPipeline
 
 __all__ = [
     "LanguageDetector",

@@ -6,7 +6,7 @@ from datetime import datetime
 
 from ..fixtures.repository import FixtureRepository
 from .normalizer import NormalizedResult
-from .pipeline import SearchConfiguration
+from .configuration import SearchConfiguration
 
 
 class ValidationError(ValueError):
