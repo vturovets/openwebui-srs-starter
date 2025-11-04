@@ -49,7 +49,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -70,14 +70,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_language_detector_accepts0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_language_detector_accepts0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -148,7 +148,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -169,14 +169,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_extractor_recognises_enti0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_extractor_recognises_enti0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -247,7 +247,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -268,14 +268,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_extractor_recognises_enti1')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_extractor_recognises_enti1')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -346,7 +346,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -367,14 +367,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_normalizer_expands_flex_w0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_normalizer_expands_flex_w0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -445,7 +445,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -466,14 +466,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_normalizer_handles_invali0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_normalizer_handles_invali0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -544,7 +544,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -565,14 +565,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_normalizer_respects_disab0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_normalizer_respects_disab0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -643,7 +643,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -664,14 +664,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_normalizer_preserves_iso_0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_normalizer_preserves_iso_0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -742,7 +742,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -763,14 +763,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_validator_accepts_require0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_validator_accepts_require0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -841,7 +841,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -862,14 +862,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_validator_requires_depart0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_validator_requires_depart0')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -940,7 +940,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -961,14 +961,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_validator_requires_depart1')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_validator_requires_depart1')
 
     @pytest.fixture()
     def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:30:
+backend\tests\pipeline\test_pipeline_components.py:31:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -1039,7 +1039,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: i
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -1060,14 +1060,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_parse_endpoint_success_lo0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_parse_endpoint_success_lo0')
 
     @pytest.fixture()
     def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "api-log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:36:
+backend\tests\pipeline\test_pipeline_components.py:37:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
@@ -1136,9 +1136,9 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: 
 C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:337: in decode
     obj, end = self.raw_decode(s, idx=_w(s, 0).end())
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.decoder.JSONDecoder object at 0x000001FD7C7503E0>, s = 'en', idx = 0
+self = <json.decoder.JSONDecoder object at 0x00000208D1A003E0>, s = 'en', idx = 0
 
     def raw_decode(self, s, idx=0):
         """Decode a JSON document from ``s`` (a ``str`` beginning with
@@ -1159,14 +1159,14 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:355: J
 
 The above exception was the direct cause of the following exception:
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-170/test_parse_endpoint_failure_lo0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-172/test_parse_endpoint_failure_lo0')
 
     @pytest.fixture()
     def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
 >       settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "api-log.csv")
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\pipeline\test_pipeline_components.py:36:
+backend\tests\pipeline\test_pipeline_components.py:37:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 .venv\Lib\site-packages\pydantic_settings\main.py:194: in __init__
     **__pydantic_self__._settings_build_values(
