@@ -49,6 +49,7 @@ def get_csv_logger() -> CSVLogger:
             "ProcessingTime",
             "Output",
             "Status",
+            "ThresholdBreached",
         ),
     )
 
