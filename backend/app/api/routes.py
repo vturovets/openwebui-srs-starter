@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from time import perf_counter
 
 from datetime import datetime, timezone
@@ -154,12 +155,14 @@ async def parse_text(
         }
 
     stt_source = settings.stt_engine if settings.stt_engine else ("voice" if settings.voice_enabled else "text")
-    log_output: object = data_payload
-    if status == "failed":
-        log_output = {
-            "errors": validation_meta.get("errors", []),
-            "data": data_payload,
-        }
+    log_output: dict[str, object] = {
+        "status": status,
+        "data": data_payload,
+        "validation": validation_meta,
+    }
+    if status == "error" and error_detail:
+        log_output["error"] = error_detail
+    output_serialised = json.dumps(log_output, ensure_ascii=False)
 
     log_entry = {
         "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
@@ -168,8 +171,9 @@ async def parse_text(
         "Method": metadata["method"],
         "STT": stt_source or "",
         "ProcessingTime": f"{total_ms:.2f}",
-        "Output": log_output,
-        "Status": f"{status}|threshold" if threshold_breached else status,
+        "Output": output_serialised,
+        "Status": status,
+        "ThresholdBreached": "true" if threshold_breached else "false",
     }
     logger.log(log_entry)
 
