@@ -8,57 +8,12 @@ plugins: anyio-4.11.0
 collected 16 items                                                                                                                                                   
 
 backend\tests\fixtures\test_repository.py ...                                                                                                                  [ 18%]
-backend\tests\pipeline\test_pipeline_components.py .........F.FF                                                                                               [100%]
+backend\tests\pipeline\test_pipeline_components.py ............F                                                                                               [100%]
 
 ============================================================================= FAILURES ==============================================================================
-______________________________________________________________ test_validator_requires_departure_date _______________________________________________________________
+________________________________________________________ test_parse_endpoint_failure_logs_validation_errors _________________________________________________________
 
-pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x00000187F8900260>
-
-    def test_validator_requires_departure_date(pipeline: HolidaySearchPipeline) -> None:
-        utterance = "I am looking for a trip departing from Amsterdam or Ostend to Spain or Italy."
-        extraction = pipeline.extractor.extract(utterance)
-        normalized = pipeline.normalizer.normalize("en", extraction)
-
->       with pytest.raises(ValidationError) as exc:
-E       Failed: DID NOT RAISE <class 'backend.app.pipeline.validator.ValidationError'>
-
-backend\tests\pipeline\test_pipeline_components.py:148: Failed
-_______________________________________________________ test_parse_endpoint_success_logs_and_returns_payload ________________________________________________________ 
-
-app_dependencies = (Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('data/log.csv'), llm_method=None...'data/log.csv'), fieldnames=('Timestamp', 'Input', 'Language', 'Method', 'STT', 'ProcessingTime', 'Output', 'Status')))
-
-    def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> None:
-        settings, pipeline, logger = app_dependencies
-        app = _build_test_app(settings, pipeline, logger)
-
-        with TestClient(app) as client:
-            response = client.post(
-                "/v1/parse",
-                json={
-                    "text": "Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
-                    "mode": "dialog",
-                    "method": "sut",
-                },
-            )
-
-        assert response.status_code == 200
-        payload = response.json()
-        assert payload["status"] == "success"
-        assert payload["data"]["from"] == ["AMS"]
-        assert payload["metadata"]["validation"]["status"] == "passed"
-
-        with settings.csv_path.open("r", encoding="utf-8") as handle:
-            rows = list(csv.DictReader(handle))
-
->       assert len(rows) == 1
-E       assert 3 == 1
-E        +  where 3 = len([{'Input': 'Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights', 'Language': 'en', 'Method': 'sut', '...te": ["2025-11-03", "2025-11-09"], "durationId": "2007", "party": {"adults": 2, "nonAdults": 0}, "rooms": null}', ...}])
-
-backend\tests\pipeline\test_pipeline_components.py:200: AssertionError
-________________________________________________________ test_parse_endpoint_failure_logs_validation_errors _________________________________________________________ 
-
-app_dependencies = (Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('data/log.csv'), llm_method=None...'data/log.csv'), fieldnames=('Timestamp', 'Input', 'Language', 'Method', 'STT', 'ProcessingTime', 'Output', 'Status')))
+app_dependencies = (Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('C:/Users/votu/AppData/Local/Tem...0/api-log.csv'), fieldnames=('Timestamp', 'Input', 'Language', 'Method', 'STT', 'ProcessingTime', 'Output', 'Status')))
 
     def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
         settings, pipeline, logger = app_dependencies
@@ -84,11 +39,13 @@ app_dependencies = (Settings(interaction_mode='direct-parse', allowed_langs=['en
         with settings.csv_path.open("r", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
 
->       assert len(rows) == 1
-E       assert 4 == 1
-E        +  where 4 = len([{'Input': 'Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights', 'Language': 'en', 'Method': 'sut', '...te": ["2025-10-09", "2025-10-13"], "durationId": "2007", "party": {"adults": 2, "nonAdults": 0}, "rooms": null}', ...}])
+        assert len(rows) == 1
+        log_entry = rows[0]
+        assert log_entry["Status"] == "failed"
+>       assert "Utterance" in log_entry["Output"]
+E       assert 'Utterance' in '{"language": "en", "from": [], "to": [], "departureDate": ["2025-10-09", "2025-10-13"], "durationId": "2007", "party": {"adults": 2, "nonAdults": 0}, "rooms": null}'
 
-backend\tests\pipeline\test_pipeline_components.py:231: AssertionError
+backend\tests\pipeline\test_pipeline_components.py:234: AssertionError
 ========================================================================= warnings summary ========================================================================== 
 backend\app\main.py:17
 backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload
@@ -128,7 +85,5 @@ backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 ====================================================================== short test summary info ====================================================================== 
-FAILED backend/tests/pipeline/test_pipeline_components.py::test_validator_requires_departure_date - Failed: DID NOT RAISE <class 'backend.app.pipeline.validator.ValidationError'>
-FAILED backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_success_logs_and_returns_payload - assert 3 == 1
-FAILED backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors - assert 4 == 1
-============================================================= 3 failed, 13 passed, 12 warnings in 1.78s ============================================================= 
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors - assert 'Utterance' in '{"language": "en", "from": [], "to": [], "departureDate": ["2025-10-09", "2025-10-13"], "durationId": "2007", "party": {"adults": 2, "nonA...
+============================================================= 1 failed, 15 passed, 12 warnings in 1.78s ============================================================= 
