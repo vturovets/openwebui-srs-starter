@@ -5,7 +5,8 @@ from .extractor_rules import ExtractionResult, RulesExtractor
 from .configuration import SearchConfiguration
 from .normalizer import NormalizedResult, Normalizer
 from .validator import ValidationError, Validator
-from .pipeline import HolidaySearchPipeline
+from .pipeline import HolidaySearchPipeline, PipelineRunResult
+from .extractors import HybridExtractor, LLMExtractor
 
 __all__ = [
     "LanguageDetector",
@@ -16,5 +17,8 @@ __all__ = [
     "ValidationError",
     "Validator",
     "HolidaySearchPipeline",
+    "PipelineRunResult",
     "SearchConfiguration",
+    "HybridExtractor",
+    "LLMExtractor",
 ]

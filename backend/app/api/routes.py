@@ -14,7 +14,6 @@ from ..config import Settings
 from ..dependencies import get_csv_logger, get_pipeline, get_settings
 from ..logging.csv_logger import CSVLogger
 from ..pipeline.pipeline import HolidaySearchPipeline
-from ..pipeline.validator import ValidationError
 
 api_router = APIRouter(prefix="/v1", tags=["v1"])
 
@@ -48,16 +47,6 @@ class ParseResponse(BaseModel):
     status: str
     data: dict[str, object]
     metadata: dict[str, object]
-
-
-def _measure(label: str, timings: dict[str, float], func):
-    start = perf_counter()
-    try:
-        return func()
-    finally:
-        timings[label] = (perf_counter() - start) * 1000
-
-
 @api_router.post("/parse", response_model=ParseResponse)
 async def parse_text(
     payload: ParseRequest,
@@ -67,87 +56,50 @@ async def parse_text(
 ) -> ParseResponse:
     """Run the NLP pipeline and expose timings plus validation metadata."""
 
-    total_start = perf_counter()
-    timings: dict[str, float] = {}
+    result = pipeline.run(payload.text, method=payload.method)
 
-    detection = None
-    extraction = None
-    normalized = None
-    validation_meta: dict[str, object] = {"status": "passed", "errors": []}
-    status = "success"
-    error_detail: str | None = None
-    http_error: HTTPException | None = None
-
-    try:
-        detection = _measure(
-            "languageMs",
-            timings,
-            lambda: pipeline.language_detector.detect(payload.text),
-        )
-        extraction = _measure(
-            "extractionMs",
-            timings,
-            lambda: pipeline.extractor.extract(payload.text),
-        )
-        normalized = _measure(
-            "normalizationMs",
-            timings,
-            lambda: pipeline.normalizer.normalize(detection.language, extraction),
-        )
-        _measure("validationMs", timings, lambda: pipeline.validator.validate(normalized))
-    except ValidationError as exc:  # validation failures are reported as successful HTTP responses
-        status = "failed"
-        validation_meta = {
-            "status": "failed",
-            "errors": [
-                {
-                    "message": str(exc),
-                }
-            ],
-        }
-    except ValueError as exc:
-        error_detail = str(exc)
-        status = "error"
-        validation_meta = {
-            "status": "error",
-            "errors": [
-                {
-                    "message": error_detail,
-                }
-            ],
-        }
-        http_error = HTTPException(status_code=400, detail=error_detail)
-
-    total_ms = (perf_counter() - total_start) * 1000
-    timings["totalMs"] = total_ms
+    timings = dict(result.timings)
+    total_ms = timings.get("totalMs", 0.0)
     threshold_ms = settings.processing_threshold_ms
     threshold_breached = total_ms > threshold_ms
     timings["thresholdBreached"] = threshold_breached
 
+    status = result.status
+    error_detail = result.error
+
     data_payload: dict[str, object] = {}
-    if normalized is not None and status != "error":
-        data_payload = normalized.to_payload()
+    if result.normalized is not None and status != "error":
+        data_payload = result.normalized.to_payload()
     elif status == "error" and error_detail:
         data_payload = {"error": error_detail}
 
     metadata: dict[str, object] = {
         "mode": payload.mode or settings.interaction_mode,
-        "method": payload.method or settings.llm_method,
+        "method": result.method_used,
+        "requestedMethod": result.method_requested,
         "timings": timings,
-        "validation": validation_meta,
+        "validation": result.validation,
     }
 
+    if result.metadata.get("hybrid"):
+        metadata["hybrid"] = result.metadata["hybrid"]
+    if result.attempts:
+        metadata["attempts"] = result.attempts
+
+    extraction = result.extraction
     if extraction is not None:
         metadata["recognized"] = {
-            "airports": extraction.airports,
-            "destinations": extraction.destinations,
-            "duration": extraction.duration,
-            "flexibility": extraction.flexibility,
+            "airports": getattr(extraction, "airports", []),
+            "destinations": getattr(extraction, "destinations", []),
+            "duration": getattr(extraction, "duration", None),
+            "flexibility": getattr(extraction, "flexibility", None),
             "dates": [
-                {"phrase": phrase, "iso": dt.isoformat()} for phrase, dt in extraction.dates
+                {"phrase": phrase, "iso": dt.isoformat()}
+                for phrase, dt in getattr(extraction, "dates", [])
             ],
         }
 
+    detection = result.detection
     if detection is not None:
         metadata["language"] = {
             "code": detection.language,
@@ -158,7 +110,7 @@ async def parse_text(
     log_output: dict[str, object] = {
         "status": status,
         "data": data_payload,
-        "validation": validation_meta,
+        "validation": result.validation,
     }
     if status == "error" and error_detail:
         log_output["error"] = error_detail
@@ -168,7 +120,7 @@ async def parse_text(
         "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         "Input": payload.text,
         "Language": detection.language if detection is not None else "",
-        "Method": metadata["method"],
+        "Method": result.method_used,
         "STT": stt_source or "",
         "ProcessingTime": f"{total_ms:.2f}",
         "Output": output_serialised,
@@ -177,8 +129,8 @@ async def parse_text(
     }
     logger.log(log_entry)
 
-    if http_error is not None:
-        raise http_error
+    if status == "error" and error_detail:
+        raise HTTPException(status_code=400, detail=error_detail)
 
     return ParseResponse(status=status, data=data_payload, metadata=metadata)
 
