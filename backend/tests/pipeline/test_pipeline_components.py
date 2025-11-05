@@ -16,6 +16,7 @@ from backend.app.config import Settings
 from backend.app.logging.csv_logger import CSVLogger
 from backend.app.api.routes import ParseRequest, parse_text
 from backend.app.pipeline.extractor_rules import ExtractionResult
+from backend.app.pipeline import language as language_module
 from backend.app.pipeline.language import LanguageDetector
 from backend.app.pipeline.normalizer import Normalizer
 from backend.app.pipeline.pipeline import HolidaySearchPipeline, SearchConfiguration
@@ -28,13 +29,21 @@ FIXTURES_DIR = REPO_ROOT / "fixtures"
 
 @pytest.fixture()
 def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
-    settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "log.csv")
+    settings = Settings(
+        fixtures_dir=FIXTURES_DIR,
+        csv_path=tmp_path / "log.csv",
+        allowed_langs=["en", "nl", "fr"],
+    )
     return HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
 
 
 @pytest.fixture()
 def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
-    settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "api-log.csv")
+    settings = Settings(
+        fixtures_dir=FIXTURES_DIR,
+        csv_path=tmp_path / "api-log.csv",
+        allowed_langs=["en", "nl", "fr"],
+    )
     pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
     logger = CSVLogger(
         path=settings.csv_path,
@@ -60,6 +69,16 @@ def test_language_detector_accepts_supported_language(pipeline: HolidaySearchPip
     assert detection.confidence >= 0.5
 
 
+def test_language_detector_handles_dutch_and_french(pipeline: HolidaySearchPipeline) -> None:
+    dutch = pipeline.language_detector.detect("Ik zoek een vakantie naar Spanje in oktober.")
+    french = pipeline.language_detector.detect("Je cherche des vacances en Italie en octobre.")
+
+    assert dutch.language == "nl"
+    assert french.language == "fr"
+    assert dutch.confidence > 0.0
+    assert french.confidence > 0.0
+
+
 def test_language_detector_disallows_missing_english() -> None:
     detector = LanguageDetector(["es"])
 
@@ -67,22 +86,92 @@ def test_language_detector_disallows_missing_english() -> None:
         detector.detect("Looking for a holiday in Spain")
 
 
+def test_language_detector_rejects_disallowed_language() -> None:
+    detector = LanguageDetector(["en", "nl"])
+
+    with pytest.raises(ValueError):
+        detector.detect("Je voudrais des vacances en Italie")
+
+
+def test_language_detector_recovers_from_misclassified_lang(monkeypatch) -> None:
+    class Candidate:
+        def __init__(self, lang: str, prob: float) -> None:
+            self.lang = lang
+            self.prob = prob
+
+    detector = LanguageDetector(["en", "nl"])
+
+    def fake_detect_langs(_: str):
+        return [Candidate("sv", 0.95)]
+
+    monkeypatch.setattr(language_module, "detect_langs", fake_detect_langs)
+    detector._langdetect_available = True
+
+    detection = detector.detect("The holiday trip is missing data")
+
+    assert detection.language == "en"
+    assert detection.confidence > 0.0
+
+
 @pytest.mark.parametrize(
-    "utterance",
+    (
+        "utterance",
+        "language",
+        "expected_airports",
+        "expected_destinations",
+        "expected_duration",
+        "expected_flex",
+    ),
     [
-        "Need a family holiday from Amsterdam to Italy on 10 October 2025 for 7 nights",
-        "Looking to travel from Ostend to Spain around October 11 2025 for +- 3 days",
+        (
+            "Need a family holiday from Amsterdam to Italy on 10 October 2025 for 7 nights",
+            "en",
+            {"AMS"},
+            {"d7b4bb39-123c-1234-b123-1234567i"},
+            "2007",
+            None,
+        ),
+        (
+            "Ik zoek een vakantie vanuit Amsterdam naar Spanje op 10 oktober 2025 voor 7 nachten met +- 3 dagen flexibiliteit.",
+            "nl",
+            {"AMS"},
+            {"d7b4bb39-123c-1234-1234-1234567s"},
+            "2007",
+            "3",
+        ),
+        (
+            "Je cherche des vacances au départ de Ostende vers l'Italie le 10 octobre 2025 pour 7 nuits avec +- 3 jours de flexibilité.",
+            "fr",
+            {"OST"},
+            {"d7b4bb39-123c-1234-b123-1234567i"},
+            "2007",
+            "3",
+        ),
     ],
 )
-def test_extractor_recognises_entities(pipeline: HolidaySearchPipeline, utterance: str) -> None:
-    extraction = pipeline.extractor.extract(utterance)
+def test_extractor_recognises_entities(
+    pipeline: HolidaySearchPipeline,
+    utterance: str,
+    language: str,
+    expected_airports: set[str],
+    expected_destinations: set[str],
+    expected_duration: str | None,
+    expected_flex: str | None,
+) -> None:
+    extraction = pipeline.extractor.extract(utterance, language=language)
 
-    assert {airport["id"] for airport in extraction.airports} <= {"AMS", "OST"}
-    assert {destination["id"] for destination in extraction.destinations} <= {
-        "d7b4bb39-123c-1234-b123-1234567i",
-        "d7b4bb39-123c-1234-1234-1234567s",
-    }
-    assert extraction.duration is None or extraction.duration["id"] in {"2007", "2003", "2008"}
+    assert {airport["id"] for airport in extraction.airports} == expected_airports
+    assert {destination["id"] for destination in extraction.destinations} == expected_destinations
+    if expected_duration is None:
+        assert extraction.duration is None
+    else:
+        assert extraction.duration is not None
+        assert extraction.duration["id"] == expected_duration
+    if expected_flex is None:
+        assert extraction.flexibility is None
+    else:
+        assert extraction.flexibility is not None
+        assert extraction.flexibility["id"] == expected_flex
     assert extraction.has_dates()
 
 
@@ -136,7 +225,7 @@ def test_normalizer_preserves_iso_for_unavailable_date(pipeline: HolidaySearchPi
 
 def test_validator_accepts_required_field_combination(pipeline: HolidaySearchPipeline) -> None:
     utterance = "Plan a trip from Amsterdam to Spain on 10 October 2025 for a week"
-    extraction = pipeline.extractor.extract(utterance)
+    extraction = pipeline.extractor.extract(utterance, language="en")
     normalized = pipeline.normalizer.normalize("en", extraction)
 
     pipeline.validator.validate(normalized)
@@ -144,7 +233,7 @@ def test_validator_accepts_required_field_combination(pipeline: HolidaySearchPip
 
 def test_validator_requires_departure_date(pipeline: HolidaySearchPipeline) -> None:
     utterance = "I am looking for a trip departing from Amsterdam or Ostend to Spain or Italy."
-    extraction = pipeline.extractor.extract(utterance)
+    extraction = pipeline.extractor.extract(utterance, language="en")
     normalized = pipeline.normalizer.normalize("en", extraction)
 
     with pytest.raises(ValidationError) as exc:
@@ -155,7 +244,7 @@ def test_validator_requires_departure_date(pipeline: HolidaySearchPipeline) -> N
 
 def test_validator_requires_departure_or_destination_with_date(pipeline: HolidaySearchPipeline) -> None:
     utterance = "I am looking for a trip starting on October 10 2025."
-    extraction = pipeline.extractor.extract(utterance)
+    extraction = pipeline.extractor.extract(utterance, language="en")
     normalized = pipeline.normalizer.normalize("en", extraction)
 
     with pytest.raises(ValidationError) as exc:
@@ -199,6 +288,30 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
     assert log_entry["ThresholdBreached"] == expected_threshold
 
 
+def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
+    settings, pipeline, logger = app_dependencies
+    payload = ParseRequest(
+        text=(
+            "Je cherche des vacances au départ de Ostende vers l'Italie le 10 octobre 2025 "
+            "pour 7 nuits avec +- 3 jours de flexibilité."
+        ),
+        mode="dialog",
+    )
+
+    response = _call_parse(payload, settings, pipeline, logger)
+
+    assert response.status == "success"
+    assert response.data["language"] == "fr"
+    assert response.metadata["language"]["code"] == "fr"
+
+    with settings.csv_path.open("r", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert len(rows) == 1
+    log_entry = rows[0]
+    assert log_entry["Language"] == "fr"
+    parsed_output = json.loads(log_entry["Output"])
+    assert parsed_output["status"] == "success"
 def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
     settings, pipeline, logger = app_dependencies
     payload = ParseRequest(

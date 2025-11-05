@@ -1,0 +1,67 @@
+{
+  "airports": [
+    {
+      "target": "AMS",
+      "values": [
+        {"lang": "nl", "value": "amsterdam"},
+        {"lang": "nl", "value": "luchthaven schiphol"},
+        {"lang": "fr", "value": "amsterdam"},
+        {"lang": "fr", "value": "aéroport d'amsterdam"}
+      ]
+    },
+    {
+      "target": "OST",
+      "values": [
+        {"lang": "nl", "value": "oostende"},
+        {"lang": "nl", "value": "ostende"},
+        {"lang": "fr", "value": "ostende"}
+      ]
+    }
+  ],
+  "destinations": [
+    {
+      "target": "d7b4bb39-123c-1234-b123-1234567i",
+      "values": [
+        {"lang": "nl", "value": "italie"},
+        {"lang": "nl", "value": "italië"},
+        {"lang": "fr", "value": "italie"}
+      ]
+    },
+    {
+      "target": "d7b4bb39-123c-1234-1234-1234567s",
+      "values": [
+        {"lang": "nl", "value": "spanje"},
+        {"lang": "fr", "value": "espagne"}
+      ]
+    }
+  ],
+  "durations": [
+    {
+      "target": "7 nights",
+      "values": [
+        {"lang": "nl", "value": "7 nachten"},
+        {"lang": "nl", "value": "zeven nachten"},
+        {"lang": "nl", "value": "een week"},
+        {"lang": "fr", "value": "7 nuits"},
+        {"lang": "fr", "value": "sept nuits"},
+        {"lang": "fr", "value": "une semaine"}
+      ]
+    }
+  ],
+  "flexibility": [
+    {
+      "target": "+- 3 days",
+      "values": [
+        {"lang": "nl", "value": "+- 3 dagen"},
+        {"lang": "fr", "value": "+- 3 jours"}
+      ]
+    },
+    {
+      "target": "Not flexible",
+      "values": [
+        {"lang": "nl", "value": "niet flexibel"},
+        {"lang": "fr", "value": "non flexible"}
+      ]
+    }
+  ]
+}

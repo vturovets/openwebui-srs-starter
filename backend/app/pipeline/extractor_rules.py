@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Mapping, Optional, Tuple
 
 from dateparser.search import search_dates
 
@@ -40,38 +40,114 @@ class RulesExtractor:
     }
 
     def __init__(self, fixtures: FixtureRepository, configuration: "SearchConfiguration") -> None:
-        self._airports_by_name = {meta["name"].lower(): meta for meta in fixtures._airports_by_id.values()}  # type: ignore[attr-defined]
-        self._destinations_by_name = {
-            meta["name"].lower(): meta for meta in fixtures._destinations_by_id.values()  # type: ignore[attr-defined]
-        }
+        airports_base: Dict[str, Dict[str, object]] = {}
+        for meta in fixtures.list_airports():
+            airports_base[meta["name"].lower()] = dict(meta)
 
-        self._duration_lookup = configuration.duration_by_name
-        self._flex_lookup = configuration.flex_by_name
+        destinations_base: Dict[str, Dict[str, object]] = {}
+        for meta in fixtures.list_destinations():
+            destinations_base[meta["name"].lower()] = dict(meta)
+
+        synonyms = fixtures.locale_synonyms()
+
+        self._airports_lookup = self._build_entity_lookup(
+            airports_base,
+            synonyms.get("airports", {}),
+            resolver=fixtures.get_airport_by_id,
+        )
+        self._destinations_lookup = self._build_entity_lookup(
+            destinations_base,
+            synonyms.get("destinations", {}),
+            resolver=fixtures.get_destination_by_id,
+        )
+
+        duration_base = {name: dict(entry) for name, entry in configuration.duration_by_name.items()}
+        flex_base = {name: dict(entry) for name, entry in configuration.flex_by_name.items()}
+
+        self._duration_lookup_by_language = self._build_value_lookup(
+            duration_base,
+            synonyms.get("durations", {}),
+        )
+        self._flex_lookup_by_language = self._build_value_lookup(
+            flex_base,
+            synonyms.get("flexibility", {}),
+        )
+
+        # Augment English duration lookups with additional aliases.
+        duration_en = self._duration_lookup_by_language.setdefault("en", dict(duration_base))
+        for alias, target in self._DURATION_EXTRA_ALIASES.items():
+            target_key = target.lower()
+            if target_key in duration_base:
+                duration_en[alias.lower()] = duration_base[target_key]
+
+    def _build_entity_lookup(
+        self,
+        base: Dict[str, Dict[str, object]],
+        synonyms: Dict[str, Dict[str, str]],
+        *,
+        resolver: Callable[[str], Mapping[str, object]],
+    ) -> Dict[str, Dict[str, Dict[str, object]]]:
+        base_lookup = {name: dict(meta) for name, meta in base.items()}
+        lookups: Dict[str, Dict[str, Dict[str, object]]] = {"en": base_lookup}
+
+        for language, mapping in synonyms.items():
+            normalized_lang = language.lower()
+            lang_lookup = dict(base_lookup)
+            for alias, target in mapping.items():
+                try:
+                    resolved = resolver(target)
+                except KeyError:
+                    continue
+                lang_lookup[alias.lower()] = dict(resolved)
+            lookups[normalized_lang] = lang_lookup
+
+        return lookups
+
+    def _build_value_lookup(
+        self,
+        base: Dict[str, Dict[str, object]],
+        synonyms: Dict[str, Dict[str, str]],
+    ) -> Dict[str, Dict[str, Dict[str, object]]]:
+        base_lookup = {name.lower(): dict(meta) for name, meta in base.items()}
+        lookups: Dict[str, Dict[str, Dict[str, object]]] = {"en": dict(base_lookup)}
+
+        for language, mapping in synonyms.items():
+            normalized_lang = language.lower()
+            lang_lookup = dict(base_lookup)
+            for alias, target in mapping.items():
+                entry = base_lookup.get(target.lower())
+                if entry is None:
+                    continue
+                lang_lookup[alias.lower()] = entry
+            lookups[normalized_lang] = lang_lookup
+
+        return lookups
 
     def _match_named_entities(self, lookup: Dict[str, Dict[str, object]], text: str) -> List[Dict[str, object]]:
-        matches: List[Dict[str, object]] = []
+        matches: Dict[str, Dict[str, object]] = {}
         for name, meta in lookup.items():
             pattern = r"\b" + re.escape(name) + r"\b"
             if re.search(pattern, text, flags=re.IGNORECASE):
-                matches.append(meta)
-        return matches
+                identifier = str(meta.get("id", ""))
+                key = identifier or name
+                if key not in matches:
+                    matches[key] = dict(meta)
+        return list(matches.values())
 
-    def _extract_duration(self, text: str) -> Optional[Dict[str, object]]:
+    def _extract_duration(self, text: str, language: str) -> Optional[Dict[str, object]]:
         lowered = text.lower()
-        for alias, target in self._DURATION_EXTRA_ALIASES.items():
-            if alias in lowered and target in self._duration_lookup:
-                return self._duration_lookup[target]
-
-        for name, entry in self._duration_lookup.items():
+        lookup = self._duration_lookup_by_language.get(language, self._duration_lookup_by_language["en"])
+        for name, entry in lookup.items():
             if name in lowered:
-                return entry
+                return dict(entry)
         return None
 
-    def _extract_flexibility(self, text: str) -> Optional[Dict[str, object]]:
+    def _extract_flexibility(self, text: str, language: str) -> Optional[Dict[str, object]]:
         lowered = text.lower()
-        for name, entry in self._flex_lookup.items():
+        lookup = self._flex_lookup_by_language.get(language, self._flex_lookup_by_language["en"])
+        for name, entry in lookup.items():
             if name in lowered:
-                return entry
+                return dict(entry)
         return None
 
     def _extract_dates(self, text: str) -> List[Tuple[str, datetime]]:
@@ -88,15 +164,19 @@ class RulesExtractor:
             results.append((phrase, dt))
         return results
 
-    def extract(self, utterance: str) -> ExtractionResult:
+    def extract(self, utterance: str, *, language: str = "en") -> ExtractionResult:
         if not isinstance(utterance, str) or not utterance.strip():
             raise ValueError("Utterance must be a non-empty string for extraction")
         lowered = utterance.lower()
+        language_key = (language or "en").lower()
 
-        airports = self._match_named_entities(self._airports_by_name, lowered)
-        destinations = self._match_named_entities(self._destinations_by_name, lowered)
-        duration = self._extract_duration(utterance)
-        flexibility = self._extract_flexibility(utterance)
+        airport_lookup = self._airports_lookup.get(language_key, self._airports_lookup["en"])
+        destination_lookup = self._destinations_lookup.get(language_key, self._destinations_lookup["en"])
+
+        airports = self._match_named_entities(airport_lookup, lowered)
+        destinations = self._match_named_entities(destination_lookup, lowered)
+        duration = self._extract_duration(utterance, language_key)
+        flexibility = self._extract_flexibility(utterance, language_key)
         dates = self._extract_dates(utterance)
 
         return ExtractionResult(
