@@ -52,8 +52,11 @@ Runtime settings come from environment variables or a local `.env` file at the r
 | `ALLOWED_LANGS` | `en` | Comma-separated ISO language codes accepted by the language detector (v1 ships with English only). |
 | `CSV_PATH` | `data/log.csv` | Path to the CSV audit log; directories are created automatically. |
 | `LLM_METHOD` | _(unset)_ | Optional identifier for the NLP technique currently under evaluation (e.g., `rules`, `llm`, `hybrid`). |
-| `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled. |
+| `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled (e.g., `deepgram`). |
+| `DEEPGRAM_API_KEY` | _(unset)_ | API key for Deepgram when `STT_ENGINE=deepgram`. |
 | `VOICE_ENABLED` | `false` | Toggle indicating whether voice input is active in the UI. |
+| `VOICE_MAX_BYTES` | `10000000` | Maximum audio payload size accepted by `/v1/voice` in bytes. |
+| `VOICE_ALLOWED_CONTENT_TYPES` | see code | Comma-separated list of MIME types accepted by `/v1/voice` (defaults cover WAV, MP3, OGG, WebM, and FLAC). |
 | `FIXTURES_DIR` | `fixtures` | Directory containing the JSON fixture files. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 
@@ -94,7 +97,7 @@ Behind the scenes, the app initialises reusable settings, the holiday search pip
 | `GET /health` | Returns `{ "status": "ok" }` plus the active interaction mode for readiness checks. |
 | `POST /v1/parse` | Core endpoint that parses a natural-language utterance and responds with structured holiday parameters, validation metadata, and timing metrics. |
 | `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, and configuration defaults so clients can pre-populate UI controls. |
-| `POST /v1/voice` | Stub endpoint that mirrors the voice-processing metadata and configuration flags exposed to the UI. |
+| `POST /v1/voice` | Streams uploaded audio to the configured STT engine, returns the transcript with timing data, and forwards the utterance into the holiday search pipeline. |
 
 ### Sample `/v1/parse` request
 
