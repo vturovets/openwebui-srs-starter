@@ -29,12 +29,21 @@ def test_fixture_repository_loads_and_normalises_data() -> None:
     brussels = repository.get_airport_by_name("brussels")
     assert brussels["id"] == "BRU"
 
+    ams_by_id = repository.get_airport_by_id("ams")
+    assert ams_by_id["name"] == "Amsterdam"
+
     italy = repository.get_destination_by_name("ItALy")
     assert italy["id"] == "d7b4bb39-123c-1234-b123-1234567i"
+
+    italy_by_id = repository.get_destination_by_id("d7b4bb39-123c-1234-b123-1234567i")
+    assert italy_by_id["name"] == "Italy"
 
     dates = repository.list_checkin_dates()
     assert dates  # non-empty
     assert dates == sorted(dates, key=lambda value: datetime.strptime(value, "%d-%m-%Y"))
+
+    destination_synonyms = repository.locale_synonyms("destinations")
+    assert destination_synonyms["nl"]["spanje"] == "d7b4bb39-123c-1234-1234-1234567s"
 
 
 def test_fixture_repository_missing_file(tmp_path: Path) -> None:

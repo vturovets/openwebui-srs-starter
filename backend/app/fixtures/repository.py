@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 
 
 class FixtureRepository:
@@ -19,6 +19,7 @@ class FixtureRepository:
     AIRPORTS_FILE = "airports.json"
     DESTINATIONS_FILE = "destinations.json"
     DATES_FILE = "dates.json"
+    VOCABULARY_FILE = "vocabulary_synonyms.json"
 
     def __init__(self, fixtures_dir: Path, *, encoding: str = "utf-8") -> None:
         self._fixtures_dir = Path(fixtures_dir)
@@ -33,6 +34,7 @@ class FixtureRepository:
         self._destinations_by_id: Dict[str, Dict[str, Any]] = {}
         self._destinations_by_name: Dict[str, str] = {}
         self._checkin_dates: List[str] = []
+        self._locale_synonyms: Dict[str, Dict[str, Dict[str, str]]] = {}
 
         self._load_fixtures()
 
@@ -45,11 +47,33 @@ class FixtureRepository:
         airport_id = self._get_id_from_name(name, self._airports_by_name, "airport")
         return self._airports_by_id[airport_id]
 
+    def get_airport_by_id(self, identifier: str) -> Dict[str, Any]:
+        """Return airport metadata by identifier."""
+
+        if not isinstance(identifier, str) or not identifier.strip():
+            raise KeyError("Airport identifier must be a non-empty string")
+        key = identifier.strip().upper()
+        try:
+            return dict(self._airports_by_id[key])
+        except KeyError as exc:  # pragma: no cover - defensive
+            raise KeyError(f"Unknown airport id '{identifier}'") from exc
+
     def get_destination_by_name(self, name: str) -> Dict[str, Any]:
         """Return destination metadata by name (case-insensitive)."""
 
         destination_id = self._get_id_from_name(name, self._destinations_by_name, "destination")
         return self._destinations_by_id[destination_id]
+
+    def get_destination_by_id(self, identifier: str) -> Dict[str, Any]:
+        """Return destination metadata by identifier."""
+
+        if not isinstance(identifier, str) or not identifier.strip():
+            raise KeyError("Destination identifier must be a non-empty string")
+        key = identifier.strip()
+        try:
+            return dict(self._destinations_by_id[key])
+        except KeyError as exc:  # pragma: no cover - defensive
+            raise KeyError(f"Unknown destination id '{identifier}'") from exc
 
     def list_checkin_dates(self) -> List[str]:
         """Return the sorted list of supported check-in dates."""
@@ -65,6 +89,16 @@ class FixtureRepository:
         """Return metadata for all destinations in the fixture set."""
 
         return [dict(meta) for meta in self._destinations_by_id.values()]
+
+    def locale_synonyms(self, category: Optional[str] = None) -> Dict[str, Dict[str, Dict[str, str]]]:
+        """Return locale-specific synonym mappings for fixture entities."""
+
+        if category is None:
+            return {key: {lang: dict(values) for lang, values in mappings.items()} for key, mappings in self._locale_synonyms.items()}
+
+        normalized = str(category).lower()
+        mappings = self._locale_synonyms.get(normalized, {})
+        return {lang: dict(values) for lang, values in mappings.items()}
 
     # ------------------------------------------------------------------
     # Loading and validation helpers
@@ -92,10 +126,30 @@ class FixtureRepository:
         # The upstream payload uses the ``checkIns`` key for the list of dates.
         self._checkin_dates = self._normalise_dates_payload(dates_payload, "data", "checkIns")
 
+        self._locale_synonyms = self._load_locale_synonyms()
+
     def _load_json_payload(self, filename: str) -> Dict[str, Any]:
         path = self._fixtures_dir / filename
         if not path.is_file():
             raise FileNotFoundError(f"Required fixture '{filename}' not found in '{self._fixtures_dir}'")
+        try:
+            text = path.read_text(encoding=self._encoding)
+        except OSError as exc:
+            raise FileNotFoundError(f"Unable to read fixture '{filename}': {exc}") from exc
+
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid JSON in fixture '{filename}': {exc}") from exc
+
+        if not isinstance(payload, dict):
+            raise ValueError(f"Fixture '{filename}' must contain a JSON object at the top level")
+        return payload
+
+    def _load_optional_json_payload(self, filename: str) -> Optional[Dict[str, Any]]:
+        path = self._fixtures_dir / filename
+        if not path.is_file():
+            return None
         try:
             text = path.read_text(encoding=self._encoding)
         except OSError as exc:
@@ -200,6 +254,92 @@ class FixtureRepository:
 
         parsed_dates.sort(key=lambda item: item[0])
         return [date_str for _, date_str in parsed_dates]
+
+    def _load_locale_synonyms(self) -> Dict[str, Dict[str, Dict[str, str]]]:
+        payload = self._load_optional_json_payload(self.VOCABULARY_FILE)
+        if payload is None:
+            return {"airports": {}, "destinations": {}, "durations": {}, "flexibility": {}}
+
+        airports = self._normalise_synonym_entries(
+            payload.get("airports", []),
+            label="airports",
+            target_transform=str.upper,
+            target_validator=lambda target: target in self._airports_by_id,
+        )
+        destinations = self._normalise_synonym_entries(
+            payload.get("destinations", []),
+            label="destinations",
+            target_transform=lambda value: value.strip(),
+            target_validator=lambda target: target in self._destinations_by_id,
+        )
+        durations = self._normalise_synonym_entries(
+            payload.get("durations", []),
+            label="durations",
+            target_transform=lambda value: value.lower(),
+            target_validator=None,
+        )
+        flexibility = self._normalise_synonym_entries(
+            payload.get("flexibility", []),
+            label="flexibility",
+            target_transform=lambda value: value.lower(),
+            target_validator=None,
+        )
+
+        return {
+            "airports": airports,
+            "destinations": destinations,
+            "durations": durations,
+            "flexibility": flexibility,
+        }
+
+    def _normalise_synonym_entries(
+        self,
+        entries: object,
+        *,
+        label: str,
+        target_transform: Callable[[str], str] | None,
+        target_validator: Callable[[str], bool] | None,
+    ) -> Dict[str, Dict[str, str]]:
+        if entries is None:
+            return {}
+        if not isinstance(entries, list):
+            raise ValueError(f"Synonym fixture '{label}' must be provided as a list")
+
+        result: Dict[str, Dict[str, str]] = {}
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                raise ValueError(f"Synonym entries in '{label}' must be JSON objects")
+
+            raw_target = str(entry.get("target", "")).strip()
+            if not raw_target:
+                raise ValueError(f"Synonym entries in '{label}' must include a 'target' field")
+
+            target = target_transform(raw_target) if target_transform else raw_target
+            if target_validator and not target_validator(target):
+                raise ValueError(f"Synonym entry references unknown target '{raw_target}' in '{label}'")
+
+            values = entry.get("values", [])
+            if not isinstance(values, list):
+                raise ValueError(f"Synonym entry '{raw_target}' in '{label}' must provide a list of values")
+
+            for item in values:
+                if not isinstance(item, Mapping):
+                    raise ValueError(f"Synonym values in '{label}' must be JSON objects")
+
+                lang = str(item.get("lang", "")).strip().lower()
+                value = str(item.get("value", "")).strip().lower()
+                if not lang or not value:
+                    continue
+
+                language_map = result.setdefault(lang, {})
+                existing = language_map.get(value)
+                if existing and existing != target:
+                    raise ValueError(
+                        f"Synonym '{value}' in '{label}' maps to multiple targets: '{existing}' and '{target}'"
+                    )
+                language_map[value] = target
+
+        return result
 
     @staticmethod
     def _get_id_from_name(name: str, lookup: Dict[str, str], label: str) -> str:
