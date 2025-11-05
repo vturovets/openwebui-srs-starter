@@ -47,10 +47,33 @@ class Settings(BaseSettings):
         alias="STT_ENGINE",
         description="Speech-to-text engine identifier used for voice capture.",
     )
+    deepgram_api_key: Optional[str] = Field(
+        default=None,
+        alias="DEEPGRAM_API_KEY",
+        description="API token used when STT_ENGINE is configured to 'deepgram'.",
+    )
     voice_enabled: bool = Field(
         default=False,
         alias="VOICE_ENABLED",
         description="Toggle voice capture support for the UI and pipelines.",
+    )
+    voice_max_bytes: int = Field(
+        default=10_000_000,
+        alias="VOICE_MAX_BYTES",
+        description="Maximum audio payload size accepted by the voice endpoint (bytes).",
+    )
+    voice_allowed_content_types: List[str] = Field(
+        default_factory=lambda: [
+            "audio/wav",
+            "audio/x-wav",
+            "audio/mpeg",
+            "audio/mp3",
+            "audio/ogg",
+            "audio/webm",
+            "audio/flac",
+        ],
+        alias="VOICE_ALLOWED_CONTENT_TYPES",
+        description="List of MIME types accepted for audio uploads.",
     )
     fixtures_dir: Path = Field(
         default=Path("fixtures"),
@@ -84,6 +107,38 @@ class Settings(BaseSettings):
             cleaned = [str(item).strip() for item in value if str(item).strip()]
             return cleaned or ["en"]
         raise TypeError("ALLOWED_LANGS must be provided as a comma-separated string or list")
+
+    @field_validator("voice_allowed_content_types", mode="before")
+    @classmethod
+    def _split_allowed_content_types(cls, value: object) -> List[str]:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value is None:
+            return [
+                "audio/wav",
+                "audio/x-wav",
+                "audio/mpeg",
+                "audio/mp3",
+                "audio/ogg",
+                "audio/webm",
+                "audio/flac",
+            ]
+        if isinstance(value, str):
+            value = [item.strip() for item in value.split(",") if item.strip()]
+        if isinstance(value, (list, tuple, set)):
+            cleaned = [str(item).strip() for item in value if str(item).strip()]
+            return cleaned or [
+                "audio/wav",
+                "audio/x-wav",
+                "audio/mpeg",
+                "audio/mp3",
+                "audio/ogg",
+                "audio/webm",
+                "audio/flac",
+            ]
+        raise TypeError(
+            "VOICE_ALLOWED_CONTENT_TYPES must be provided as a comma-separated string or list",
+        )
 
     @field_validator("csv_path", "fixtures_dir", mode="before")
     @classmethod

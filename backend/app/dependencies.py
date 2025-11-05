@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Iterator
 
 from .config import Settings
+from .integrations.stt import DeepgramSpeechToTextClient, SpeechToTextClient
 from .logging.csv_logger import CSVLogger
 from .pipeline.dialog import DialogOrchestrator
 from .pipeline.pipeline import HolidaySearchPipeline
@@ -69,10 +70,28 @@ def get_dialog_orchestrator() -> DialogOrchestrator:
     return DialogOrchestrator(pipeline=pipeline, settings=settings)
 
 
+@lru_cache
+def get_stt_client() -> SpeechToTextClient | None:
+    """Instantiate an STT client when voice capture is enabled."""
+
+    settings = get_settings()
+    engine = (settings.stt_engine or "").strip().lower()
+    if not settings.voice_enabled or not engine:
+        return None
+
+    if engine == "deepgram":
+        if not settings.deepgram_api_key:
+            raise RuntimeError("DEEPGRAM_API_KEY must be configured when using the Deepgram STT engine")
+        return DeepgramSpeechToTextClient(api_key=settings.deepgram_api_key)
+
+    raise RuntimeError(f"Unsupported STT engine '{settings.stt_engine}' configured")
+
+
 __all__ = [
     "get_settings",
     "settings_dependency",
     "get_pipeline",
     "get_csv_logger",
     "get_dialog_orchestrator",
+    "get_stt_client",
 ]
