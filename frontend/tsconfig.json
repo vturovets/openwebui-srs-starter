@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "target": "esnext",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "types": ["vite/client", "svelte"]
+  },
+  "include": ["src/**/*", "vite.config.js", "playwright.config.ts", "tests/**/*"]
+}
+

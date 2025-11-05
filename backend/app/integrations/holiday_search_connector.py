@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Mapping, Protocol
+from typing import Any, Iterable, Mapping, Protocol
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 

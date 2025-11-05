@@ -5,9 +5,12 @@ from .holiday_search_connector import (
     HolidaySearchConnector,
     ParseResult,
 )
+from .openwebui_extension import HolidaySearchTool, HolidaySearchToolConfig
 
 __all__ = [
     "HolidaySearchAPIError",
     "HolidaySearchConnector",
     "ParseResult",
+    "HolidaySearchTool",
+    "HolidaySearchToolConfig",
 ]

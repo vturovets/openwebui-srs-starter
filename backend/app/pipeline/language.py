@@ -181,7 +181,10 @@ class LanguageDetector:
                 try:
                     return self._detect_with_fallback(text, require_stopword_hit=True)
                 except ValueError:
-                    raise exc
+                    try:
+                        return self._detect_with_fallback(text, require_stopword_hit=False)
+                    except ValueError:
+                        raise exc
         return self._detect_with_fallback(text)
 
 
