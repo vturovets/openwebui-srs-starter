@@ -8,11 +8,17 @@ from time import perf_counter
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import Settings
-from ..dependencies import get_csv_logger, get_pipeline, get_settings
+from ..dependencies import (
+    get_csv_logger,
+    get_dialog_orchestrator,
+    get_pipeline,
+    get_settings,
+)
 from ..logging.csv_logger import CSVLogger
+from ..pipeline.dialog import DialogOrchestrator
 from ..pipeline.pipeline import HolidaySearchPipeline
 
 api_router = APIRouter(prefix="/v1", tags=["v1"])
@@ -47,6 +53,47 @@ class ParseResponse(BaseModel):
     status: str
     data: dict[str, object]
     metadata: dict[str, object]
+
+
+class ClarificationPayload(BaseModel):
+    """Structured clarification prompt returned to the UI."""
+
+    parameter: str
+    message: str
+    reason: str
+
+
+class DialogRequest(BaseModel):
+    """Request payload supporting interactive clarification."""
+
+    text: str = Field(..., description="User utterance for this dialog turn.")
+    session_id: str | None = Field(
+        default=None,
+        alias="sessionId",
+        description="Identifier for the dialog session; omitted to start a new one.",
+    )
+    mode: str | None = Field(
+        default=None,
+        description="Interaction mode override (e.g. 'dialog' or 'direct-parse').",
+    )
+    method: str | None = Field(
+        default=None,
+        description="Optional method identifier forwarded to the pipeline.",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DialogResponse(BaseModel):
+    """Response payload for dialog-aware requests."""
+
+    status: str
+    session_id: str | None = Field(default=None, alias="sessionId")
+    data: dict[str, object]
+    prompt: ClarificationPayload | None = None
+    metadata: dict[str, object]
+
+    model_config = ConfigDict(populate_by_name=True)
 @api_router.post("/parse", response_model=ParseResponse)
 async def parse_text(
     payload: ParseRequest,
@@ -80,6 +127,7 @@ async def parse_text(
         "timings": timings,
         "validation": result.validation,
     }
+    metadata["transcript"] = [{"role": "user", "text": payload.text}]
 
     if result.metadata.get("hybrid"):
         metadata["hybrid"] = result.metadata["hybrid"]
@@ -126,6 +174,11 @@ async def parse_text(
         "Output": output_serialised,
         "Status": status,
         "ThresholdBreached": "true" if threshold_breached else "false",
+        "SessionId": "",
+        "DialogStatus": metadata["mode"],
+        "MissingParameters": "",
+        "Prompt": "",
+        "Transcript": json.dumps(metadata["transcript"], ensure_ascii=False),
     }
     logger.log(log_entry)
 
@@ -133,6 +186,94 @@ async def parse_text(
         raise HTTPException(status_code=400, detail=error_detail)
 
     return ParseResponse(status=status, data=data_payload, metadata=metadata)
+
+
+@api_router.post("/dialog", response_model=DialogResponse)
+async def dialog_turn(
+    payload: DialogRequest,
+    settings: Settings = Depends(get_settings),
+    orchestrator: DialogOrchestrator = Depends(get_dialog_orchestrator),
+    logger: CSVLogger = Depends(get_csv_logger),
+) -> DialogResponse:
+    """Process a dialog turn, emitting clarification prompts when required."""
+
+    outcome = orchestrator.handle_turn(
+        payload.text,
+        session_id=payload.session_id,
+        mode=payload.mode,
+        method=payload.method,
+    )
+
+    metadata = dict(outcome.metadata)
+    timings = dict(metadata.get("timings", {}))
+    total_ms_raw = timings.get("totalMs", 0.0)
+    total_ms = float(total_ms_raw) if isinstance(total_ms_raw, (int, float)) else 0.0
+    threshold_ms = settings.processing_threshold_ms
+    threshold_breached = total_ms > threshold_ms
+    timings["totalMs"] = total_ms
+    timings["thresholdBreached"] = threshold_breached
+    metadata["timings"] = timings
+    metadata.setdefault("mode", payload.mode or settings.interaction_mode)
+    metadata["rawStatus"] = outcome.raw_status
+
+    stt_source = settings.stt_engine if settings.stt_engine else ("voice" if settings.voice_enabled else "text")
+
+    prompt_payload = outcome.prompt.to_dict() if outcome.prompt else None
+
+    log_output: dict[str, object] = {
+        "status": outcome.status,
+        "data": outcome.data,
+        "validation": outcome.validation,
+    }
+    if outcome.error:
+        log_output["error"] = outcome.error
+    output_serialised = json.dumps(log_output, ensure_ascii=False)
+
+    log_status: str
+    if outcome.status == "success":
+        log_status = "success"
+    elif outcome.raw_status == "error":
+        log_status = "error"
+    else:
+        log_status = "failed"
+
+    transcript_serialised = json.dumps(outcome.transcript, ensure_ascii=False)
+    missing_serialised = (
+        json.dumps(outcome.missing_parameters, ensure_ascii=False)
+        if outcome.missing_parameters
+        else ""
+    )
+    prompt_serialised = json.dumps(prompt_payload, ensure_ascii=False) if prompt_payload else ""
+
+    log_entry = {
+        "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        "Input": payload.text,
+        "Language": metadata.get("language", {}).get("code", ""),
+        "Method": metadata.get("method", ""),
+        "STT": stt_source or "",
+        "ProcessingTime": f"{total_ms:.2f}",
+        "Output": output_serialised,
+        "Status": log_status,
+        "ThresholdBreached": "true" if threshold_breached else "false",
+        "SessionId": outcome.session_id or "",
+        "DialogStatus": outcome.status,
+        "MissingParameters": missing_serialised,
+        "Prompt": prompt_serialised,
+        "Transcript": transcript_serialised,
+    }
+    logger.log(log_entry)
+
+    if outcome.status == "failed" and outcome.error:
+        raise HTTPException(status_code=400, detail=outcome.error)
+
+    response_prompt = prompt_payload if prompt_payload is None else ClarificationPayload(**prompt_payload)
+    return DialogResponse(
+        status=outcome.status,
+        session_id=outcome.session_id,
+        data=outcome.data,
+        prompt=response_prompt,
+        metadata=metadata,
+    )
 
 
 @api_router.get("/fixtures")
