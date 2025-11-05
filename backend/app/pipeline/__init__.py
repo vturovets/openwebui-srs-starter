@@ -7,6 +7,7 @@ from .normalizer import NormalizedResult, Normalizer
 from .validator import ValidationError, Validator
 from .pipeline import HolidaySearchPipeline, PipelineRunResult
 from .extractors import HybridExtractor, LLMExtractor
+from .dialog import DialogOrchestrator, ClarificationPrompt, DialogTurnOutcome
 
 __all__ = [
     "LanguageDetector",
@@ -21,4 +22,7 @@ __all__ = [
     "SearchConfiguration",
     "HybridExtractor",
     "LLMExtractor",
+    "DialogOrchestrator",
+    "ClarificationPrompt",
+    "DialogTurnOutcome",
 ]

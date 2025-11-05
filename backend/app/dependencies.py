@@ -7,6 +7,7 @@ from typing import Iterator
 
 from .config import Settings
 from .logging.csv_logger import CSVLogger
+from .pipeline.dialog import DialogOrchestrator
 from .pipeline.pipeline import HolidaySearchPipeline
 
 
@@ -50,8 +51,28 @@ def get_csv_logger() -> CSVLogger:
             "Output",
             "Status",
             "ThresholdBreached",
+            "SessionId",
+            "DialogStatus",
+            "MissingParameters",
+            "Prompt",
+            "Transcript",
         ),
     )
 
 
-__all__ = ["get_settings", "settings_dependency", "get_pipeline", "get_csv_logger"]
+@lru_cache
+def get_dialog_orchestrator() -> DialogOrchestrator:
+    """Provide a dialog orchestrator wired to the shared pipeline."""
+
+    settings = get_settings()
+    pipeline = get_pipeline()
+    return DialogOrchestrator(pipeline=pipeline, settings=settings)
+
+
+__all__ = [
+    "get_settings",
+    "settings_dependency",
+    "get_pipeline",
+    "get_csv_logger",
+    "get_dialog_orchestrator",
+]
