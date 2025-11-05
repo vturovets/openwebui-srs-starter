@@ -7,6 +7,7 @@ import pytest
 
 from backend.app.api.routes import DialogRequest, dialog_turn
 from backend.app.config import Settings
+from backend.app.dependencies import CSV_LOG_FIELDS
 from backend.app.logging.csv_logger import CSVLogger
 from backend.app.pipeline.dialog import DialogOrchestrator
 from backend.app.pipeline.pipeline import HolidaySearchPipeline
@@ -29,22 +30,7 @@ def dialog_context(tmp_path):
     orchestrator = DialogOrchestrator(pipeline=pipeline, settings=settings)
     logger = CSVLogger(
         path=settings.csv_path,
-        fieldnames=(
-            "Timestamp",
-            "Input",
-            "Language",
-            "Method",
-            "STT",
-            "ProcessingTime",
-            "Output",
-            "Status",
-            "ThresholdBreached",
-            "SessionId",
-            "DialogStatus",
-            "MissingParameters",
-            "Prompt",
-            "Transcript",
-        ),
+        fieldnames=CSV_LOG_FIELDS,
     )
 
     return {

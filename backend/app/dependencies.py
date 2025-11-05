@@ -8,6 +8,35 @@ from typing import Iterator
 from .config import Settings
 from .integrations.stt import DeepgramSpeechToTextClient, SpeechToTextClient
 from .logging.csv_logger import CSVLogger
+
+
+CSV_LOG_FIELDS: tuple[str, ...] = (
+    "Timestamp",
+    "Input",
+    "Language",
+    "Method",
+    "STT",
+    "ProcessingTime",
+    "LanguageMs",
+    "ExtractionMs",
+    "NormalizationMs",
+    "ValidationMs",
+    "Output",
+    "Status",
+    "ThresholdBreached",
+    "MissingFields",
+    "InvalidFields",
+    "RecognizedAirports",
+    "RecognizedDestinations",
+    "RecognizedDates",
+    "RecognizedDuration",
+    "RecognizedFlexibility",
+    "SessionId",
+    "DialogStatus",
+    "MissingParameters",
+    "Prompt",
+    "Transcript",
+)
 from .pipeline.dialog import DialogOrchestrator
 from .pipeline.pipeline import HolidaySearchPipeline
 
@@ -42,22 +71,7 @@ def get_csv_logger() -> CSVLogger:
     settings = get_settings()
     return CSVLogger(
         path=settings.csv_path,
-        fieldnames=(
-            "Timestamp",
-            "Input",
-            "Language",
-            "Method",
-            "STT",
-            "ProcessingTime",
-            "Output",
-            "Status",
-            "ThresholdBreached",
-            "SessionId",
-            "DialogStatus",
-            "MissingParameters",
-            "Prompt",
-            "Transcript",
-        ),
+        fieldnames=CSV_LOG_FIELDS,
     )
 
 
@@ -88,6 +102,7 @@ def get_stt_client() -> SpeechToTextClient | None:
 
 
 __all__ = [
+    "CSV_LOG_FIELDS",
     "get_settings",
     "settings_dependency",
     "get_pipeline",

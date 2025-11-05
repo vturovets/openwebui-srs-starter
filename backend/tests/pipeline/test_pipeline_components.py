@@ -13,6 +13,7 @@ import pytest
 import asyncio
 
 from backend.app.config import Settings
+from backend.app.dependencies import CSV_LOG_FIELDS
 from backend.app.logging.csv_logger import CSVLogger
 from backend.app.api.routes import ParseRequest, parse_text
 from backend.app.pipeline.extractor_rules import ExtractionResult
@@ -47,17 +48,7 @@ def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPi
     pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
     logger = CSVLogger(
         path=settings.csv_path,
-        fieldnames=(
-            "Timestamp",
-            "Input",
-            "Language",
-            "Method",
-            "STT",
-            "ProcessingTime",
-            "Output",
-            "Status",
-            "ThresholdBreached",
-        ),
+        fieldnames=CSV_LOG_FIELDS,
     )
     yield settings, pipeline, logger
 
@@ -275,6 +266,12 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
     assert response.status == "success"
     assert response.data["from"] == ["AMS"]
     assert response.metadata["validation"]["status"] == "passed"
+    recognized = response.metadata["recognizedEntities"]
+    assert recognized["airports"] == ["AMS"]
+    assert recognized["destinations"]
+    assert recognized["dates"]
+    assert response.metadata["missingFields"] == []
+    assert response.metadata["invalidFields"] == []
 
     with settings.csv_path.open("r", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
@@ -286,6 +283,18 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
     assert log_entry["Status"] == "success"
     expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
     assert log_entry["ThresholdBreached"] == expected_threshold
+    timings = response.metadata["timings"]
+    assert log_entry["LanguageMs"] == f"{timings.get('languageMs', 0.0):.2f}"
+    assert log_entry["ExtractionMs"] == f"{timings.get('extractionMs', 0.0):.2f}"
+    assert log_entry["NormalizationMs"] == f"{timings.get('normalizationMs', 0.0):.2f}"
+    assert log_entry["ValidationMs"] == f"{timings.get('validationMs', 0.0):.2f}"
+    assert json.loads(log_entry["MissingFields"]) == response.metadata["missingFields"]
+    assert json.loads(log_entry["InvalidFields"]) == response.metadata["invalidFields"]
+    assert json.loads(log_entry["RecognizedAirports"]) == recognized["airports"]
+    assert json.loads(log_entry["RecognizedDestinations"]) == recognized["destinations"]
+    assert json.loads(log_entry["RecognizedDates"]) == recognized["dates"]
+    assert log_entry["RecognizedDuration"] == (recognized["duration"] or "")
+    assert log_entry["RecognizedFlexibility"] == (recognized["flexibility"] or "")
 
 
 def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
@@ -326,6 +335,7 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     assert response.metadata["validation"]["errors"][0]["message"].startswith(
         "Utterance must include"
     )
+    assert set(response.metadata["missingFields"]) >= {"from", "to"}
 
     with settings.csv_path.open("r", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
@@ -341,3 +351,5 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     assert parsed_output["status"] == "failed"
     assert parsed_output["data"]["language"] == "en"
     assert parsed_output["validation"]["errors"][0]["message"].startswith("Utterance must include")
+    assert json.loads(log_entry["MissingFields"]) == response.metadata["missingFields"]
+    assert json.loads(log_entry["InvalidFields"]) == response.metadata["invalidFields"]
