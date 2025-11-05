@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 from time import perf_counter
+from collections.abc import Mapping
 
 from datetime import datetime, timezone
 from typing import AsyncIterator
@@ -114,6 +116,194 @@ class DialogResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+_FIELD_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"departure\s+date"), "departureDate"),
+    (re.compile(r"departure(?!\s+date)"), "from"),
+    (re.compile(r"airport"), "from"),
+    (re.compile(r"destination"), "to"),
+    (re.compile(r"arrival"), "to"),
+    (re.compile(r"duration"), "durationId"),
+    (re.compile(r"night"), "durationId"),
+    (re.compile(r"room"), "rooms"),
+    (re.compile(r"adult"), "party"),
+    (re.compile(r"child"), "party"),
+    (re.compile(r"infant"), "party"),
+    (re.compile(r"flex"), "flexibility"),
+)
+
+_MISSING_KEYWORDS = ("require", "missing", "must include", "need")
+_INVALID_KEYWORDS = (
+    "unavailable",
+    "not allowed",
+    "not supported",
+    "too many",
+    "exceed",
+    "cannot",
+    "not available",
+)
+
+
+def _fields_from_message(message: str) -> set[str]:
+    lowered = message.lower()
+    fields = {field for pattern, field in _FIELD_PATTERNS if pattern.search(lowered)}
+    return fields
+
+
+def _normalized_has_field(normalized: object, field: str) -> bool:
+    if normalized is None:
+        return False
+    match field:
+        case "from":
+            return bool(getattr(normalized, "from_codes", []))
+        case "to":
+            return bool(getattr(normalized, "to_ids", []))
+        case "departureDate":
+            return bool(getattr(normalized, "departure_dates", []))
+        case "durationId":
+            return bool(getattr(normalized, "duration_id", ""))
+        case "rooms":
+            rooms = getattr(normalized, "rooms", None)
+            return rooms is not None and rooms != ""
+        case "party":
+            party = getattr(normalized, "party", {})
+            if isinstance(party, Mapping):
+                return bool(party.get("adults", 0) or party.get("nonAdults", 0))
+            return False
+        case "flexibility":
+            context = getattr(normalized, "context", {})
+            if isinstance(context, Mapping):
+                return bool(context.get("flex_option"))
+            return False
+        case _:
+            return False
+
+
+def _derive_missing_fields(result) -> list[str]:
+    missing: set[str] = set()
+    normalized = getattr(result, "normalized", None)
+    if normalized is None:
+        missing.update({"from", "to", "departureDate"})
+    else:
+        if not getattr(normalized, "from_codes", []):
+            missing.add("from")
+        if not getattr(normalized, "to_ids", []):
+            missing.add("to")
+        if not getattr(normalized, "departure_dates", []):
+            missing.add("departureDate")
+
+    validation = getattr(result, "validation", {})
+    errors: list[Mapping[str, object]] = []
+    if isinstance(validation, Mapping):
+        raw_errors = validation.get("errors", []) or []
+        if isinstance(raw_errors, list):
+            errors = [item for item in raw_errors if isinstance(item, Mapping)]
+
+    for error in errors:
+        message = str(error.get("message", ""))
+        lowered = message.lower()
+        if not lowered:
+            continue
+        if any(keyword in lowered for keyword in _MISSING_KEYWORDS):
+            fields = _fields_from_message(lowered)
+            if not fields:
+                continue
+            for field in fields:
+                if normalized is not None and _normalized_has_field(normalized, field):
+                    continue
+                missing.add(field)
+
+    return sorted(missing)
+
+
+def _derive_invalid_fields(result) -> list[str]:
+    invalid: set[str] = set()
+    validation = getattr(result, "validation", {})
+    errors: list[Mapping[str, object]] = []
+    if isinstance(validation, Mapping):
+        raw_errors = validation.get("errors", []) or []
+        if isinstance(raw_errors, list):
+            errors = [item for item in raw_errors if isinstance(item, Mapping)]
+
+    for error in errors:
+        message = str(error.get("message", ""))
+        lowered = message.lower()
+        if not lowered:
+            continue
+        if any(keyword in lowered for keyword in _INVALID_KEYWORDS):
+            fields = _fields_from_message(lowered)
+            if not fields:
+                continue
+            invalid.update(fields)
+
+    return sorted(invalid)
+
+
+def _extract_recognized_entities(result) -> dict[str, object]:
+    extraction = getattr(result, "extraction", None)
+    recognized = {
+        "airports": [],
+        "destinations": [],
+        "dates": [],
+        "duration": None,
+        "flexibility": None,
+    }
+    if extraction is None:
+        return recognized
+
+    airports: list[str] = []
+    for entry in getattr(extraction, "airports", []) or []:
+        identifier = ""
+        if isinstance(entry, Mapping):
+            identifier = str(entry.get("id") or entry.get("code") or entry.get("name") or "").strip()
+        else:
+            identifier = str(entry).strip()
+        if identifier:
+            airports.append(identifier)
+
+    destinations: list[str] = []
+    for entry in getattr(extraction, "destinations", []) or []:
+        identifier = ""
+        if isinstance(entry, Mapping):
+            identifier = str(entry.get("id") or entry.get("name") or "").strip()
+        else:
+            identifier = str(entry).strip()
+        if identifier:
+            destinations.append(identifier)
+
+    dates: list[str] = []
+    for item in getattr(extraction, "dates", []) or []:
+        phrase, dt = item
+        try:
+            dates.append(dt.isoformat())
+        except AttributeError:
+            continue
+
+    duration_value = None
+    duration_meta = getattr(extraction, "duration", None)
+    if isinstance(duration_meta, Mapping):
+        duration_value = str(duration_meta.get("id") or duration_meta.get("name") or "").strip() or None
+
+    flexibility_value = None
+    flexibility_meta = getattr(extraction, "flexibility", None)
+    if isinstance(flexibility_meta, Mapping):
+        flexibility_value = (
+            str(flexibility_meta.get("id") or flexibility_meta.get("name") or "").strip() or None
+        )
+
+    recognized["airports"] = airports
+    recognized["destinations"] = destinations
+    recognized["dates"] = dates
+    recognized["duration"] = duration_value
+    recognized["flexibility"] = flexibility_value
+    return recognized
+
+
+def _format_timing_ms(value: object) -> str:
+    if isinstance(value, (int, float)):
+        return f"{float(value):.2f}"
+    return ""
+
+
 def _format_pipeline_response(
     *,
     result,
@@ -170,6 +360,14 @@ def _format_pipeline_response(
             ],
         }
 
+    recognized_entities = _extract_recognized_entities(result)
+    missing_fields = _derive_missing_fields(result)
+    invalid_fields = _derive_invalid_fields(result)
+
+    metadata["recognizedEntities"] = recognized_entities
+    metadata["missingFields"] = missing_fields
+    metadata["invalidFields"] = invalid_fields
+
     detection = result.detection
     if detection is not None:
         metadata["language"] = {
@@ -199,9 +397,20 @@ def _format_pipeline_response(
         "Method": result.method_used,
         "STT": stt_source or "",
         "ProcessingTime": f"{total_ms:.2f}",
+        "LanguageMs": _format_timing_ms(timings.get("languageMs")),
+        "ExtractionMs": _format_timing_ms(timings.get("extractionMs")),
+        "NormalizationMs": _format_timing_ms(timings.get("normalizationMs")),
+        "ValidationMs": _format_timing_ms(timings.get("validationMs")),
         "Output": output_serialised,
         "Status": status,
         "ThresholdBreached": "true" if threshold_breached else "false",
+        "MissingFields": json.dumps(missing_fields, ensure_ascii=False),
+        "InvalidFields": json.dumps(invalid_fields, ensure_ascii=False),
+        "RecognizedAirports": json.dumps(recognized_entities["airports"], ensure_ascii=False),
+        "RecognizedDestinations": json.dumps(recognized_entities["destinations"], ensure_ascii=False),
+        "RecognizedDates": json.dumps(recognized_entities["dates"], ensure_ascii=False),
+        "RecognizedDuration": recognized_entities.get("duration") or "",
+        "RecognizedFlexibility": recognized_entities.get("flexibility") or "",
         "SessionId": "",
         "DialogStatus": metadata["mode"],
         "MissingParameters": "",
@@ -296,6 +505,16 @@ async def dialog_turn(
     )
     prompt_serialised = json.dumps(prompt_payload, ensure_ascii=False) if prompt_payload else ""
 
+    recognized_entities = metadata.get("recognizedEntities")
+    if not isinstance(recognized_entities, Mapping):
+        recognized_entities = {}
+    missing_fields = metadata.get("missingFields")
+    if not isinstance(missing_fields, list):
+        missing_fields = []
+    invalid_fields = metadata.get("invalidFields")
+    if not isinstance(invalid_fields, list):
+        invalid_fields = []
+
     log_entry = {
         "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         "Input": payload.text,
@@ -303,9 +522,22 @@ async def dialog_turn(
         "Method": metadata.get("method", ""),
         "STT": stt_source or "",
         "ProcessingTime": f"{total_ms:.2f}",
+        "LanguageMs": _format_timing_ms(timings.get("languageMs")),
+        "ExtractionMs": _format_timing_ms(timings.get("extractionMs")),
+        "NormalizationMs": _format_timing_ms(timings.get("normalizationMs")),
+        "ValidationMs": _format_timing_ms(timings.get("validationMs")),
         "Output": output_serialised,
         "Status": log_status,
         "ThresholdBreached": "true" if threshold_breached else "false",
+        "MissingFields": json.dumps(missing_fields, ensure_ascii=False),
+        "InvalidFields": json.dumps(invalid_fields, ensure_ascii=False),
+        "RecognizedAirports": json.dumps(recognized_entities.get("airports", []), ensure_ascii=False),
+        "RecognizedDestinations": json.dumps(
+            recognized_entities.get("destinations", []), ensure_ascii=False
+        ),
+        "RecognizedDates": json.dumps(recognized_entities.get("dates", []), ensure_ascii=False),
+        "RecognizedDuration": recognized_entities.get("duration") or "",
+        "RecognizedFlexibility": recognized_entities.get("flexibility") or "",
         "SessionId": outcome.session_id or "",
         "DialogStatus": outcome.status,
         "MissingParameters": missing_serialised,
