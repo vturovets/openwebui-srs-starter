@@ -84,6 +84,10 @@ class LanguageDetectionResult:
     confidence: float
 
 
+class LanguageNotPermittedError(ValueError):
+    """Raised when the detected language is outside the allow list."""
+
+
 class LanguageDetector:
     """Wrapper around ``langdetect`` that enforces pipeline constraints."""
 
@@ -120,14 +124,18 @@ class LanguageDetector:
 
         if candidates:
             best_overall = max(candidates, key=lambda item: float(getattr(item, "prob", 0.0)))
-            raise ValueError(f"Detected language '{best_overall.lang}' is not permitted")
+            raise LanguageNotPermittedError(
+                f"Detected language '{best_overall.lang}' is not permitted"
+            )
 
         raise ValueError("Language detector did not return any candidates")
 
     def _tokenize(self, text: str) -> List[str]:
         return [token for token in re.findall(r"[A-Za-zÀ-ÿ']+", text.lower()) if token]
 
-    def _detect_with_fallback(self, text: str) -> LanguageDetectionResult:
+    def _detect_with_fallback(
+        self, text: str, *, require_stopword_hit: bool = False
+    ) -> LanguageDetectionResult:
         tokens = self._tokenize(text)
         if not tokens:
             raise ValueError("Unable to detect language from utterance")
@@ -139,6 +147,8 @@ class LanguageDetector:
                 scores[language] = hits / len(tokens)
 
         if not scores:
+            if require_stopword_hit:
+                raise ValueError("Unable to detect language from utterance")
             alpha_chars = [char for char in text if char.isalpha()]
             ascii_chars = [char for char in alpha_chars if ord(char) < 128]
             ratio = len(ascii_chars) / len(alpha_chars) if alpha_chars else 0.0
@@ -155,7 +165,9 @@ class LanguageDetector:
             return LanguageDetectionResult(language=best_lang, confidence=confidence)
 
         best_lang, _ = max(scores.items(), key=lambda item: item[1])
-        raise ValueError(f"Detected language '{best_lang}' is not permitted")
+        raise LanguageNotPermittedError(
+            f"Detected language '{best_lang}' is not permitted"
+        )
 
     def detect(self, text: str) -> LanguageDetectionResult:
         """Detect the utterance language using a probabilistic model."""
@@ -163,8 +175,18 @@ class LanguageDetector:
         if not isinstance(text, str) or not text.strip():
             raise ValueError("Utterance must be a non-empty string for language detection")
         if self._langdetect_available:
-            return self._detect_with_langdetect(text)
+            try:
+                return self._detect_with_langdetect(text)
+            except LanguageNotPermittedError as exc:
+                try:
+                    return self._detect_with_fallback(text, require_stopword_hit=True)
+                except ValueError:
+                    raise exc
         return self._detect_with_fallback(text)
 
 
-__all__ = ["LanguageDetector", "LanguageDetectionResult"]
+__all__ = [
+    "LanguageDetector",
+    "LanguageDetectionResult",
+    "LanguageNotPermittedError",
+]

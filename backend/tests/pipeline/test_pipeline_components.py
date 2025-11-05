@@ -16,6 +16,7 @@ from backend.app.config import Settings
 from backend.app.logging.csv_logger import CSVLogger
 from backend.app.api.routes import ParseRequest, parse_text
 from backend.app.pipeline.extractor_rules import ExtractionResult
+from backend.app.pipeline import language as language_module
 from backend.app.pipeline.language import LanguageDetector
 from backend.app.pipeline.normalizer import Normalizer
 from backend.app.pipeline.pipeline import HolidaySearchPipeline, SearchConfiguration
@@ -90,6 +91,26 @@ def test_language_detector_rejects_disallowed_language() -> None:
 
     with pytest.raises(ValueError):
         detector.detect("Je voudrais des vacances en Italie")
+
+
+def test_language_detector_recovers_from_misclassified_lang(monkeypatch) -> None:
+    class Candidate:
+        def __init__(self, lang: str, prob: float) -> None:
+            self.lang = lang
+            self.prob = prob
+
+    detector = LanguageDetector(["en", "nl"])
+
+    def fake_detect_langs(_: str):
+        return [Candidate("sv", 0.95)]
+
+    monkeypatch.setattr(language_module, "detect_langs", fake_detect_langs)
+    detector._langdetect_available = True
+
+    detection = detector.detect("The holiday trip is missing data")
+
+    assert detection.language == "en"
+    assert detection.confidence > 0.0
 
 
 @pytest.mark.parametrize(
