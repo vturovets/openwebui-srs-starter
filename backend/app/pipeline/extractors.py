@@ -1,0 +1,184 @@
+"""Extractor strategies for advanced pipeline behaviours."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Callable, List, Mapping, MutableMapping, Sequence
+
+from ..fixtures.repository import FixtureRepository
+from .configuration import SearchConfiguration
+from .extractor_rules import ExtractionResult, RulesExtractor
+
+
+@dataclass
+class ExtractionAttempt:
+    """Record of a single extractor attempt."""
+
+    method: str
+    status: str
+    detail: str | None = None
+
+
+@dataclass
+class ExtractorOutcome:
+    """Outcome returned by extractor strategies."""
+
+    method: str
+    status: str
+    extraction: ExtractionResult | None
+    normalized: object | None
+    validation: MutableMapping[str, object]
+    detail: str | None = None
+    attempts: List[Mapping[str, object]] = field(default_factory=list)
+    metadata: MutableMapping[str, object] = field(default_factory=dict)
+
+
+class LLMExtractor:
+    """Adapter around an LLM client returning extraction signals."""
+
+    def __init__(
+        self,
+        fixtures: FixtureRepository,
+        configuration: SearchConfiguration,
+        *,
+        llm_client: Callable[[str], Mapping[str, object]] | None = None,
+    ) -> None:
+        self._fixtures = fixtures
+        self._configuration = configuration
+        self._llm_client = llm_client
+
+        # Snapshot fixture metadata for quick lookup.
+        self._airports_by_id = {entry["id"]: entry for entry in fixtures.list_airports()}
+        self._destinations_by_id = {entry["id"]: entry for entry in fixtures.list_destinations()}
+        self._durations_by_id = configuration.duration_by_id
+        self._flex_by_id = configuration.flex_by_id
+
+    def _lookup_airport(self, identifier: str) -> Mapping[str, object]:
+        try:
+            return self._airports_by_id[identifier.upper()]
+        except KeyError as exc:  # pragma: no cover - defensive
+            raise ValueError(f"Unknown departure airport '{identifier}' returned by LLM") from exc
+
+    def _lookup_destination(self, identifier: str) -> Mapping[str, object]:
+        key = identifier.strip()
+        try:
+            return self._destinations_by_id[key]
+        except KeyError as exc:  # pragma: no cover - defensive
+            raise ValueError(f"Unknown destination '{identifier}' returned by LLM") from exc
+
+    def _coerce_dates(self, payload: Mapping[str, object]) -> Sequence[tuple[str, datetime]]:
+        results: List[tuple[str, datetime]] = []
+        raw_dates = payload.get("dates", [])
+        for item in raw_dates:
+            if isinstance(item, str):
+                phrase = item
+                iso_value = item
+            elif isinstance(item, Mapping):
+                phrase = str(item.get("phrase") or item.get("text") or item.get("iso"))
+                iso_value = str(item.get("iso") or item.get("value") or item.get("date"))
+            else:
+                raise ValueError("LLM extractor received unsupported date representation")
+
+            try:
+                parsed = datetime.fromisoformat(iso_value)
+            except ValueError as exc:  # pragma: no cover - invalid LLM payloads
+                raise ValueError(f"LLM returned invalid ISO date '{iso_value}'") from exc
+            results.append((phrase, parsed))
+        return results
+
+    def extract(self, utterance: str) -> ExtractionResult:
+        if self._llm_client is None:
+            raise ValueError("LLM extractor is not configured")
+
+        payload = self._llm_client(utterance)
+        if not isinstance(payload, Mapping):
+            raise ValueError("LLM extractor must return a mapping payload")
+
+        airports: List[Mapping[str, object]] = []
+        for item in payload.get("airports", []):
+            if isinstance(item, Mapping):
+                airports.append(dict(item))
+            else:
+                airports.append(dict(self._lookup_airport(str(item))))
+
+        destinations: List[Mapping[str, object]] = []
+        for item in payload.get("destinations", []):
+            if isinstance(item, Mapping):
+                destinations.append(dict(item))
+            else:
+                destinations.append(dict(self._lookup_destination(str(item))))
+
+        duration_payload = payload.get("duration")
+        if isinstance(duration_payload, Mapping):
+            duration = dict(duration_payload)
+        elif duration_payload is not None:
+            duration = dict(self._durations_by_id.get(str(duration_payload), {}))
+        else:
+            duration = None
+
+        flexibility_payload = payload.get("flexibility")
+        if isinstance(flexibility_payload, Mapping):
+            flexibility = dict(flexibility_payload)
+        elif flexibility_payload is not None:
+            flexibility = dict(self._flex_by_id.get(str(flexibility_payload), {}))
+        else:
+            flexibility = None
+
+        dates = list(self._coerce_dates(payload))
+
+        return ExtractionResult(
+            airports=list(airports),
+            destinations=list(destinations),
+            duration=duration,
+            flexibility=flexibility,
+            dates=dates,
+        )
+
+
+class HybridExtractor:
+    """Orchestrate rules-first extraction with LLM fallback."""
+
+    def __init__(self, rules: RulesExtractor, llm: LLMExtractor) -> None:
+        self._rules = rules
+        self._llm = llm
+
+    def run(
+        self,
+        *,
+        run_rules: Callable[[], ExtractorOutcome],
+        run_llm: Callable[[], ExtractorOutcome],
+    ) -> ExtractorOutcome:
+        rules_outcome = run_rules()
+        attempts = list(rules_outcome.attempts)
+
+        if rules_outcome.status != "failed":
+            metadata = {
+                "fallbackTriggered": False,
+                "attempts": attempts,
+            }
+            if rules_outcome.detail:
+                metadata["primaryDetail"] = rules_outcome.detail
+            rules_outcome.metadata = {**rules_outcome.metadata, "hybrid": metadata}
+            rules_outcome.attempts = attempts
+            return rules_outcome
+
+        # Validation failed – attempt LLM fallback.
+        fallback_outcome = run_llm()
+        attempts.extend(fallback_outcome.attempts)
+        metadata = {
+            "fallbackTriggered": True,
+            "attempts": attempts,
+            "primaryFailure": rules_outcome.detail,
+        }
+        fallback_outcome.metadata = {**fallback_outcome.metadata, "hybrid": metadata}
+        fallback_outcome.attempts = attempts
+        return fallback_outcome
+
+
+__all__ = [
+    "ExtractionAttempt",
+    "ExtractorOutcome",
+    "HybridExtractor",
+    "LLMExtractor",
+]
