@@ -17,8 +17,16 @@ FIXTURES_DIR = REPO_ROOT / "fixtures"
 def pipeline_factory(tmp_path: Path):
     """Provide a factory for creating pipelines with stub LLM responses."""
 
-    def factory(responses: Mapping[str, Mapping[str, object]] | None = None) -> HolidaySearchPipeline:
-        settings = Settings(fixtures_dir=FIXTURES_DIR, csv_path=tmp_path / "pipeline-log.csv")
+    def factory(
+        responses: Mapping[str, Mapping[str, object]] | None = None,
+        *,
+        allowed_langs: list[str] | None = None,
+    ) -> HolidaySearchPipeline:
+        settings = Settings(
+            fixtures_dir=FIXTURES_DIR,
+            csv_path=tmp_path / "pipeline-log.csv",
+            allowed_langs=list(allowed_langs or ["en", "nl", "fr"]),
+        )
 
         if responses is None:
             def llm_client(_: str) -> Mapping[str, object]:
@@ -93,3 +101,40 @@ def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
     attempts = hybrid_meta.get("attempts", [])
     assert len(attempts) == 2
     assert attempts[-1]["status"] == "failed"
+
+
+def test_pipeline_rules_success_with_dutch(pipeline_factory) -> None:
+    pipeline = pipeline_factory()
+    utterance = (
+        "Ik zoek een vakantie vanuit Amsterdam naar Spanje op 10 oktober 2025 "
+        "voor 7 nachten met +- 3 dagen flexibiliteit."
+    )
+
+    result = pipeline.run(utterance, method="rules")
+
+    assert result.status == "success"
+    assert result.detection.language == "nl"
+    assert result.normalized is not None
+    assert result.normalized.language == "nl"
+
+
+def test_pipeline_rules_success_with_french(pipeline_factory) -> None:
+    pipeline = pipeline_factory()
+    utterance = (
+        "Je cherche des vacances au départ de Ostende vers l'Italie le 10 octobre 2025 "
+        "pour 7 nuits avec +- 3 jours de flexibilité."
+    )
+
+    result = pipeline.run(utterance, method="rules")
+
+    assert result.status == "success"
+    assert result.detection.language == "fr"
+    assert result.normalized is not None
+    assert result.normalized.language == "fr"
+
+
+def test_pipeline_rejects_language_outside_allow_list(pipeline_factory) -> None:
+    pipeline = pipeline_factory(allowed_langs=["en"])
+
+    with pytest.raises(ValueError):
+        pipeline.run("Je cherche des vacances en Italie", method="rules")

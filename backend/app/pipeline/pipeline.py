@@ -89,13 +89,13 @@ class HolidaySearchPipeline:
         language: str,
         timings: Dict[str, float],
     ) -> ExtractorOutcome:
-        extractor = self._rules_extractor if method == "rules" else self._llm_extractor
-
         try:
             extraction = self._measure(
                 "extractionMs",
                 timings,
-                lambda: extractor.extract(utterance),
+                (lambda: self._rules_extractor.extract(utterance, language=language))
+                if method == "rules"
+                else (lambda: self._llm_extractor.extract(utterance)),
             )
         except ValueError as exc:
             detail = str(exc)
