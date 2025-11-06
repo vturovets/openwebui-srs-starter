@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .api import api_router
 from .config import Settings
@@ -13,6 +14,14 @@ def create_app() -> FastAPI:
     """Instantiate and configure the FastAPI application."""
 
     app = FastAPI(title="OpenWebUI SRS Starter Backend", version="0.1.0")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.on_event("startup")
     async def load_configuration() -> None:
