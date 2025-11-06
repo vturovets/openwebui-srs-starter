@@ -8,6 +8,38 @@
   const recognized = metadata.recognizedSummaries ?? metadata.recognized ?? {};
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
+
+  const MAX_DECIMALS = 3;
+
+  function formatNumber(value: number): string {
+    if (!Number.isFinite(value)) {
+      return value.toString();
+    }
+    return Number(value.toFixed(MAX_DECIMALS)).toString();
+  }
+
+  function numberReplacer(_key: string, value: unknown) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Number(value.toFixed(MAX_DECIMALS));
+    }
+    return value;
+  }
+
+  function formatValue(value: unknown): string {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return formatNumber(value);
+    }
+    if (Array.isArray(value) || (value && typeof value === 'object')) {
+      return JSON.stringify(value, numberReplacer);
+    }
+    if (value === null) {
+      return 'null';
+    }
+    if (value === undefined) {
+      return '';
+    }
+    return String(value);
+  }
 </script>
 
 <article class={`result ${entry.result.status}`} data-testid="structured-result">
@@ -30,7 +62,7 @@
     <h3>Structured parameters</h3>
     <ul>
       {#each Object.entries(entry.result.data || {}) as [key, value]}
-        <li><strong>{key}</strong> <span>{JSON.stringify(value)}</span></li>
+        <li><strong>{key}</strong> <span>{formatValue(value)}</span></li>
       {/each}
     </ul>
   </section>
@@ -42,7 +74,7 @@
         {#each Object.entries(timings) as [key, value]}
           <tr>
             <th>{key}</th>
-            <td>{value}</td>
+            <td>{formatValue(value)}</td>
           </tr>
         {/each}
       </tbody>
