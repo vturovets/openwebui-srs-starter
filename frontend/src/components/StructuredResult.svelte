@@ -40,6 +40,18 @@
     }
     return String(value);
   }
+
+  function formatRecognizedItems(value: unknown): string {
+    if (Array.isArray(value)) {
+      const formatted = value
+        .map((item) => formatValue(item).trim())
+        .filter((item) => item.length > 0);
+      return formatted.join(', ') || '—';
+    }
+
+    const formatted = formatValue(value).trim();
+    return formatted || '—';
+  }
 </script>
 
 <article class={`result ${entry.result.status}`} data-testid="structured-result">
@@ -86,15 +98,15 @@
     <div class="chips">
       <div>
         <strong>Airports</strong>
-        <span>{(recognized.airports ?? []).join(', ') || '—'}</span>
+        <span>{formatRecognizedItems(recognized.airports)}</span>
       </div>
       <div>
         <strong>Destinations</strong>
-        <span>{(recognized.destinations ?? []).join(', ') || '—'}</span>
+        <span>{formatRecognizedItems(recognized.destinations)}</span>
       </div>
       <div>
         <strong>Dates</strong>
-        <span>{(recognized.dates ?? []).join(', ') || '—'}</span>
+        <span>{formatRecognizedItems(recognized.dates)}</span>
       </div>
     </div>
   </section>

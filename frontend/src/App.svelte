@@ -99,6 +99,29 @@
     return postVoice(baseUrl, formData);
   }
 
+  function formatRecognizedForCsv(value: unknown): string {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => formatRecognizedForCsv(item))
+        .filter((item) => item.length > 0)
+        .join(' | ');
+    }
+
+    if (value === null) {
+      return 'null';
+    }
+    if (value === undefined) {
+      return '';
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Number(value.toFixed(3)).toString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return JSON.stringify(value);
+  }
+
   function generateCsv(): string {
     const header = [
       'Timestamp',
@@ -123,9 +146,9 @@
         entry.result.metadata?.mode ?? '',
         entry.result.metadata?.method ?? '',
         timings.totalMs ?? '',
-        (recognized.airports ?? []).join(' | '),
-        (recognized.destinations ?? []).join(' | '),
-        (recognized.dates ?? []).join(' | '),
+        formatRecognizedForCsv(recognized.airports),
+        formatRecognizedForCsv(recognized.destinations),
+        formatRecognizedForCsv(recognized.dates),
       ].join(',');
     });
     return [header.join(','), ...rows].join('\n');
