@@ -170,14 +170,6 @@
       {:else if fixtures}
         <div class="fixtures" data-testid="fixtures-loaded">
           <div>
-            <strong>Airports:</strong>
-            <span>{fixtures.airports.join(', ')}</span>
-          </div>
-          <div>
-            <strong>Destinations:</strong>
-            <span>{fixtures.destinations.join(', ')}</span>
-          </div>
-          <div>
             <strong>Voice Enabled:</strong>
             <span>{fixtures.voiceEnabled ? 'Yes' : 'No'}</span>
           </div>
