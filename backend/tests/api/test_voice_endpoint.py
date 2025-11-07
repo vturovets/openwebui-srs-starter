@@ -194,7 +194,7 @@ def test_voice_endpoint_accepts_content_type_with_parameters(tmp_path):
         pipeline = StubPipeline()
         logger = StubLogger()
         stt_client = StubSTTClient()
-        upload = create_upload(b"audio-bytes", content_type="audio/webm;codecs=opus")
+        upload = create_upload(b"audio-bytes", content_type="video/webm;codecs=opus")
 
         response = await voice_endpoint(
             audio=upload,

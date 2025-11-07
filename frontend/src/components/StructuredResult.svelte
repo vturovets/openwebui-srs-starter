@@ -51,7 +51,7 @@
     return sum + (typeof row.value === 'number' ? row.value : 0);
   }, 0);
 
-  const MAX_DECIMALS = 3;
+  const MAX_DECIMALS = 2;
 
   function formatNumber(value: number): string {
     if (!Number.isFinite(value)) {
