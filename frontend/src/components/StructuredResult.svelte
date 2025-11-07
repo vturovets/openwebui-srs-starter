@@ -299,6 +299,10 @@
   <section class="timings">
     <h3>Timings</h3>
     <table>
+      <colgroup>
+        <col style="width: var(--label-column-width)" />
+        <col />
+      </colgroup>
       <tbody>
         {#each timingRows as { label, value }}
           <tr>
@@ -334,6 +338,7 @@
     padding: 1rem;
     display: grid;
     gap: 0.75rem;
+    --label-column-width: clamp(8rem, 25vw, 13rem);
   }
 
   header {
@@ -403,15 +408,19 @@
   }
 
   .data li {
-    display: flex;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: minmax(6.5rem, var(--label-column-width)) 1fr;
+    column-gap: 0.75rem;
     align-items: baseline;
   }
 
   .data strong {
-    min-width: 120px;
     color: #94a3b8;
     font-weight: 600;
+  }
+
+  .data span {
+    display: block;
   }
 
   table {
@@ -425,6 +434,16 @@
     padding: 0.25rem 0.5rem;
     text-align: left;
     border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+  }
+
+  th {
+    color: #94a3b8;
+    font-weight: 600;
+    padding-right: 1rem;
+  }
+
+  td {
+    width: auto;
   }
 
   .prompt {
