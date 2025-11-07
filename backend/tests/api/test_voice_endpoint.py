@@ -181,3 +181,30 @@ def test_voice_endpoint_transcribes_and_logs(tmp_path):
         assert log_entry["ProcessingTime"] == f"{timings['totalMs']:.2f}"
 
     asyncio.run(scenario())
+
+
+def test_voice_endpoint_accepts_content_type_with_parameters(tmp_path):
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            csv_path=tmp_path / "voice-log.csv",
+        )
+        pipeline = StubPipeline()
+        logger = StubLogger()
+        stt_client = StubSTTClient()
+        upload = create_upload(b"audio-bytes", content_type="audio/webm;codecs=opus")
+
+        response = await voice_endpoint(
+            audio=upload,
+            settings=settings,
+            pipeline=pipeline,
+            logger=logger,
+            stt_client=stt_client,
+        )
+
+        assert response.status == "success"
+        assert response.engine == "deepgram"
+
+    asyncio.run(scenario())

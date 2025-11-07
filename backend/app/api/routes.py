@@ -619,9 +619,10 @@ async def voice_endpoint(
             detail="Speech-to-text provider is not configured",
         )
 
-    content_type = (audio.content_type or "").lower()
+    raw_content_type = (audio.content_type or "").lower()
+    base_content_type = raw_content_type.split(";")[0].strip() or raw_content_type
     allowed_types = {item.lower() for item in settings.voice_allowed_content_types}
-    if content_type not in allowed_types:
+    if base_content_type not in allowed_types:
         await audio.close()
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -679,7 +680,7 @@ async def voice_endpoint(
     stt_start = perf_counter()
     try:
         transcription: TranscriptionResult = await stt_client.transcribe(
-            content_type=content_type,
+            content_type=raw_content_type or base_content_type,
             stream=audio_stream(),
         )
     except _AudioTooLargeError as exc:
