@@ -25,6 +25,7 @@ export type VoiceWordTiming = {
 
 export type VoiceResponse = HolidayResult & {
   voiceEnabled: boolean;
+  voice_enabled?: boolean;
   engine: string | null;
   words: VoiceWordTiming[];
 };
@@ -42,8 +43,8 @@ export type Fixtures = {
   airports: string[];
   destinations: string[];
   durations?: Array<{ id: string; name: string }>;
-  voiceEnabled?: boolean;
-  mode?: string;
-  llmMethod?: string | null;
+  voiceEnabled: boolean;
+  mode: string;
+  llmMethod: string | null;
 };
 

@@ -22,8 +22,8 @@
     try {
       const data = await fetchFixtures(baseUrl);
       fixtures = data;
-      mode = data.mode ?? mode;
-      method = data.llmMethod ?? null;
+      mode = data.mode;
+      method = data.llmMethod;
     } catch (error) {
       fixtureError = error instanceof Error ? error.message : 'Unable to load fixtures';
     } finally {
@@ -177,6 +177,14 @@
           <div>
             <strong>Voice Enabled:</strong>
             <span>{fixtures.voiceEnabled ? 'Yes' : 'No'}</span>
+          </div>
+          <div>
+            <strong>Airports:</strong>
+            <span>{fixtures.airports.join(', ') || '—'}</span>
+          </div>
+          <div>
+            <strong>Destinations:</strong>
+            <span>{fixtures.destinations.join(', ') || '—'}</span>
           </div>
         </div>
       {/if}

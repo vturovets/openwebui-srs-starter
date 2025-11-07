@@ -560,7 +560,10 @@ async def dialog_turn(
 
 
 @api_router.get("/fixtures")
-async def fetch_fixtures(pipeline: HolidaySearchPipeline = Depends(get_pipeline)) -> dict[str, object]:
+async def fetch_fixtures(
+    pipeline: HolidaySearchPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, object]:
     """Expose fixture content to assist the frontend with UI hints."""
 
     repo = pipeline.fixtures
@@ -582,6 +585,9 @@ async def fetch_fixtures(pipeline: HolidaySearchPipeline = Depends(get_pipeline)
         "destinations": destinations,
         "dates": dates,
         "configuration": configuration,
+        "voiceEnabled": settings.voice_enabled,
+        "mode": settings.interaction_mode,
+        "llmMethod": settings.llm_method,
     }
 
 

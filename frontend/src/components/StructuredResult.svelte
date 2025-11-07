@@ -7,6 +7,7 @@
   const timings = metadata.timings ?? {};
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
+  const recognized = metadata.recognizedSummaries ?? metadata.recognized ?? {};
 
   const MAX_DECIMALS = 3;
 
@@ -73,6 +74,20 @@
       </ul>
     </section>
   </section>
+
+  {#if Object.keys(recognized).length}
+    <section class="recognized" data-testid="recognized-summary">
+      <h3>Recognized entities</h3>
+      <div class="chips">
+        {#each Object.entries(recognized) as [key, value]}
+          <div>
+            <strong>{key}</strong>
+            <span>{formatValue(value)}</span>
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
 
   <section class="timings">
     <h3>Timings</h3>
