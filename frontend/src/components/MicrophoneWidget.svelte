@@ -64,9 +64,23 @@
     try {
       const response = await handleVoiceUpload(form);
       const transcript = response.transcript ?? '';
-      status = response.status === 'success' ? 'success' : 'failed';
-      message =
-        response.status === 'success' ? 'Transcript received.' : 'Voice request failed.';
+      const voiceActive =
+        typeof response.voiceEnabled === 'boolean'
+          ? response.voiceEnabled
+          : typeof response.voice_enabled === 'boolean'
+            ? response.voice_enabled
+            : true;
+
+      if (!voiceActive || response.status === 'noop') {
+        status = 'failed';
+        message = 'Voice input is disabled on the server.';
+      } else if (response.status === 'error') {
+        status = 'failed';
+        message = 'Voice request failed.';
+      } else {
+        status = 'success';
+        message = 'Transcript received.';
+      }
       dispatch('voiceResult', {
         transcript,
         response,

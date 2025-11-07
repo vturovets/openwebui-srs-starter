@@ -38,6 +38,13 @@ export async function postVoice(baseUrl: string, formData: FormData): Promise<Vo
     method: 'POST',
     body: formData,
   });
-  return handleResponse(response);
+  const payload = (await handleResponse(response)) as Record<string, unknown>;
+  if (
+    typeof payload.voiceEnabled === 'undefined' &&
+    typeof payload.voice_enabled === 'boolean'
+  ) {
+    payload.voiceEnabled = payload.voice_enabled as boolean;
+  }
+  return payload as VoiceResponse;
 }
 
