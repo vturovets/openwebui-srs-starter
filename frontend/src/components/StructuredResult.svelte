@@ -5,7 +5,6 @@
 
   const metadata = entry.result.metadata ?? {};
   const timings = metadata.timings ?? {};
-  const recognized = metadata.recognizedSummaries ?? metadata.recognized ?? {};
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
 
@@ -41,17 +40,6 @@
     return String(value);
   }
 
-  function formatRecognizedItems(value: unknown): string {
-    if (Array.isArray(value)) {
-      const formatted = value
-        .map((item) => formatValue(item).trim())
-        .filter((item) => item.length > 0);
-      return formatted.join(', ') || '—';
-    }
-
-    const formatted = formatValue(value).trim();
-    return formatted || '—';
-  }
 </script>
 
 <article class={`result ${entry.result.status}`} data-testid="structured-result">
@@ -91,24 +79,6 @@
         {/each}
       </tbody>
     </table>
-  </section>
-
-  <section class="recognized">
-    <h3>Recognised entities</h3>
-    <div class="chips">
-      <div>
-        <strong>Airports</strong>
-        <span>{formatRecognizedItems(recognized.airports)}</span>
-      </div>
-      <div>
-        <strong>Destinations</strong>
-        <span>{formatRecognizedItems(recognized.destinations)}</span>
-      </div>
-      <div>
-        <strong>Dates</strong>
-        <span>{formatRecognizedItems(recognized.dates)}</span>
-      </div>
-    </div>
   </section>
 
   {#if missing.length || invalid.length}
