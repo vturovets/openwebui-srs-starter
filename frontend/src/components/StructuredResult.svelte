@@ -58,13 +58,20 @@
     {/if}
   </section>
 
-  <section class="data">
-    <h3>Structured parameters</h3>
-    <ul>
-      {#each Object.entries(entry.result.data || {}) as [key, value]}
-        <li><strong>{key}</strong> <span>{formatValue(value)}</span></li>
-      {/each}
-    </ul>
+  <section class="request-details">
+    <div class="request-text">
+      <h3>User input</h3>
+      <pre>{entry.input}</pre>
+    </div>
+
+    <section class="data">
+      <h3>Structured parameters</h3>
+      <ul>
+        {#each Object.entries(entry.result.data || {}) as [key, value]}
+          <li><strong>{key}</strong> <span>{formatValue(value)}</span></li>
+        {/each}
+      </ul>
+    </section>
   </section>
 
   <section class="timings">
@@ -134,6 +141,30 @@
   .result.failed,
   .result.error {
     border: 1px solid rgba(248, 113, 113, 0.3);
+  }
+
+  .request-details {
+    display: grid;
+    gap: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    .request-details {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+
+  .request-text pre {
+    margin: 0;
+    padding: 0.75rem;
+    background: rgba(51, 65, 85, 0.5);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .data ul {
