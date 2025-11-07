@@ -1,9 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount } from 'svelte';
-  import type { HolidayResult } from '../lib/types';
+  import type { VoiceResponse } from '../lib/types';
 
   export let mode: string;
-  export let handleVoiceUpload: (form: FormData) => Promise<HolidayResult & { transcript?: string }>;
+  export let handleVoiceUpload: (form: FormData) => Promise<VoiceResponse>;
 
   const dispatch = createEventDispatcher();
 

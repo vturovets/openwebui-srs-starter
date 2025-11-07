@@ -72,6 +72,9 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({
         status: 'success',
         transcript: 'Fly from Amsterdam to Rome',
+        voiceEnabled: true,
+        engine: 'deepgram',
+        words: [],
         data: { from: ['AMS'], to: ['Rome'] },
         metadata: {
           mode: 'dialog',
@@ -111,5 +114,8 @@ test('voice upload routes through parse flow and updates status indicators', asy
 
   await expect(page.getByTestId('voice-status')).toContainText('Transcript received');
   await expect(page.getByTestId('structured-result')).toBeVisible();
+  await expect(page.locator('[data-testid="structured-result"] pre').first()).toHaveText(
+    'Fly from Amsterdam to Rome'
+  );
 });
 

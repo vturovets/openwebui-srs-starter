@@ -1,6 +1,6 @@
 export type HolidayResult = {
   status: string;
-  data: Record<string, unknown>;
+  data: Record<string, unknown> | null;
   metadata: Record<string, any> & {
     timings?: Record<string, number>;
     mode?: string;
@@ -15,6 +15,18 @@ export type HolidayResult = {
   };
   clarifications?: Array<{ parameter: string; message: string; reason: string }>;
   transcript?: string;
+};
+
+export type VoiceWordTiming = {
+  word: string;
+  start: number;
+  end: number;
+};
+
+export type VoiceResponse = HolidayResult & {
+  voiceEnabled: boolean;
+  engine: string | null;
+  words: VoiceWordTiming[];
 };
 
 export type HolidayResultEntry = {

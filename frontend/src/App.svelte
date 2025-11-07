@@ -3,7 +3,7 @@
   import MicrophoneWidget from './components/MicrophoneWidget.svelte';
   import StructuredResult from './components/StructuredResult.svelte';
   import { fetchFixtures, parseText, postVoice } from './lib/api';
-  import type { HolidayResult, HolidayResultEntry, Fixtures } from './lib/types';
+  import type { HolidayResult, HolidayResultEntry, Fixtures, VoiceResponse } from './lib/types';
 
   const metaEnv = (import.meta as any)?.env ?? {};
   const baseUrl = (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
@@ -50,12 +50,17 @@
     return `entry-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
-  function trackEntry(source: 'text' | 'voice', result: HolidayResult, input: string) {
+  function trackEntry(
+    source: 'text' | 'voice',
+    result: HolidayResult,
+    input: string
+  ) {
+    const resolvedInput = input || result.transcript || '';
     history = [
       {
         id: generateId(),
         source,
-        input,
+        input: resolvedInput,
         result,
         prompt: buildClarificationPrompt(result),
         timestamp: new Date().toISOString(),
@@ -90,7 +95,7 @@
     }
   }
 
-  async function handleVoice(event: CustomEvent<{ transcript: string; response: HolidayResult }>) {
+  async function handleVoice(event: CustomEvent<{ transcript: string; response: VoiceResponse }>) {
     const { transcript, response } = event.detail;
     trackEntry('voice', response, transcript);
   }

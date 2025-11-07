@@ -1,4 +1,4 @@
-import type { Fixtures, HolidayResult } from './types';
+import type { Fixtures, HolidayResult, VoiceResponse } from './types';
 
 async function handleResponse(response: Response) {
   if (!response.ok) {
@@ -33,10 +33,7 @@ export async function parseText(
   return handleResponse(response);
 }
 
-export async function postVoice(
-  baseUrl: string,
-  formData: FormData
-): Promise<HolidayResult & { transcript?: string }> {
+export async function postVoice(baseUrl: string, formData: FormData): Promise<VoiceResponse> {
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/voice`, {
     method: 'POST',
     body: formData,
