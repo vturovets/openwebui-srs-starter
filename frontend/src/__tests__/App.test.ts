@@ -1,9 +1,27 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
+
+vi.mock('svelte', async () => {
+  const actual = await vi.importActual<typeof import('svelte')>('svelte');
+  return {
+    ...actual,
+    onMount: (fn: () => void) => fn(),
+  };
+});
+
+import { tick } from 'svelte';
+
+vi.mock('../lib/api', () => ({
+  fetchFixtures: vi.fn(),
+  parseText: vi.fn(),
+  postVoice: vi.fn(),
+}));
+
 import App from '../App.svelte';
+import { fetchFixtures, parseText } from '../lib/api';
 
 const FIXTURE_RESPONSE = {
-  airports: ['AMS', 'LGW'],
+  airports: ['Amsterdam', 'London Gatwick'],
   destinations: ['Italy'],
   voiceEnabled: true,
   mode: 'dialog',
@@ -40,6 +58,8 @@ const PARSE_FAILED = {
       destinations: [],
       dates: [],
     },
+    missingFields: ['to'],
+    invalidFields: [],
   },
   clarifications: [
     {
@@ -50,34 +70,35 @@ const PARSE_FAILED = {
   ],
 };
 
-function mockFetchSequence(responses: Array<Record<string, unknown>>) {
-  const calls = responses.map((payload) =>
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(payload),
-    })
-  );
-  global.fetch = vi.fn().mockImplementation(() => calls.shift()!);
-}
-
 describe('Holiday search console', () => {
+  const fetchFixturesMock = fetchFixtures as unknown as vi.Mock;
+  const parseTextMock = parseText as unknown as vi.Mock;
+
   beforeEach(() => {
-    vi.restoreAllMocks();
-    mockFetchSequence([FIXTURE_RESPONSE]);
+    fetchFixturesMock.mockReset().mockResolvedValue({ ...FIXTURE_RESPONSE });
+    parseTextMock.mockReset();
   });
 
   it('loads fixtures on mount and displays airports/destinations', async () => {
-    render(App);
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
     expect(screen.getByTestId('fixtures-loading')).toBeInTheDocument();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByTestId('fixtures-loaded')).toBeInTheDocument());
     expect(screen.getByText('Airports:')).toBeInTheDocument();
-    expect(screen.getByText('AMS, LGW')).toBeInTheDocument();
+    expect(screen.getByText('Amsterdam, London Gatwick')).toBeInTheDocument();
   });
 
   it('shows structured results with timings after parsing text', async () => {
-    mockFetchSequence([FIXTURE_RESPONSE, PARSE_SUCCESS]);
-    render(App);
-    await waitFor(() => expect(screen.getByTestId('fixtures-loaded')).toBeInTheDocument());
+    parseTextMock.mockResolvedValueOnce(PARSE_SUCCESS);
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
 
     const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
     await fireEvent.input(input, { target: { value: 'Find a trip' } });
@@ -89,9 +110,13 @@ describe('Holiday search console', () => {
   });
 
   it('surfaces clarification prompts when parse fails', async () => {
-    mockFetchSequence([FIXTURE_RESPONSE, PARSE_FAILED]);
-    render(App);
-    await waitFor(() => expect(screen.getByTestId('fixtures-loaded')).toBeInTheDocument());
+    parseTextMock.mockResolvedValueOnce(PARSE_FAILED);
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
 
     const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
     await fireEvent.input(input, { target: { value: 'Missing destination' } });
@@ -102,9 +127,13 @@ describe('Holiday search console', () => {
   });
 
   it('generates CSV preview with processed history', async () => {
-    mockFetchSequence([FIXTURE_RESPONSE, PARSE_SUCCESS]);
-    render(App);
-    await waitFor(() => expect(screen.getByTestId('fixtures-loaded')).toBeInTheDocument());
+    parseTextMock.mockResolvedValueOnce(PARSE_SUCCESS);
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
 
     const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
     await fireEvent.input(input, { target: { value: 'Find a trip' } });
