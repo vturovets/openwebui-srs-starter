@@ -18,13 +18,13 @@ below. 【F:backend/app/config.py†L18-L158】
 | `deepgram_api_key` | `DEEPGRAM_API_KEY` | `None` | API key required when `STT_ENGINE=deepgram`. |
 | `voice_enabled` | `VOICE_ENABLED` | `False` | Enables the `/v1/voice` endpoint and STT integration when true. |
 | `voice_max_bytes` | `VOICE_MAX_BYTES` | `10000000` | Maximum upload size (in bytes) accepted by the voice endpoint. |
-| `voice_allowed_content_types` | `VOICE_ALLOWED_CONTENT_TYPES` | `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/webm`, `audio/flac` | Whitelisted MIME types for audio uploads. |
+| `voice_allowed_content_types` | `VOICE_ALLOWED_CONTENT_TYPES` | `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/webm`, `video/webm`, `audio/flac` | Whitelisted MIME types for audio uploads. |
 | `fixtures_dir` | `FIXTURES_DIR` | `fixtures` | Directory containing JSON fixtures used by the pipeline. |
 | `processing_threshold_ms` | `PROCESSING_THRESHOLD_MS` | `1000` | SLA threshold used to flag slow pipeline executions in metadata. |
 
 Numeric and list-type values accept either JSON-style arrays or comma-separated strings.
 Helper validators normalise the data, so `ALLOWED_LANGS=en,fr` and
-`VOICE_ALLOWED_CONTENT_TYPES=audio/wav,audio/webm` are both valid. 【F:backend/app/config.py†L104-L153】
+`VOICE_ALLOWED_CONTENT_TYPES=audio/wav,audio/webm` and `VOICE_ALLOWED_CONTENT_TYPES=audio/webm,video/webm` are both valid. 【F:backend/app/config.py†L104-L153】
 
 Calling `Settings.ensure_directories()` ensures both the CSV directory and fixtures
 directory exist before serving traffic. 【F:backend/app/config.py†L146-L158】

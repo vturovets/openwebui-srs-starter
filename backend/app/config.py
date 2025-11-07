@@ -70,6 +70,7 @@ class Settings(BaseSettings):
             "audio/mp3",
             "audio/ogg",
             "audio/webm",
+            "video/webm",
             "audio/flac",
         ],
         alias="VOICE_ALLOWED_CONTENT_TYPES",
@@ -125,6 +126,7 @@ class Settings(BaseSettings):
                 "audio/mp3",
                 "audio/ogg",
                 "audio/webm",
+                "video/webm",
                 "audio/flac",
             ]
         if isinstance(value, str):
@@ -138,6 +140,7 @@ class Settings(BaseSettings):
                 "audio/mp3",
                 "audio/ogg",
                 "audio/webm",
+                "video/webm",
                 "audio/flac",
             ]
         raise TypeError(
