@@ -144,5 +144,32 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('csv-preview')).toBeInTheDocument();
     expect(screen.getByTestId('csv-preview').textContent).toContain('Timestamp,Source,Status');
   });
+
+  it('disables voice interactions when voice fixtures are disabled', async () => {
+    fetchFixturesMock.mockResolvedValueOnce({
+      ...FIXTURE_RESPONSE,
+      voiceEnabled: false,
+    });
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+    await tick();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('voice-status')).toHaveTextContent(
+        'Voice input is disabled by configuration.'
+      )
+    );
+
+    await waitFor(() => expect(screen.getByTestId('record-button')).toBeDisabled());
+
+    const uploadInput = screen.getByTestId('voice-input') as HTMLInputElement;
+    expect(uploadInput.disabled).toBe(true);
+  });
 });
 
