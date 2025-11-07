@@ -92,6 +92,10 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         extra="ignore",
         populate_by_name=True,
+        # Allow validators to handle comma-separated ``.env`` overrides (e.g.
+        # VOICE_ALLOWED_CONTENT_TYPES) without triggering JSON decode errors for
+        # blank values by skipping automatic decoding in the settings sources.
+        enable_decoding=False,
     )
 
     @field_validator("allowed_langs", mode="before")
