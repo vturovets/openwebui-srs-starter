@@ -1,0 +1,62 @@
+"C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Scripts\python.exe" -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000 
+INFO:     Will watch for changes in these directories: ['C:\\Users\\votu\\Documents\\Ciklum\\2025\\AI Academy\\Capstone project\\openwebui-ai-search']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [5648] using WatchFiles
+INFO:     Started server process [31364]
+INFO:     Waiting for application startup.
+ERROR:    Traceback (most recent call last):
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\pydantic_settings\sources\base.py", line 496, in __call__
+    field_value = self.prepare_field_value(field_name, field, field_value, value_is_complex)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py", line 120, in prepare_field_value
+    raise e
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\pydantic_settings\sources\providers\env.py", line 117, in prepare_field_value
+    value = self.decode_complex_value(field_name, field, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\pydantic_settings\sources\base.py", line 188, in decode_complex_value
+    return json.loads(value)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\routing.py", line 694, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\routing.py", line 211, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\routing.py", line 571, in __aenter__
+    await self._router.startup()
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\routing.py", line 671, in startup
+    await handler()
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py", line 28, in load_configuration
+    settings = get_settings()
+               ^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\dependencies.py", line 48, in get_settings
+    settings = Settings()
+               ^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\pydantic_settings\main.py", line 194, in __init__
+    **__pydantic_self__._settings_build_values(
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\pydantic_settings\main.py", line 436, in _settings_build_values
+    source_state = source()
+                   ^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\pydantic_settings\sources\providers\dotenv.py", line 106, in __call__
+    data: dict[str, Any] = super().__call__()
+                           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\pydantic_settings\sources\base.py", line 498, in __call__
+    raise SettingsError(
+pydantic_settings.exceptions.SettingsError: error parsing value for field "voice_allowed_content_types" from source "DotEnvSettingsSource"
+
+ERROR:    Application startup failed. Exiting.
