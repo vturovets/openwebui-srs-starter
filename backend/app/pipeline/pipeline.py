@@ -113,6 +113,11 @@ class HolidaySearchPipeline:
                 attempts=[{"method": method, "status": "error", "detail": detail}],
             )
 
+        if method == "llm":
+            network_ms = self._llm_extractor.last_network_latency_ms
+            if network_ms is not None:
+                timings["llmNetworkMs"] = timings.get("llmNetworkMs", 0.0) + network_ms
+
         normalized = self._measure(
             "normalizationMs",
             timings,

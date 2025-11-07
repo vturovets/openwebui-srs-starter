@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from time import perf_counter
 from typing import Callable, List, Mapping, MutableMapping, Sequence
 
 from ..fixtures.repository import FixtureRepository
@@ -47,6 +48,7 @@ class LLMExtractor:
         self._fixtures = fixtures
         self._configuration = configuration
         self._llm_client = llm_client
+        self._last_network_latency_ms: float | None = None
 
         # Snapshot fixture metadata for quick lookup.
         self._airports_by_id = {entry["id"]: entry for entry in fixtures.list_airports()}
@@ -91,7 +93,10 @@ class LLMExtractor:
         if self._llm_client is None:
             raise ValueError("LLM extractor is not configured")
 
+        self._last_network_latency_ms = None
+        start = perf_counter()
         payload = self._llm_client(utterance)
+        self._last_network_latency_ms = (perf_counter() - start) * 1000
         if not isinstance(payload, Mapping):
             raise ValueError("LLM extractor must return a mapping payload")
 
@@ -134,6 +139,12 @@ class LLMExtractor:
             flexibility=flexibility,
             dates=dates,
         )
+
+    @property
+    def last_network_latency_ms(self) -> float | None:
+        """Return the most recent latency measurement for the LLM client."""
+
+        return self._last_network_latency_ms
 
 
 class HybridExtractor:
