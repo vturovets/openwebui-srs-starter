@@ -29,7 +29,13 @@ test.beforeEach(async ({ page }) => {
           metadata: {
             mode: 'dialog',
             method: 'rules',
-            timings: { totalMs: 60 },
+            timings: {
+              languageMs: 6,
+              extractionMs: 12,
+              normalizationMs: 15,
+              validationMs: 9,
+              totalMs: 42,
+            },
             recognizedSummaries: {
               airports: [],
               destinations: [],
@@ -54,7 +60,13 @@ test.beforeEach(async ({ page }) => {
         metadata: {
           mode: 'dialog',
           method: 'rules',
-          timings: { totalMs: 42 },
+          timings: {
+            languageMs: 5,
+            extractionMs: 11,
+            normalizationMs: 8,
+            validationMs: 6,
+            totalMs: 30,
+          },
           recognizedSummaries: {
             airports: ['AMS'],
             destinations: ['Rome'],
@@ -79,7 +91,15 @@ test.beforeEach(async ({ page }) => {
         metadata: {
           mode: 'dialog',
           method: 'rules',
-          timings: { totalMs: 120, sttMs: 50 },
+          timings: {
+            languageMs: 5,
+            extractionMs: 11,
+            normalizationMs: 8,
+            validationMs: 6,
+            sttMs: 50,
+            llmNetworkMs: 14,
+            totalMs: 94,
+          },
         },
       }),
     });
