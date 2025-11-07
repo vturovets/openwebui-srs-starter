@@ -1,5 +1,28 @@
 import type { Fixtures, HolidayResult, VoiceResponse } from './types';
 
+function normaliseFixtureNames(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return entry;
+      }
+
+      if (entry && typeof entry === 'object' && 'name' in entry) {
+        const name = (entry as { name?: unknown }).name;
+        if (typeof name === 'string' && name.trim().length > 0) {
+          return name.trim();
+        }
+      }
+
+      return '';
+    })
+    .filter((name) => name.length > 0);
+}
+
 async function handleResponse(response: Response) {
   if (!response.ok) {
     const detail = await response.text();
@@ -11,7 +34,16 @@ async function handleResponse(response: Response) {
 export async function fetchFixtures(baseUrl: string): Promise<Fixtures> {
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/fixtures`);
   const payload = await handleResponse(response);
-  return payload as Fixtures;
+  const fixtures = payload as Fixtures & {
+    airports?: unknown;
+    destinations?: unknown;
+  };
+
+  return {
+    ...fixtures,
+    airports: normaliseFixtureNames(fixtures.airports),
+    destinations: normaliseFixtureNames(fixtures.destinations),
+  };
 }
 
 export async function parseText(
