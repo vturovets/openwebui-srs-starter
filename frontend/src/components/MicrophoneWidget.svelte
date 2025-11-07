@@ -4,6 +4,7 @@
 
   export let mode: string;
   export let handleVoiceUpload: (form: FormData) => Promise<VoiceResponse>;
+  export let voiceEnabled = true;
 
   const dispatch = createEventDispatcher();
 
@@ -17,10 +18,18 @@
   let recordedChunks: BlobPart[] = [];
   let resetTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function idleMessage(): string {
-    return recordingSupported
+  function idleMessageFor(voiceActive: boolean, supported: boolean): string {
+    if (!voiceActive) {
+      return 'Voice input is disabled by configuration.';
+    }
+
+    return supported
       ? 'Use your microphone to dictate a request.'
       : 'Upload an audio file to submit a voice request.';
+  }
+
+  function idleMessage(): string {
+    return idleMessageFor(voiceEnabled, recordingSupported);
   }
 
   function clearResetTimer() {
@@ -46,6 +55,10 @@
 
     message = idleMessage();
   });
+
+  $: if (status === 'idle') {
+    message = idleMessageFor(voiceEnabled, recordingSupported);
+  }
 
   onDestroy(() => {
     clearResetTimer();
@@ -101,6 +114,7 @@
 
   async function startRecording() {
     if (
+      !voiceEnabled ||
       !recordingSupported ||
       status === 'recording' ||
       status === 'uploading' ||
@@ -173,6 +187,9 @@
   }
 
   async function onFileChange(event: Event) {
+    if (!voiceEnabled) {
+      return;
+    }
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) {
@@ -200,7 +217,7 @@
       class="record-button"
       class:recording={status === 'recording'}
       on:click={toggleRecording}
-      disabled={!recordingSupported || status === 'uploading' || status === 'requesting'}
+      disabled={!voiceEnabled || !recordingSupported || status === 'uploading' || status === 'requesting'}
       aria-pressed={status === 'recording'}
       data-testid="record-button"
     >
@@ -218,9 +235,15 @@
       <span>{status === 'recording' ? 'Stop recording' : 'Record voice'}</span>
     </button>
 
-    <label class="upload">
+    <label class="upload" class:disabled={!voiceEnabled} aria-disabled={!voiceEnabled}>
       <span>Upload audio</span>
-      <input type="file" accept="audio/*" on:change={onFileChange} data-testid="voice-input" />
+      <input
+        type="file"
+        accept="audio/*"
+        on:change={onFileChange}
+        data-testid="voice-input"
+        disabled={!voiceEnabled}
+      />
     </label>
   </div>
 
@@ -312,6 +335,11 @@
 
   .upload input {
     display: none;
+  }
+
+  .upload.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .mode {
