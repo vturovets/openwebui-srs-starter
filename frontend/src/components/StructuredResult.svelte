@@ -4,9 +4,52 @@
   export let entry: HolidayResultEntry;
 
   const metadata = entry.result.metadata ?? {};
-  const timings = metadata.timings ?? {};
+  const timings = (metadata.timings ?? {}) as Record<string, unknown>;
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
+
+  function getNumericTiming(key: string): number | undefined {
+    const value = timings[key];
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  }
+
+  const timingRows = (() => {
+    const networkLatencyMs =
+      getNumericTiming('llmNetworkMs') ??
+      getNumericTiming('networkLatencyMs') ??
+      getNumericTiming('networkMs');
+
+    return [
+      {
+        label: 'Language detection, ms',
+        value: getNumericTiming('languageMs') ?? '',
+      },
+      {
+        label: 'Extraction, ms',
+        value: getNumericTiming('extractionMs') ?? '',
+      },
+      {
+        label: 'Mapping to API request parameters, ms',
+        value: getNumericTiming('normalizationMs') ?? '',
+      },
+      {
+        label: 'Validation, ms',
+        value: getNumericTiming('validationMs') ?? '',
+      },
+      {
+        label: 'Transcription, ms',
+        value: getNumericTiming('sttMs') ?? '',
+      },
+      {
+        label: 'Network latency, ms',
+        value: networkLatencyMs ?? '',
+      },
+    ];
+  })();
+
+  const totalTimingMs = timingRows.reduce((sum, row) => {
+    return sum + (typeof row.value === 'number' ? row.value : 0);
+  }, 0);
 
   const MAX_DECIMALS = 3;
 
@@ -78,12 +121,16 @@
     <h3>Timings</h3>
     <table>
       <tbody>
-        {#each Object.entries(timings) as [key, value]}
+        {#each timingRows as { label, value }}
           <tr>
-            <th>{key}</th>
+            <th>{label}</th>
             <td>{formatValue(value)}</td>
           </tr>
         {/each}
+        <tr>
+          <th>Total, ms</th>
+          <td>{formatValue(totalTimingMs)}</td>
+        </tr>
       </tbody>
     </table>
   </section>

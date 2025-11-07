@@ -37,7 +37,13 @@ const PARSE_SUCCESS = {
   metadata: {
     mode: 'dialog',
     method: 'rules',
-    timings: { totalMs: 42 },
+    timings: {
+      languageMs: 5,
+      extractionMs: 10,
+      normalizationMs: 12,
+      validationMs: 7,
+      totalMs: 34,
+    },
     recognizedSummaries: {
       airports: ['AMS'],
       destinations: ['Italy'],
@@ -52,7 +58,13 @@ const PARSE_FAILED = {
   metadata: {
     mode: 'dialog',
     method: 'rules',
-    timings: { totalMs: 42 },
+    timings: {
+      languageMs: 5,
+      extractionMs: 10,
+      normalizationMs: 12,
+      validationMs: 7,
+      totalMs: 34,
+    },
     recognizedSummaries: {
       airports: [],
       destinations: [],
@@ -105,7 +117,7 @@ describe('Holiday search console', () => {
     await fireEvent.submit(screen.getByTestId('parse-form'));
 
     await waitFor(() => expect(screen.getAllByTestId('structured-result').length).toBeGreaterThan(0));
-    expect(screen.getByText('totalMs')).toBeInTheDocument();
+    expect(screen.getByText('Total, ms')).toBeInTheDocument();
     expect(screen.getByTestId('status-label')).toHaveTextContent('success');
   });
 
