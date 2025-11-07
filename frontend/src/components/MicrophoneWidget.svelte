@@ -4,21 +4,12 @@
 
   export let mode: string;
   export let handleVoiceUpload: (form: FormData) => Promise<HolidayResult & { transcript?: string }>;
-  export let voiceEnabled = true;
 
   const dispatch = createEventDispatcher();
 
-  type WidgetStatus =
-    | 'idle'
-    | 'requesting'
-    | 'recording'
-    | 'uploading'
-    | 'success'
-    | 'failed'
-    | 'disabled';
+  type WidgetStatus = 'idle' | 'requesting' | 'recording' | 'uploading' | 'success' | 'failed';
 
   let status: WidgetStatus = 'idle';
-  const DISABLED_MESSAGE = 'Voice input is disabled for this environment.';
   let message = 'Use your microphone to dictate a request.';
   let recordingSupported = false;
   let mediaRecorder: MediaRecorder | null = null;
@@ -27,9 +18,6 @@
   let resetTimer: ReturnType<typeof setTimeout> | null = null;
 
   function idleMessage(): string {
-    if (!voiceEnabled) {
-      return DISABLED_MESSAGE;
-    }
     return recordingSupported
       ? 'Use your microphone to dictate a request.'
       : 'Upload an audio file to submit a voice request.';
@@ -70,11 +58,6 @@
   });
 
   async function submitForm(form: FormData) {
-    if (!voiceEnabled) {
-      status = 'disabled';
-      message = DISABLED_MESSAGE;
-      return null;
-    }
     clearResetTimer();
     status = 'uploading';
     message = 'Uploading audio…';
@@ -104,7 +87,6 @@
 
   async function startRecording() {
     if (
-      !voiceEnabled ||
       !recordingSupported ||
       status === 'recording' ||
       status === 'uploading' ||
@@ -131,12 +113,6 @@
         stopStream();
         const chunks = recordedChunks;
         recordedChunks = [];
-        if (!voiceEnabled) {
-          status = 'disabled';
-          message = DISABLED_MESSAGE;
-          mediaRecorder = null;
-          return;
-        }
         if (!chunks.length) {
           status = 'failed';
           message = 'No audio was captured.';
@@ -175,11 +151,6 @@
   }
 
   function toggleRecording() {
-    if (!voiceEnabled) {
-      status = 'disabled';
-      message = DISABLED_MESSAGE;
-      return;
-    }
     if (status === 'recording') {
       stopRecording();
     } else {
@@ -190,14 +161,6 @@
   async function onFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
-    if (!voiceEnabled) {
-      status = 'disabled';
-      message = DISABLED_MESSAGE;
-      if (target) {
-        target.value = '';
-      }
-      return;
-    }
     if (!file) {
       return;
     }
@@ -208,30 +171,6 @@
     } finally {
       target.value = '';
     }
-  }
-  $: if (!voiceEnabled) {
-    clearResetTimer();
-    stopStream();
-    recordedChunks = [];
-    if (mediaRecorder) {
-      try {
-        mediaRecorder.ondataavailable = null;
-        mediaRecorder.onstop = null;
-        if (mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
-      } catch {
-        // ignore errors during forced stop
-      }
-      mediaRecorder = null;
-    }
-    status = 'disabled';
-    message = DISABLED_MESSAGE;
-  } else if (status === 'disabled') {
-    status = 'idle';
-    message = idleMessage();
-  } else if (status === 'idle') {
-    message = idleMessage();
   }
 </script>
 
@@ -247,7 +186,7 @@
       class="record-button"
       class:recording={status === 'recording'}
       on:click={toggleRecording}
-      disabled={!voiceEnabled || !recordingSupported || status === 'uploading' || status === 'requesting'}
+      disabled={!recordingSupported || status === 'uploading' || status === 'requesting'}
       aria-pressed={status === 'recording'}
       data-testid="record-button"
     >
@@ -265,15 +204,9 @@
       <span>{status === 'recording' ? 'Stop recording' : 'Record voice'}</span>
     </button>
 
-    <label class="upload" class:disabled={!voiceEnabled}>
+    <label class="upload">
       <span>Upload audio</span>
-      <input
-        type="file"
-        accept="audio/*"
-        on:change={onFileChange}
-        data-testid="voice-input"
-        disabled={!voiceEnabled}
-      />
+      <input type="file" accept="audio/*" on:change={onFileChange} data-testid="voice-input" />
     </label>
   </div>
 
@@ -367,11 +300,6 @@
     display: none;
   }
 
-  .upload.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
   .mode {
     font-size: 0.75rem;
     color: #94a3b8;
@@ -388,10 +316,6 @@
 
   .failed {
     color: #f87171;
-  }
-
-  .disabled {
-    color: #94a3b8;
   }
 </style>
 
