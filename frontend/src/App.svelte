@@ -212,12 +212,7 @@
       </div>
     </form>
 
-    <MicrophoneWidget
-      on:voiceResult={handleVoice}
-      {handleVoiceUpload}
-      mode={mode}
-      voiceEnabled={fixtures?.voiceEnabled ?? true}
-    />
+    <MicrophoneWidget on:voiceResult={handleVoice} {handleVoiceUpload} mode={mode} />
 
     {#if csvPreview}
       <section class="csv" data-testid="csv-preview">
