@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import sleep
 from typing import Mapping
 
 import pytest
@@ -18,7 +19,8 @@ def pipeline_factory(tmp_path: Path):
     """Provide a factory for creating pipelines with stub LLM responses."""
 
     def factory(
-        responses: Mapping[str, Mapping[str, object]] | None = None,
+        responses: Mapping[str, Mapping[str, object] | tuple[Mapping[str, object], float]]
+        | None = None,
         *,
         allowed_langs: list[str] | None = None,
     ) -> HolidaySearchPipeline:
@@ -34,9 +36,18 @@ def pipeline_factory(tmp_path: Path):
         else:
             def llm_client(text: str) -> Mapping[str, object]:
                 try:
-                    return responses[text]
+                    payload = responses[text]
                 except KeyError as exc:
                     raise ValueError(f"Unexpected LLM request for '{text}'") from exc
+
+                delay: float | None = None
+                if isinstance(payload, tuple):
+                    payload, delay = payload
+
+                if delay:
+                    sleep(delay)
+
+                return payload
 
         return HolidaySearchPipeline(
             settings=settings,
@@ -79,6 +90,26 @@ def test_pipeline_hybrid_fallback_success(pipeline_factory) -> None:
     assert hybrid_meta.get("primaryFailure", "").startswith("Departure date is required")
     attempts = hybrid_meta.get("attempts", [])
     assert attempts and attempts[0]["method"] == "rules" and attempts[0]["status"] == "failed"
+
+
+def test_pipeline_records_llm_network_latency(pipeline_factory) -> None:
+    llm_payloads = {
+        "Measure latency": (
+            {
+                "airports": ["AMS"],
+                "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+                "dates": ["2025-11-25"],
+            },
+            0.05,
+        )
+    }
+    pipeline = pipeline_factory(llm_payloads)
+
+    result = pipeline.run("Measure latency", method="llm")
+
+    latency_ms = result.timings.get("llmNetworkMs")
+    assert latency_ms is not None
+    assert latency_ms >= 40.0
 
 
 def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
