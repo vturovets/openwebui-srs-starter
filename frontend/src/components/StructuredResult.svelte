@@ -7,7 +7,6 @@
   const timings = metadata.timings ?? {};
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
-  const recognized = metadata.recognizedSummaries ?? metadata.recognized ?? {};
 
   const MAX_DECIMALS = 3;
 
@@ -74,20 +73,6 @@
       </ul>
     </section>
   </section>
-
-  {#if Object.keys(recognized).length}
-    <section class="recognized" data-testid="recognized-summary">
-      <h3>Recognized entities</h3>
-      <div class="chips">
-        {#each Object.entries(recognized) as [key, value]}
-          <div>
-            <strong>{key}</strong>
-            <span>{formatValue(value)}</span>
-          </div>
-        {/each}
-      </div>
-    </section>
-  {/if}
 
   <section class="timings">
     <h3>Timings</h3>
@@ -214,29 +199,6 @@
     padding: 0.25rem 0.5rem;
     text-align: left;
     border-bottom: 1px solid rgba(148, 163, 184, 0.3);
-  }
-
-  .chips {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 0.5rem;
-  }
-
-  .chips div {
-    background: rgba(51, 65, 85, 0.5);
-    border-radius: 8px;
-    padding: 0.5rem;
-  }
-
-  .chips strong {
-    display: block;
-    margin-bottom: 0.25rem;
-    color: #cbd5f5;
-    font-size: 0.75rem;
-  }
-
-  .chips span {
-    font-size: 0.8rem;
   }
 
   .prompt {
