@@ -47,6 +47,26 @@ class Settings(BaseSettings):
         alias="LLM_METHOD",
         description="Identifier for the primary LLM/NLP method in use.",
     )
+    llm_api_base: Optional[str] = Field(
+        default=None,
+        alias="LLM_API_BASE",
+        description="Base URL for the structured extraction LLM provider.",
+    )
+    llm_api_key: Optional[str] = Field(
+        default=None,
+        alias="LLM_API_KEY",
+        description="API token for authenticating with the configured LLM provider.",
+    )
+    llm_model: str = Field(
+        default="gpt-3.5-turbo",
+        alias="LLM_MODEL",
+        description="Model identifier to request from the LLM provider.",
+    )
+    llm_timeout: float = Field(
+        default=30.0,
+        alias="LLM_TIMEOUT",
+        description="Timeout (seconds) for outbound LLM requests.",
+    )
     stt_engine: Optional[str] = Field(
         default=None,
         alias="STT_ENGINE",
@@ -174,6 +194,47 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return Path(value)
         raise TypeError("Expected a filesystem path string for CSV_PATH/FIXTURES_DIR")
+
+    @field_validator("llm_api_base", "llm_api_key", mode="before")
+    @classmethod
+    def _strip_optional_string(cls, value: object) -> Optional[str]:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value is None:
+            return None
+        if isinstance(value, str):
+            cleaned = value.strip()
+            return cleaned or None
+        raise TypeError("LLM API configuration values must be provided as strings")
+
+    @field_validator("llm_model", mode="before")
+    @classmethod
+    def _validate_llm_model(cls, value: object) -> str:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value is None:
+            return "gpt-3.5-turbo"
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return "gpt-3.5-turbo"
+            return cleaned
+        raise TypeError("LLM_MODEL must be provided as a string value")
+
+    @field_validator("llm_timeout", mode="before")
+    @classmethod
+    def _validate_llm_timeout(cls, value: object) -> float:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 30.0
+        try:
+            timeout = float(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("LLM_TIMEOUT must be a numeric value") from exc
+        if timeout <= 0:
+            raise ValueError("LLM_TIMEOUT must be greater than zero seconds")
+        return timeout
 
     def ensure_directories(self) -> None:
         """Create required directories for runtime artifacts if missing."""
