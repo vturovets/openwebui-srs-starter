@@ -89,6 +89,7 @@ class HolidaySearchPipeline:
         language: str,
         timings: Dict[str, float],
     ) -> ExtractorOutcome:
+        metadata_payload: Dict[str, Any] = {}
         try:
             extraction = self._measure(
                 "extractionMs",
@@ -111,12 +112,16 @@ class HolidaySearchPipeline:
                 validation=validation,
                 detail=detail,
                 attempts=[{"method": method, "status": "error", "detail": detail}],
+                metadata=metadata_payload,
             )
 
         if method == "llm":
             network_ms = self._llm_extractor.last_network_latency_ms
             if network_ms is not None:
                 timings["llmNetworkMs"] = timings.get("llmNetworkMs", 0.0) + network_ms
+            llm_metadata = self._llm_extractor.last_metadata
+            if isinstance(llm_metadata, Mapping):
+                metadata_payload["llm"] = dict(llm_metadata)
 
         normalized = self._measure(
             "normalizationMs",
@@ -144,6 +149,7 @@ class HolidaySearchPipeline:
                 validation=validation,
                 detail=detail,
                 attempts=[{"method": method, "status": "failed", "detail": detail}],
+                metadata=metadata_payload,
             )
 
         validation = {"status": "passed", "errors": []}
@@ -154,6 +160,7 @@ class HolidaySearchPipeline:
             normalized=normalized,
             validation=validation,
             attempts=[{"method": method, "status": "success"}],
+            metadata=metadata_payload,
         )
 
     def _resolve_method(self, override: str | None) -> tuple[str, str]:

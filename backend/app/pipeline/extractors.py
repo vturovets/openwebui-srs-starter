@@ -49,6 +49,7 @@ class LLMExtractor:
         self._configuration = configuration
         self._llm_client = llm_client
         self._last_network_latency_ms: float | None = None
+        self._last_metadata: MutableMapping[str, object] | None = None
 
         # Snapshot fixture metadata for quick lookup.
         self._airports_by_id = {entry["id"]: entry for entry in fixtures.list_airports()}
@@ -94,11 +95,33 @@ class LLMExtractor:
             raise ValueError("LLM extractor is not configured")
 
         self._last_network_latency_ms = None
+        self._last_metadata = {}
         start = perf_counter()
         payload = self._llm_client(utterance)
         self._last_network_latency_ms = (perf_counter() - start) * 1000
         if not isinstance(payload, Mapping):
             raise ValueError("LLM extractor must return a mapping payload")
+
+        metadata_payload: MutableMapping[str, object] = {}
+        for key in ("_metadata", "metadata", "meta", "llm"):
+            candidate = payload.get(key)
+            if isinstance(candidate, Mapping):
+                metadata_payload.update(candidate)
+
+        for key in (
+            "provider",
+            "engine",
+            "model",
+            "promptId",
+            "responseId",
+            "requestId",
+            "traceId",
+        ):
+            value = payload.get(key)
+            if value is not None and value != "":
+                metadata_payload.setdefault(key, value)
+
+        self._last_metadata = metadata_payload
 
         airports: List[Mapping[str, object]] = []
         for item in payload.get("airports", []):
@@ -145,6 +168,14 @@ class LLMExtractor:
         """Return the most recent latency measurement for the LLM client."""
 
         return self._last_network_latency_ms
+
+    @property
+    def last_metadata(self) -> MutableMapping[str, object] | None:
+        """Expose the last structured metadata payload returned by the LLM."""
+
+        if self._last_metadata is None:
+            return None
+        return dict(self._last_metadata)
 
 
 class HybridExtractor:
