@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api import api_router
 from .config import Settings
-from .dependencies import get_pipeline, get_settings
+from .dependencies import get_llm_client, get_pipeline, get_settings
 
 
 def create_app() -> FastAPI:
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
         # resources to manage, but for now this keeps caches fresh across reloads.
         get_settings.cache_clear()  # type: ignore[attr-defined]
         get_pipeline.cache_clear()  # type: ignore[attr-defined]
+        get_llm_client.cache_clear()  # type: ignore[attr-defined]
 
     @app.get("/health", tags=["health"])
     async def healthcheck(settings: Settings = Depends(get_settings)) -> dict[str, str]:

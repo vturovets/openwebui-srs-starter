@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from backend.app.dependencies import get_pipeline, get_settings
+from backend.app.dependencies import get_llm_client, get_pipeline, get_settings
 from backend.app.main import create_app
 
 
@@ -15,6 +15,7 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
 
     get_settings.cache_clear()
     get_pipeline.cache_clear()
+    get_llm_client.cache_clear()
 
     app = create_app()
     client = TestClient(app)
@@ -30,3 +31,4 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
     finally:
         get_settings.cache_clear()
         get_pipeline.cache_clear()
+        get_llm_client.cache_clear()

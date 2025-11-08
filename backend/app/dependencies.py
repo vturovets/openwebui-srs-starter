@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Iterator
+from typing import Callable, Iterator, Mapping
 
 from .config import Settings
 from .integrations.stt import DeepgramSpeechToTextClient, SpeechToTextClient
+from .integrations.llm import HolidaySearchLLMClient
 from .logging.csv_logger import CSVLogger
 
 
@@ -61,7 +62,23 @@ def get_pipeline() -> HolidaySearchPipeline:
     """Return a shared pipeline instance configured from application settings."""
 
     settings = get_settings()
-    return HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
+    return HolidaySearchPipeline(
+        settings=settings,
+        fixtures_dir=settings.fixtures_dir,
+        llm_client=get_llm_client(),
+    )
+
+
+@lru_cache
+def get_llm_client() -> Callable[[str], Mapping[str, object]] | None:
+    """Instantiate the configured LLM client when credentials are provided."""
+
+    settings = get_settings()
+    if not (settings.llm_api_key and settings.llm_api_key.strip()):
+        return None
+
+    client = HolidaySearchLLMClient(settings=settings, fixtures_dir=settings.fixtures_dir)
+    return client
 
 
 @lru_cache
@@ -107,6 +124,7 @@ __all__ = [
     "get_settings",
     "settings_dependency",
     "get_pipeline",
+    "get_llm_client",
     "get_csv_logger",
     "get_dialog_orchestrator",
     "get_stt_client",
