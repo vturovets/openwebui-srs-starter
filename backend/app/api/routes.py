@@ -316,9 +316,21 @@ def _format_pipeline_response(
 ):
     """Normalise pipeline output for API responses and CSV logging."""
 
+    pipeline_metadata = (
+        result.metadata if isinstance(result.metadata, Mapping) else {}
+    )
+
     timings = dict(result.timings)
+    existing_timing_payload = (
+        pipeline_metadata.get("timings") if isinstance(pipeline_metadata, Mapping) else {}
+    )
+    if isinstance(existing_timing_payload, Mapping):
+        timings.update(existing_timing_payload)
     if total_override_ms is not None:
         timings["totalMs"] = total_override_ms
+    llm_network_ms = timings.get("llmNetworkMs")
+    if isinstance(llm_network_ms, (int, float)):
+        timings["llmNetworkMs"] = float(llm_network_ms)
     total_ms = timings.get("totalMs", 0.0)
     threshold_ms = settings.processing_threshold_ms
     threshold_breached = total_ms > threshold_ms
@@ -333,17 +345,18 @@ def _format_pipeline_response(
     elif status == "error" and error_detail:
         data_payload = {"error": error_detail}
 
-    metadata: dict[str, object] = {
-        "mode": mode or settings.interaction_mode,
-        "method": result.method_used,
-        "requestedMethod": result.method_requested,
-        "timings": timings,
-        "validation": result.validation,
-        "transcript": transcript_log,
-    }
+    metadata: dict[str, object] = (
+        {key: value for key, value in pipeline_metadata.items() if key != "timings"}
+        if isinstance(pipeline_metadata, Mapping)
+        else {}
+    )
+    metadata["mode"] = mode or settings.interaction_mode
+    metadata["method"] = result.method_used
+    metadata["requestedMethod"] = result.method_requested
+    metadata["timings"] = timings
+    metadata["validation"] = result.validation
+    metadata["transcript"] = transcript_log
 
-    if result.metadata.get("hybrid"):
-        metadata["hybrid"] = result.metadata["hybrid"]
     if result.attempts:
         metadata["attempts"] = result.attempts
 
@@ -390,6 +403,9 @@ def _format_pipeline_response(
         log_output["error"] = error_detail
     output_serialised = json.dumps(log_output, ensure_ascii=False)
 
+    llm_metadata_raw = metadata.get("llm")
+    llm_metadata = llm_metadata_raw if isinstance(llm_metadata_raw, Mapping) else {}
+
     log_entry = {
         "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         "Input": input_text,
@@ -401,6 +417,20 @@ def _format_pipeline_response(
         "ExtractionMs": _format_timing_ms(timings.get("extractionMs")),
         "NormalizationMs": _format_timing_ms(timings.get("normalizationMs")),
         "ValidationMs": _format_timing_ms(timings.get("validationMs")),
+        "LLMNetworkMs": _format_timing_ms(timings.get("llmNetworkMs")),
+        "LLMProvider": str(
+            llm_metadata.get("provider")
+            or llm_metadata.get("engine")
+            or llm_metadata.get("model")
+            or ""
+        ),
+        "LLMPromptId": str(llm_metadata.get("promptId") or ""),
+        "LLMRequestId": str(llm_metadata.get("requestId") or ""),
+        "LLMResponseId": str(
+            llm_metadata.get("responseId")
+            or llm_metadata.get("traceId")
+            or ""
+        ),
         "Output": output_serialised,
         "Status": status,
         "ThresholdBreached": "true" if threshold_breached else "false",
@@ -515,6 +545,9 @@ async def dialog_turn(
     if not isinstance(invalid_fields, list):
         invalid_fields = []
 
+    llm_metadata_raw = metadata.get("llm")
+    llm_metadata = llm_metadata_raw if isinstance(llm_metadata_raw, Mapping) else {}
+
     log_entry = {
         "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         "Input": payload.text,
@@ -526,6 +559,20 @@ async def dialog_turn(
         "ExtractionMs": _format_timing_ms(timings.get("extractionMs")),
         "NormalizationMs": _format_timing_ms(timings.get("normalizationMs")),
         "ValidationMs": _format_timing_ms(timings.get("validationMs")),
+        "LLMNetworkMs": _format_timing_ms(timings.get("llmNetworkMs")),
+        "LLMProvider": str(
+            llm_metadata.get("provider")
+            or llm_metadata.get("engine")
+            or llm_metadata.get("model")
+            or ""
+        ),
+        "LLMPromptId": str(llm_metadata.get("promptId") or ""),
+        "LLMRequestId": str(llm_metadata.get("requestId") or ""),
+        "LLMResponseId": str(
+            llm_metadata.get("responseId")
+            or llm_metadata.get("traceId")
+            or ""
+        ),
         "Output": output_serialised,
         "Status": log_status,
         "ThresholdBreached": "true" if threshold_breached else "false",

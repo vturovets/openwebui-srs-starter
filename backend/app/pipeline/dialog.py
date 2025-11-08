@@ -59,6 +59,7 @@ class DialogSession:
     language: str | None = None
     language_confidence: float | None = None
     error: str | None = None
+    llm_metadata: Dict[str, object] = field(default_factory=dict)
 
     def append_user_turn(self, text: str) -> None:
         self.turn += 1
@@ -160,13 +161,25 @@ class DialogOrchestrator:
             if result.normalized is not None and result.status != "error":
                 normalized_payload = result.normalized.to_payload()
 
-            metadata: Dict[str, object] = {
-                "mode": effective_mode,
-                "method": result.method_used,
-                "requestedMethod": result.method_requested,
-                "timings": dict(result.timings),
-                "validation": dict(result.validation),
-            }
+            pipeline_metadata = (
+                result.metadata if isinstance(result.metadata, Mapping) else {}
+            )
+            timings = dict(result.timings)
+            existing_timings = (
+                pipeline_metadata.get("timings") if isinstance(pipeline_metadata, Mapping) else {}
+            )
+            if isinstance(existing_timings, Mapping):
+                timings.update(existing_timings)
+            metadata: Dict[str, object] = (
+                {key: value for key, value in pipeline_metadata.items() if key != "timings"}
+                if isinstance(pipeline_metadata, Mapping)
+                else {}
+            )
+            metadata["mode"] = effective_mode
+            metadata["method"] = result.method_used
+            metadata["requestedMethod"] = result.method_requested
+            metadata["timings"] = timings
+            metadata["validation"] = dict(result.validation)
             if result.detection is not None:
                 metadata["language"] = {
                     "code": result.detection.language,
@@ -197,6 +210,11 @@ class DialogOrchestrator:
         session.method_used = result.method_used
         session.validation = dict(result.validation)
         session.timings = dict(result.timings)
+        llm_metadata = result.metadata.get("llm") if isinstance(result.metadata, Mapping) else None
+        if isinstance(llm_metadata, Mapping):
+            session.llm_metadata = dict(llm_metadata)
+        else:
+            session.llm_metadata = {}
         session.error = result.error
 
         if result.detection is not None:
@@ -362,6 +380,8 @@ class DialogOrchestrator:
             "transcript": [dict(turn) for turn in session.transcript],
             "missingParameters": sorted(session.missing_parameters),
         }
+        if session.llm_metadata:
+            metadata["llm"] = dict(session.llm_metadata)
         if session.language:
             metadata["language"] = {
                 "code": session.language,

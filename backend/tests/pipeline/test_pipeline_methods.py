@@ -112,6 +112,30 @@ def test_pipeline_records_llm_network_latency(pipeline_factory) -> None:
     assert latency_ms >= 40.0
 
 
+def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
+    llm_payloads = {
+        "Expose metadata": {
+            "airports": ["AMS"],
+            "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+            "dates": ["2025-11-25"],
+            "metadata": {
+                "provider": "stub-llm",
+                "promptId": "prompt-123",
+                "responseId": "response-456",
+            },
+        }
+    }
+    pipeline = pipeline_factory(llm_payloads)
+
+    result = pipeline.run("Expose metadata", method="llm")
+
+    llm_meta = result.metadata.get("llm")
+    assert isinstance(llm_meta, dict)
+    assert llm_meta.get("provider") == "stub-llm"
+    assert llm_meta.get("promptId") == "prompt-123"
+    assert llm_meta.get("responseId") == "response-456"
+
+
 def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
     llm_payloads = {
         "Fallback still missing data": {
