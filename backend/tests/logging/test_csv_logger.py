@@ -58,3 +58,15 @@ def test_csv_logger_serialises_extended_columns(csv_path: Path) -> None:
     assert json.loads(row["RecognizedDates"]) == ["2025-10-10T00:00:00"]
     assert row["RecognizedDuration"] == "2007"
     assert row["RecognizedFlexibility"] == "3"
+
+
+def test_csv_logger_supports_custom_delimiter(csv_path: Path) -> None:
+    logger = CSVLogger(path=csv_path, fieldnames=CSV_LOG_FIELDS, delimiter=";")
+
+    logger.log({"Timestamp": "now", "Input": "hello"})
+
+    with csv_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle, delimiter=";"))
+
+    assert len(rows) == 1
+    assert rows[0]["Input"] == "hello"
