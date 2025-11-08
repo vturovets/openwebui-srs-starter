@@ -13,6 +13,7 @@ below. 【F:backend/app/config.py†L18-L158】
 | `interaction_mode` | `INTERACTION_MODE` | `"direct-parse"` | Controls whether requests default to single-turn parsing (`direct-parse`) or dialog-driven clarification (`dialog`). |
 | `allowed_langs` | `ALLOWED_LANGS` | `["en"]` | Comma-separated list of ISO language codes the language detector should accept. |
 | `csv_path` | `CSV_PATH` | `data/log.csv` | Location of the CSV audit log written by the API. Directories are created automatically. |
+| `csv_delimiter` | `CSV_DELIMITER` | `","` | Delimiter character applied to rows written to the audit log. |
 | `llm_method` | `LLM_METHOD` | `None` | Preferred extraction method: `rules`, `llm`, or `hybrid`. Unknown values fall back to `rules`. |
 | `stt_engine` | `STT_ENGINE` | `None` | Speech-to-text provider identifier. Currently `deepgram` is supported. |
 | `deepgram_api_key` | `DEEPGRAM_API_KEY` | `None` | API key required when `STT_ENGINE=deepgram`. |
@@ -25,6 +26,10 @@ below. 【F:backend/app/config.py†L18-L158】
 Numeric and list-type values accept either JSON-style arrays or comma-separated strings.
 Helper validators normalise the data, so `ALLOWED_LANGS=en,fr` and
 `VOICE_ALLOWED_CONTENT_TYPES=audio/wav,audio/webm` and `VOICE_ALLOWED_CONTENT_TYPES=audio/webm,video/webm` are both valid. 【F:backend/app/config.py†L104-L153】
+
+`CSV_DELIMITER` accepts a single printable character such as `;` or `|`, allowing
+locales that prefer semicolon-delimited audit trails to interoperate without
+post-processing. 【F:backend/app/config.py†L37-L57】【F:backend/app/logging/csv_logger.py†L22-L51】
 
 Calling `Settings.ensure_directories()` ensures both the CSV directory and fixtures
 directory exist before serving traffic. 【F:backend/app/config.py†L146-L158】

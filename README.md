@@ -66,6 +66,7 @@ serving traffic. Key options mirror the SRS:
 | `INTERACTION_MODE` | `direct-parse` | Choose `direct-parse` for single-shot parsing or `dialog` to allow clarification flows (UI support required). |
 | `ALLOWED_LANGS` | `en` | Comma-separated ISO language codes accepted by the language detector (v1 ships with English only). |
 | `CSV_PATH` | `data/log.csv` | Path to the CSV audit log; directories are created automatically. |
+| `CSV_DELIMITER` | `,` | Single-character delimiter used when writing the CSV audit log. |
 | `LLM_METHOD` | _(unset)_ | Optional identifier for the NLP technique under evaluation (e.g., `rules`, `llm`, `hybrid`). |
 | `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled (e.g., `deepgram`). |
 | `DEEPGRAM_API_KEY` | _(unset)_ | API key for Deepgram when `STT_ENGINE=deepgram`. |
@@ -81,6 +82,7 @@ Create a `.env` file to override defaults, for example:
 INTERACTION_MODE=direct-parse
 ALLOWED_LANGS=en
 CSV_PATH=data/log.csv
+CSV_DELIMITER=;
 LLM_METHOD=rules
 PROCESSING_THRESHOLD_MS=750
 ```

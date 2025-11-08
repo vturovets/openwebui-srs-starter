@@ -37,6 +37,11 @@ class Settings(BaseSettings):
         alias="CSV_PATH",
         description="Filesystem path for the CSV log that captures conversions.",
     )
+    csv_delimiter: str = Field(
+        default=",",
+        alias="CSV_DELIMITER",
+        description="Single-character delimiter used for the CSV audit log.",
+    )
     llm_method: Optional[str] = Field(
         default=None,
         alias="LLM_METHOD",
@@ -146,6 +151,20 @@ class Settings(BaseSettings):
         raise TypeError(
             "VOICE_ALLOWED_CONTENT_TYPES must be provided as a comma-separated string or list",
         )
+
+    @field_validator("csv_delimiter", mode="before")
+    @classmethod
+    def _validate_csv_delimiter(cls, value: object) -> str:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value is None:
+            return ","
+        if isinstance(value, str):
+            delimiter = value.strip()
+            if len(delimiter) != 1:
+                raise ValueError("CSV_DELIMITER must be a single visible character")
+            return delimiter
+        raise TypeError("CSV_DELIMITER must be provided as a single-character string")
 
     @field_validator("csv_path", "fixtures_dir", mode="before")
     @classmethod

@@ -72,6 +72,7 @@ def get_csv_logger() -> CSVLogger:
     return CSVLogger(
         path=settings.csv_path,
         fieldnames=CSV_LOG_FIELDS,
+        delimiter=settings.csv_delimiter,
     )
 
 

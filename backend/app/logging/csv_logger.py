@@ -25,11 +25,15 @@ class CSVLogger:
 
     path: Path
     fieldnames: Sequence[str]
+    delimiter: str = ","
     _fieldnames: list[str] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.path = Path(self.path)
         self._fieldnames = list(self.fieldnames)
+        self.delimiter = str(self.delimiter)
+        if len(self.delimiter) != 1:
+            raise ValueError("CSV delimiter must be a single character")
 
     def log(self, payload: Mapping[str, object]) -> None:
         """Append a log entry ensuring headers exist and directories are created."""
@@ -50,7 +54,12 @@ class CSVLogger:
             row[name] = _serialise_value(payload.get(name))
 
         with self.path.open("a", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=self._fieldnames, extrasaction="ignore")
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=self._fieldnames,
+                extrasaction="ignore",
+                delimiter=self.delimiter,
+            )
             if write_header:
                 writer.writeheader()
             writer.writerow(row)
