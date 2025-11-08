@@ -57,9 +57,22 @@ class StructuredLLMClient:
             "model": self._model,
             "messages": list(self._build_messages(text)),
             "temperature": 0,
-            "response_format": {"type": "json_object"},
         }
+
+        if self._supports_json_mode():
+            payload["response_format"] = {"type": "json_object"}
+
         return payload
+
+    def _supports_json_mode(self) -> bool:
+        """Return ``True`` when the configured model supports JSON mode."""
+
+        # The OpenAI API only supports the structured ``response_format`` flag on
+        # newer "o"/"4" model families. Older deployments (such as ``gpt-3.5``)
+        # reject the parameter with a ``400`` response which previously bubbled
+        # up as a hard failure in production (see docs/log-001.txt).
+        name = self._model.lower()
+        return name.startswith("gpt-4") or "-4o" in name or name.startswith("o1")
 
     def _headers(self) -> Mapping[str, str]:
         headers = {"Content-Type": "application/json"}
