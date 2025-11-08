@@ -158,6 +158,54 @@ def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
     assert attempts[-1]["status"] == "failed"
 
 
+def test_dependency_wiring_triggers_llm_when_configured(monkeypatch, tmp_path: Path) -> None:
+    """Ensure the pipeline obtained via dependencies honours LLM defaults."""
+
+    from backend.app import dependencies
+
+    for cache in (dependencies.get_settings, dependencies.get_pipeline, dependencies.get_llm_client):
+        cache.cache_clear()  # type: ignore[attr-defined]
+
+    monkeypatch.setenv("LLM_METHOD", "llm")
+    monkeypatch.setenv("LLM_API_KEY", "integration-key")
+    monkeypatch.setenv("LLM_API_BASE", "https://mock-llm")
+    monkeypatch.setenv("LLM_MODEL", "gpt-test")
+    monkeypatch.setenv("CSV_PATH", str(tmp_path / "log.csv"))
+    monkeypatch.setenv("FIXTURES_DIR", str(FIXTURES_DIR))
+
+    calls: list[str] = []
+
+    class DummyLLMClient:
+        def __call__(self, text: str) -> Mapping[str, object]:
+            calls.append(text)
+            return {
+                "airports": ["AMS"],
+                "destinations": ["d7b4bb39-123d-1234-123f-1234567f"],
+                "duration": "2007",
+                "flexibility": "3",
+                "dates": ["2025-10-10"],
+            }
+
+    dummy_client = DummyLLMClient()
+    monkeypatch.setattr(
+        dependencies,
+        "HolidaySearchLLMClient",
+        lambda settings, fixtures_dir: dummy_client,
+    )
+
+    try:
+        pipeline = dependencies.get_pipeline()
+        result = pipeline.run("Plan a weekend escape")
+    finally:
+        dependencies.get_pipeline.cache_clear()  # type: ignore[attr-defined]
+        dependencies.get_settings.cache_clear()  # type: ignore[attr-defined]
+        dependencies.get_llm_client.cache_clear()  # type: ignore[attr-defined]
+
+    assert result.method_requested == "llm"
+    assert result.method_used == "llm"
+    assert calls == ["Plan a weekend escape"]
+
+
 def test_pipeline_rules_success_with_dutch(pipeline_factory) -> None:
     pipeline = pipeline_factory()
     utterance = (
