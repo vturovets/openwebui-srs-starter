@@ -68,6 +68,10 @@ serving traffic. Key options mirror the SRS:
 | `CSV_PATH` | `data/log.csv` | Path to the CSV audit log; directories are created automatically. |
 | `CSV_DELIMITER` | `,` | Single-character delimiter used when writing the CSV audit log. |
 | `LLM_METHOD` | _(unset)_ | Optional identifier for the NLP technique under evaluation (e.g., `rules`, `llm`, `hybrid`). |
+| `LLM_API_BASE` | _(unset)_ | Override the LLM provider base URL when using a proxy or self-hosted gateway. |
+| `LLM_API_KEY` | _(unset)_ | Credential passed to the structured LLM client when `LLM_METHOD=llm` or `hybrid`. |
+| `LLM_MODEL` | `gpt-3.5-turbo` | Model identifier requested from the LLM provider. |
+| `LLM_TIMEOUT` | `30` | Client-side timeout (seconds) for outbound LLM requests. |
 | `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled (e.g., `deepgram`). |
 | `DEEPGRAM_API_KEY` | _(unset)_ | API key for Deepgram when `STT_ENGINE=deepgram`. |
 | `VOICE_ENABLED` | `false` | Toggle indicating whether voice input is active in the UI. |
@@ -83,9 +87,31 @@ INTERACTION_MODE=direct-parse
 ALLOWED_LANGS=en
 CSV_PATH=data/log.csv
 CSV_DELIMITER=;
-LLM_METHOD=rules
+# Enable the structured LLM path
+LLM_METHOD=llm
+LLM_API_KEY=sk-your-key
+LLM_MODEL=gpt-4o
+# Optional when routing through a proxy/self-hosted gateway
+# LLM_API_BASE=https://your-proxy.example.com/v1
 PROCESSING_THRESHOLD_MS=750
 ```
+
+When deploying with Docker Compose, mirror the same environment variables in the
+service definition so the backend receives the credentials at startup:
+
+```yaml
+services:
+  backend:
+    image: ghcr.io/openwebui/starter-backend:latest
+    environment:
+      - LLM_METHOD=llm
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-3.5-turbo}
+      - LLM_API_BASE=${LLM_API_BASE:-https://api.openai.com/v1}
+```
+
+Bind-mount a `.env` file or rely on Compose variable substitution to keep
+secrets out of version control.
 
 ## Running the backend
 
