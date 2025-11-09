@@ -26,7 +26,13 @@ const FIXTURE_RESPONSE = {
   destinations: ['Italy'],
   voiceEnabled: true,
   mode: 'dialog',
-  llmMethod: 'rules',
+  llmMethod: 'rules-basic',
+  availableMethods: [
+    { id: 'rules-basic', type: 'rules', label: 'Rules Basic' },
+    { id: 'gpt5-default', type: 'llm', label: 'LLM Default' },
+  ],
+  defaultMethod: 'rules-basic',
+  methodDefaults: { temperature: 0.0 },
   configuration: {
     defaults: {
       adults: 2,
@@ -192,6 +198,9 @@ describe('Holiday search console', () => {
     );
     expect(labels[0]).toContain('Method');
     expect(labels[1]).toContain('Interaction mode');
+
+    const methodSelect = screen.getByTestId('method-select') as HTMLSelectElement;
+    expect(methodSelect.value).toBe('rules-basic');
   });
 
   it('shows structured results with timings after parsing text', async () => {

@@ -69,15 +69,19 @@ class MethodsCatalog:
     methods: Mapping[str, MethodConfig]
     order: Tuple[str, ...]
     defaults: Mapping[str, Any]
+    default_id: str
 
     def __post_init__(self) -> None:
         if not self.order:
             raise ValueError("Methods catalog must contain at least one enabled method")
+        if self.default_id not in self.methods:
+            raise ValueError(
+                f"Configured default method '{self.default_id}' is not present in the catalog"
+            )
 
     @property
     def default_method(self) -> MethodConfig:
-        identifier = self.order[0]
-        return self.methods[identifier]
+        return self.methods[self.default_id]
 
     @property
     def default_method_id(self) -> str:
@@ -283,6 +287,14 @@ def load_methods_catalog(path: str | Path) -> MethodsCatalog:
     defaults_raw = _expand_env(raw_payload.get("defaults", {}))
     defaults = _ensure_mapping(defaults_raw, label="defaults")
 
+    default_raw = raw_payload.get("default")
+    if default_raw is None:
+        default_identifier: str | None = None
+    elif isinstance(default_raw, str):
+        default_identifier = default_raw.strip() or None
+    else:
+        raise TypeError("Methods configuration 'default' must be a string when provided")
+
     raw_methods = raw_payload.get("methods")
     if not isinstance(raw_methods, Sequence):
         raise TypeError("Methods configuration must provide a sequence under 'methods'")
@@ -319,7 +331,21 @@ def load_methods_catalog(path: str | Path) -> MethodsCatalog:
         else:
             resolved[identifier] = entry
 
-    return MethodsCatalog(methods=resolved, order=tuple(order), defaults=dict(defaults))
+    if not order:
+        raise ValueError("Methods configuration must enable at least one method")
+
+    chosen_default = default_identifier or order[0]
+    if chosen_default not in resolved:
+        raise ValueError(
+            f"Configured default method '{chosen_default}' not found among enabled methods"
+        )
+
+    return MethodsCatalog(
+        methods=resolved,
+        order=tuple(order),
+        defaults=dict(defaults),
+        default_id=chosen_default,
+    )
 
 
 @dataclass(frozen=True)

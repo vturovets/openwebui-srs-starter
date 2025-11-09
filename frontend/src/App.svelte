@@ -21,20 +21,69 @@
   let loadingFixtures = true;
   let query = '';
   let history: HolidayResultEntry[] = [];
+  type MethodOption = { id: string; label: string };
+
   let mode = 'direct-parse';
-  let method: string | null = null;
+  let method = '';
+  let methodOptions: MethodOption[] = [];
   let busy = false;
   let downloadAnchor: HTMLAnchorElement | null = null;
   let downloadUrl: string | null = null;
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
 
+  function normaliseMethodOptions(value: unknown): MethodOption[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const options: MethodOption[] = [];
+    const seen = new Set<string>();
+
+    for (const entry of value) {
+      if (typeof entry === 'string') {
+        const id = entry.trim();
+        if (id.length > 0 && !seen.has(id)) {
+          options.push({ id, label: id });
+          seen.add(id);
+        }
+        continue;
+      }
+
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+
+      const record = entry as Record<string, unknown>;
+      const rawId = record.id;
+      if (typeof rawId !== 'string') {
+        continue;
+      }
+      const id = rawId.trim();
+      if (!id || seen.has(id)) {
+        continue;
+      }
+
+      const rawLabel = record.label;
+      const label = typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : id;
+
+      options.push({ id, label });
+      seen.add(id);
+    }
+
+    return options;
+  }
+
   onMount(async () => {
     try {
       const data = await fetchFixtures(baseUrl);
       fixtures = data;
       mode = data.mode;
-      method = data.llmMethod;
+      methodOptions = normaliseMethodOptions(data?.availableMethods);
+      method = typeof data.llmMethod === 'string' ? data.llmMethod : '';
+      if (method && !methodOptions.some((option) => option.id === method)) {
+        methodOptions = [...methodOptions, { id: method, label: method }];
+      }
     } catch (error) {
       fixtureError = error instanceof Error ? error.message : 'Unable to load fixtures';
     } finally {
@@ -137,7 +186,7 @@
     try {
       const payload = await parseText(baseUrl, query, {
         mode,
-        method: method ?? undefined,
+        method: method || undefined,
       });
       trackEntry('text', payload, query);
       query = '';
@@ -330,7 +379,7 @@
       Validation: formatTiming(validationTiming),
       Transcription: formatTiming(transcriptionTiming),
       'Network Latency': formatTiming(networkLatencyTiming),
-      Output: buildOutput(entry, metadata),
+      'Output JSON': buildOutput(entry, metadata),
     };
 
     return row;
@@ -428,12 +477,19 @@
     <form class="query" on:submit|preventDefault={handleSubmit} data-testid="parse-form">
       <label>
         Method
-        <input
-          type="text"
-          placeholder="rules"
+        <select
           bind:value={method}
-          data-testid="method-input"
-        />
+          disabled={!methodOptions.length}
+          data-testid="method-select"
+        >
+          {#if !methodOptions.length}
+            <option value="">No methods available</option>
+          {:else}
+            {#each methodOptions as option}
+              <option value={option.id}>{option.id}</option>
+            {/each}
+          {/if}
+        </select>
       </label>
 
       <label>

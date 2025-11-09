@@ -34,6 +34,33 @@ def test_methods_catalog_expands_env_defaults(monkeypatch) -> None:
     assert llm.config["api_base"] == "https://example.test/v1"
 
 
+def test_methods_catalog_honours_explicit_default(tmp_path: Path) -> None:
+    methods_yaml = tmp_path / "methods.yaml"
+    methods_yaml.write_text(
+        """
+defaults:
+  timeout_s: 30
+  temperature: 0.0
+
+default: gpt5-default
+
+methods:
+  - id: rules-basic
+    type: rules
+    enabled: true
+
+  - id: gpt5-default
+    type: llm
+    enabled: true
+""",
+        encoding="utf-8",
+    )
+
+    catalog = load_methods_catalog(methods_yaml)
+
+    assert catalog.default_method_id == "gpt5-default"
+
+
 @pytest.mark.parametrize(
     "identifier,expected",
     [
