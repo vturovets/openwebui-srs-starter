@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from backend.app.api.routes import _utc_timestamp
 from backend.app.dependencies import CSV_LOG_FIELDS
 from backend.app.logging.csv_logger import CSVLogger
 
@@ -70,3 +71,9 @@ def test_csv_logger_supports_custom_delimiter(csv_path: Path) -> None:
 
     assert len(rows) == 1
     assert rows[0]["Input"] == "hello"
+
+
+def test_utc_timestamp_includes_utc_indicator() -> None:
+    timestamp = _utc_timestamp()
+
+    assert timestamp.endswith("Z") or timestamp.endswith("+00:00")

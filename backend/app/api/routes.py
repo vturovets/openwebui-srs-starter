@@ -33,6 +33,12 @@ from ..integrations.stt import (
 api_router = APIRouter(prefix="/v1", tags=["v1"])
 
 
+def _utc_timestamp() -> str:
+    """Return an ISO 8601 timestamp with millisecond precision in UTC."""
+
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
 class ParseRequest(BaseModel):
     """Payload required to invoke the NLP pipeline."""
 
@@ -407,7 +413,7 @@ def _format_pipeline_response(
     llm_metadata = llm_metadata_raw if isinstance(llm_metadata_raw, Mapping) else {}
 
     log_entry = {
-        "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        "Timestamp": _utc_timestamp(),
         "Input": input_text,
         "Language": detection.language if detection is not None else "",
         "Method": result.method_used,
@@ -549,7 +555,7 @@ async def dialog_turn(
     llm_metadata = llm_metadata_raw if isinstance(llm_metadata_raw, Mapping) else {}
 
     log_entry = {
-        "Timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        "Timestamp": _utc_timestamp(),
         "Input": payload.text,
         "Language": metadata.get("language", {}).get("code", ""),
         "Method": metadata.get("method", ""),
