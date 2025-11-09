@@ -1,0 +1,42 @@
+# Global defaults applied to all methods (can be overridden per-method)
+defaults:
+  timeout_s: 30
+  temperature: 0.0
+
+methods:
+  - id: rules-basic
+    type: rules                       # rules | llm | hybrid
+    enabled: true
+    params:
+      dictionary_filename: data/dictionary.csv
+      configuration_filename: configs/rules.conf
+
+  - id: gpt5-default
+    type: llm
+    enabled: true
+    provider: openai
+    model: gpt-5-chat-latest
+    api_base: ${OPENAI_BASE:-https://api.openai.com/v1}   # env-substitution
+    api_key_env: OPENAI_API_KEY                           # do NOT store keys here
+    params:
+      temperature: 0.1
+      max_tokens: 512
+
+  - id: sonnet-4.5
+    type: llm
+    enabled: false
+    provider: anthropic
+    model: claude-3-7-sonnet
+    api_base: ${ANTHROPIC_BASE:-https://api.anthropic.com}
+    api_key_env: ANTHROPIC_API_KEY
+    params:
+      temperature: 0.1
+
+  - id: hybrid-v1
+    type: hybrid
+    enabled: true
+    strategy: cascade              # cascade | vote | weight
+    stages:
+      - ref: rules-basic
+      - ref: gpt5-default
+    fallback: gpt5-default
