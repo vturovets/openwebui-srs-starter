@@ -32,13 +32,16 @@ class StubPipeline:
         normalized = SimpleNamespace(to_payload=lambda: {"utterance": utterance})
         return PipelineRunResult(
             status="success",
-            method_requested="rules",
-            method_used="rules",
+            method_requested="rules-basic",
+            method_used="rules-basic",
             detection=detection,
             extraction=None,
             normalized=normalized,
             validation={"status": "passed", "errors": []},
-            metadata={},
+            metadata={
+                "defaultMethod": "rules-basic",
+                "availableMethods": [],
+            },
             attempts=[],
             timings=dict(self.timings),
             error=None,

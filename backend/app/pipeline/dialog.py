@@ -141,6 +141,7 @@ class DialogOrchestrator:
     def __init__(self, pipeline: HolidaySearchPipeline, settings: Settings) -> None:
         self._pipeline = pipeline
         self._settings = settings
+        self._methods_catalog = pipeline.methods_catalog
         self._sessions: Dict[str, DialogSession] = {}
 
     # ------------------------------------------------------------------
@@ -180,6 +181,9 @@ class DialogOrchestrator:
             metadata["requestedMethod"] = result.method_requested
             metadata["timings"] = timings
             metadata["validation"] = dict(result.validation)
+            metadata.setdefault("availableMethods", self._methods_catalog.to_metadata())
+            metadata.setdefault("methodDefaults", dict(self._methods_catalog.defaults))
+            metadata.setdefault("defaultMethod", self._methods_catalog.default_method_id)
             if result.detection is not None:
                 metadata["language"] = {
                     "code": result.detection.language,
@@ -380,6 +384,9 @@ class DialogOrchestrator:
             "transcript": [dict(turn) for turn in session.transcript],
             "missingParameters": sorted(session.missing_parameters),
         }
+        metadata.setdefault("availableMethods", self._methods_catalog.to_metadata())
+        metadata.setdefault("methodDefaults", dict(self._methods_catalog.defaults))
+        metadata.setdefault("defaultMethod", self._methods_catalog.default_method_id)
         if session.llm_metadata:
             metadata["llm"] = dict(session.llm_metadata)
         if session.language:

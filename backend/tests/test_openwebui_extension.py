@@ -84,6 +84,8 @@ def test_fixtures_include_runtime_flags() -> None:
     assert fixtures["voiceEnabled"] is True
     assert fixtures["mode"] == "dialog"
     assert fixtures["llmMethod"] == "rules"
+    assert fixtures["defaultMethod"] == "rules"
+    assert fixtures["availableMethods"] == []
 
 
 def test_voice_passthrough_enriches_metadata() -> None:
