@@ -3,7 +3,14 @@
   import MicrophoneWidget from './components/MicrophoneWidget.svelte';
   import StructuredResult from './components/StructuredResult.svelte';
   import { fetchFixtures, parseText, postVoice } from './lib/api';
-  import type { HolidayResult, HolidayResultEntry, Fixtures, VoiceResponse } from './lib/types';
+  import type {
+    Fixtures,
+    FixturesConfigurationDefaults,
+    FixturesConfigurationFlexibility,
+    HolidayResult,
+    HolidayResultEntry,
+    VoiceResponse,
+  } from './lib/types';
 
   const metaEnv = (import.meta as any)?.env ?? {};
   const baseUrl = (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
@@ -48,6 +55,54 @@
       return cryptoObj.randomUUID();
     }
     return `entry-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function formatDefaultParticipants(defaults?: FixturesConfigurationDefaults): string {
+    if (!defaults) {
+      return '—';
+    }
+
+    const participants: string[] = [];
+    const { adults, nonAdults } = defaults;
+
+    if (typeof adults === 'number' && Number.isFinite(adults)) {
+      participants.push(`${adults} adult${adults === 1 ? '' : 's'}`);
+    }
+
+    if (typeof nonAdults === 'number' && Number.isFinite(nonAdults)) {
+      participants.push(`${nonAdults} non-adult${nonAdults === 1 ? '' : 's'}`);
+    }
+
+    return participants.length ? participants.join(' / ') : '—';
+  }
+
+  function resolveDefaultFlexibility(flexibility?: FixturesConfigurationFlexibility): string {
+    const options = flexibility?.flexibleList ?? [];
+    const defaultOption = options.find((option) => option?.isDefault);
+
+    if (!defaultOption) {
+      return '—';
+    }
+
+    const id = defaultOption.id;
+    if (typeof id === 'string' && id.trim().length > 0) {
+      const numericId = Number(id);
+      if (Number.isFinite(numericId)) {
+        return `${numericId}`;
+      }
+      return id.trim();
+    }
+
+    const name = defaultOption.name;
+    if (typeof name === 'string' && name.trim().length > 0) {
+      const match = name.match(/\d+/);
+      if (match) {
+        return match[0];
+      }
+      return name.trim();
+    }
+
+    return '—';
   }
 
   function trackEntry(
@@ -175,8 +230,12 @@
       {:else if fixtures}
         <div class="fixtures" data-testid="fixtures-loaded">
           <div>
-            <strong>Voice Enabled:</strong>
-            <span>{fixtures.voiceEnabled ? 'Yes' : 'No'}</span>
+            <strong>Default Participants:</strong>
+            <span>{formatDefaultParticipants(fixtures.configuration?.defaults)}</span>
+          </div>
+          <div>
+            <strong>Flexibility, days:</strong>
+            <span>{resolveDefaultFlexibility(fixtures.configuration?.flexibility)}</span>
           </div>
           <div>
             <strong>Airports:</strong>
@@ -192,14 +251,6 @@
 
     <form class="query" on:submit|preventDefault={handleSubmit} data-testid="parse-form">
       <label>
-        Interaction mode
-        <select bind:value={mode} data-testid="mode-select">
-          <option value="direct-parse">Direct parse</option>
-          <option value="dialog">Dialog</option>
-        </select>
-      </label>
-
-      <label>
         Method
         <input
           type="text"
@@ -207,6 +258,14 @@
           bind:value={method}
           data-testid="method-input"
         />
+      </label>
+
+      <label>
+        Interaction mode
+        <select bind:value={mode} data-testid="mode-select">
+          <option value="direct-parse">Direct parse</option>
+          <option value="dialog">Dialog</option>
+        </select>
       </label>
 
       <label class="full-width">

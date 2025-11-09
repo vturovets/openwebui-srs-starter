@@ -26,6 +26,19 @@ const FIXTURE_RESPONSE = {
   voiceEnabled: true,
   mode: 'dialog',
   llmMethod: 'rules',
+  configuration: {
+    defaults: {
+      adults: 2,
+      nonAdults: 0,
+    },
+    flexibility: {
+      isFlexibleAllowed: true,
+      flexibleList: [
+        { id: '3', name: '+- 3 days', isDefault: true },
+        { id: '0', name: 'Not flexible', isDefault: false },
+      ],
+    },
+  },
 };
 
 const PARSE_SUCCESS = {
@@ -99,8 +112,20 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('fixtures-loading')).toBeInTheDocument();
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByTestId('fixtures-loaded')).toBeInTheDocument());
+    expect(screen.queryByText('Voice Enabled:')).not.toBeInTheDocument();
+    expect(screen.getByText('Default Participants:')).toBeInTheDocument();
+    expect(screen.getByText('2 adults / 0 non-adults')).toBeInTheDocument();
+    const flexibilityLabel = screen.getByText('Flexibility, days:');
+    expect(flexibilityLabel.nextElementSibling?.textContent).toBe('3');
     expect(screen.getByText('Airports:')).toBeInTheDocument();
     expect(screen.getByText('Amsterdam, London Gatwick')).toBeInTheDocument();
+
+    const form = screen.getByTestId('parse-form');
+    const labels = Array.from(form.querySelectorAll('label')).map((node) =>
+      node.textContent?.replace(/\s+/g, ' ').trim()
+    );
+    expect(labels[0]).toContain('Method');
+    expect(labels[1]).toContain('Interaction mode');
   });
 
   it('shows structured results with timings after parsing text', async () => {
