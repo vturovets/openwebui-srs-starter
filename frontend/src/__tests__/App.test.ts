@@ -281,25 +281,32 @@ describe('Holiday search console', () => {
 
       const rowValues = parseCsvLine(lines[1]);
       const indexFor = (field: (typeof CSV_LOG_FIELDS)[number]) => CSV_LOG_FIELDS.indexOf(field);
+      const indicesFor = (field: (typeof CSV_LOG_FIELDS)[number]) =>
+        CSV_LOG_FIELDS.reduce<number[]>((acc, value, index) => {
+          if (value === field) {
+            acc.push(index);
+          }
+          return acc;
+        }, []);
 
-      expect(rowValues[indexFor('Status')]).toBe('success');
-      expect(rowValues[indexFor('Input')]).toBe('Find a trip');
-      expect(rowValues[indexFor('Language')]).toBe('en');
-      expect(rowValues[indexFor('Method')]).toBe('rules');
-      expect(rowValues[indexFor('ProcessingTime')]).toBe('34.00');
-      expect(rowValues[indexFor('ThresholdBreached')]).toBe('false');
-      expect(rowValues[indexFor('MissingFields')]).toBe('[]');
-      expect(rowValues[indexFor('InvalidFields')]).toBe('[]');
-      expect(rowValues[indexFor('RecognizedAirports')]).toBe(JSON.stringify(['AMS']));
-      expect(rowValues[indexFor('RecognizedDestinations')]).toBe(JSON.stringify(['Italy']));
-      expect(rowValues[indexFor('RecognizedDuration')]).toBe('2007');
-      expect(rowValues[indexFor('RecognizedFlexibility')]).toBe('3');
-      expect(rowValues[indexFor('DialogStatus')]).toBe('dialog');
+      expect(rowValues[indexFor('Pipeline Status')]).toBe('success');
+      expect(rowValues[indexFor('User Input')]).toBe('Find a trip');
+      expect(rowValues[indexFor('Processing Method')]).toBe('rules');
+      expect(rowValues[indexFor('Interaction Mode')]).toBe('dialog');
+      const languageColumns = indicesFor('Language Detection');
+      expect(rowValues[languageColumns[0]]).toBe('en');
+      expect(rowValues[languageColumns[1]]).toBe('0.92');
+      expect(rowValues[indexFor('Processing Time (ms)')]).toBe('34.00');
+      expect(rowValues[indexFor('LLM Network (ms)')]).toBe('');
+      expect(rowValues[indexFor('Threshold Breached')]).toBe('false');
+      expect(rowValues[indexFor('Missing Fields')]).toBe('[]');
+      expect(rowValues[indexFor('Invalid Fields')]).toBe('[]');
+      expect(rowValues[indexFor('Dialog Status')]).toBe('success');
       expect(rowValues[indexFor('Transcript')]).toBe(
         JSON.stringify([{ role: 'user', text: 'Find a trip' }])
       );
 
-      const outputPayload = JSON.parse(rowValues[indexFor('Output')]);
+      const outputPayload = JSON.parse(rowValues[indexFor('Output JSON')]);
       expect(outputPayload.status).toBe('success');
       expect(outputPayload.data).toEqual({ from: ['AMS'], to: ['Italy'] });
       expect(outputPayload.validation).toEqual({ status: 'passed', errors: [] });

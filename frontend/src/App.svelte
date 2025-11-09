@@ -189,75 +189,46 @@
     return numeric === null ? '' : numeric.toFixed(2);
   }
 
-  function extractLanguage(metadata: Record<string, unknown>, result: HolidayResult): string {
-    const language = metadata.language;
-    if (typeof language === 'string') {
-      return language;
+  function formatProbability(value: unknown): string {
+    const numeric = toFiniteNumber(value);
+    if (numeric !== null) {
+      return numeric.toFixed(2);
     }
-    if (isRecord(language)) {
-      const code = language.code;
-      if (typeof code === 'string') {
-        return code;
-      }
-      const lang = language.language ?? language.lang;
-      if (typeof lang === 'string') {
-        return lang;
-      }
-    }
-
-    const dataLanguage = (result.data as Record<string, unknown> | null)?.language;
-    if (typeof dataLanguage === 'string') {
-      return dataLanguage;
+    if (typeof value === 'string') {
+      return value;
     }
     return '';
   }
 
-  function extractRecognized(metadata: Record<string, unknown>): {
-    airports: unknown[];
-    destinations: unknown[];
-    dates: unknown[];
-    duration: string;
-    flexibility: string;
-  } {
-    const entities = toRecord(metadata.recognizedEntities);
-    const summaries = toRecord(metadata.recognizedSummaries);
+  function extractLanguageInfo(
+    metadata: Record<string, unknown>,
+    result: HolidayResult
+  ): { code: string; confidence: string } {
+    const language = metadata.language;
+    let code = '';
+    let confidence: unknown;
 
-    const airports = Array.isArray(entities.airports)
-      ? entities.airports
-      : Array.isArray(summaries.airports)
-        ? summaries.airports
-        : [];
-    const destinations = Array.isArray(entities.destinations)
-      ? entities.destinations
-      : Array.isArray(summaries.destinations)
-        ? summaries.destinations
-        : [];
-    const dates = Array.isArray(entities.dates)
-      ? entities.dates
-      : Array.isArray(summaries.dates)
-        ? summaries.dates
-        : [];
-
-    const durationRaw = entities.duration ?? summaries.duration;
-    const flexibilityRaw = entities.flexibility ?? summaries.flexibility;
-
-    return {
-      airports,
-      destinations,
-      dates,
-      duration: typeof durationRaw === 'string' || typeof durationRaw === 'number' ? String(durationRaw) : '',
-      flexibility:
-        typeof flexibilityRaw === 'string' || typeof flexibilityRaw === 'number'
-          ? String(flexibilityRaw)
-          : '',
-    };
-  }
-
-  function serialiseArray(value: unknown): string {
-    if (Array.isArray(value)) {
-      return JSON.stringify(value);
+    if (typeof language === 'string') {
+      code = language;
+    } else if (isRecord(language)) {
+      if (typeof language.code === 'string') {
+        code = language.code;
+      } else if (typeof language.language === 'string') {
+        code = language.language;
+      } else if (typeof language.lang === 'string') {
+        code = language.lang;
+      }
+      confidence = language.confidence ?? language.score ?? language.probability;
     }
-    return '[]';
+
+    if (!code) {
+      const dataLanguage = (result.data as Record<string, unknown> | null)?.language;
+      if (typeof dataLanguage === 'string') {
+        code = dataLanguage;
+      }
+    }
+
+    return { code, confidence: formatProbability(confidence) };
   }
 
   function serialiseJson(value: unknown): string {
@@ -308,23 +279,6 @@
     return '';
   }
 
-  function resolveStt(entry: HolidayResultEntry, metadata: Record<string, unknown>): string {
-    if (entry.source === 'voice') {
-      const engine = (entry.result as VoiceResponse).engine;
-      if (typeof engine === 'string' && engine.trim().length > 0) {
-        return engine;
-      }
-      if (typeof metadata.stt === 'string') {
-        return metadata.stt;
-      }
-      if (isRecord(metadata.stt) && typeof metadata.stt.engine === 'string') {
-        return metadata.stt.engine;
-      }
-      return 'voice';
-    }
-    return 'text';
-  }
-
   function buildOutput(entry: HolidayResultEntry, metadata: Record<string, unknown>): string {
     const output: Record<string, unknown> = {
       status: entry.result.status,
@@ -351,81 +305,110 @@
     return '';
   }
 
-  function buildRow(entry: HolidayResultEntry): string[] {
+  function serialiseList(value: unknown): string {
+    if (Array.isArray(value)) {
+      return JSON.stringify(value);
+    }
+    return '[]';
+  }
+
+  function resolveSessionId(metadata: Record<string, unknown>): string {
+    const sessionId = metadata.sessionId ?? metadata.sessionID ?? metadata.session_id;
+    return typeof sessionId === 'string' ? sessionId : '';
+  }
+
+  function resolvePipelineStatus(result: HolidayResult, metadata: Record<string, unknown>): string {
+    if (result.status === 'success') {
+      return 'success';
+    }
+    const rawStatus = typeof metadata.rawStatus === 'string' ? metadata.rawStatus : '';
+    if (rawStatus === 'error') {
+      return 'error';
+    }
+    if (result.status === 'clarification' || result.status === 'failed') {
+      return 'failed';
+    }
+    return result.status;
+  }
+
+  type CsvRow = Record<string, string | string[]>;
+
+  function buildRow(entry: HolidayResultEntry): CsvRow {
     const metadata = toRecord(entry.result.metadata);
     const timings = toRecord(metadata.timings);
-    const recognized = extractRecognized(metadata);
     const llm = toRecord(metadata.llm);
+    const languageInfo = extractLanguageInfo(metadata, entry.result);
 
     const totalTiming =
       toFiniteNumber(timings.totalMs ?? timings.total ?? timings.totalMilliseconds) ?? undefined;
 
-    const row: Record<string, string> = {
+    const pipelineStatus = resolvePipelineStatus(entry.result, metadata);
+    const dialogStatus =
+      typeof metadata.rawStatus === 'string' ? metadata.rawStatus : entry.result.status;
+    const llmProvider =
+      typeof llm.provider === 'string'
+        ? llm.provider
+        : typeof llm.engine === 'string'
+          ? llm.engine
+          : typeof llm.model === 'string'
+            ? llm.model
+            : '';
+
+    const row: CsvRow = {
       Timestamp: entry.timestamp,
-      Input: entry.input,
-      Language: extractLanguage(metadata, entry.result),
-      Method: typeof metadata.method === 'string' ? metadata.method : '',
-      STT: resolveStt(entry, metadata),
-      ProcessingTime: formatTiming(totalTiming),
-      LanguageMs: formatTiming(timings.languageMs),
-      ExtractionMs: formatTiming(timings.extractionMs),
-      NormalizationMs: formatTiming(timings.normalizationMs ?? timings.mappingMs),
-      ValidationMs: formatTiming(timings.validationMs),
-      LLMNetworkMs: formatTiming(timings.llmNetworkMs ?? timings.networkLatencyMs ?? timings.networkMs),
-      LLMProvider:
-        typeof llm.provider === 'string'
-          ? llm.provider
-          : typeof llm.engine === 'string'
-            ? llm.engine
-            : typeof llm.model === 'string'
-              ? llm.model
-              : '',
-      LLMPromptId: typeof llm.promptId === 'string' ? llm.promptId : '',
-      LLMRequestId: typeof llm.requestId === 'string' ? llm.requestId : '',
-      LLMResponseId:
+      'User Input': entry.input,
+      'Request Type': entry.source === 'voice' ? 'voice' : 'text',
+      'Interaction Mode': typeof metadata.mode === 'string' ? metadata.mode : '',
+      'Processing Method': typeof metadata.method === 'string' ? metadata.method : '',
+      'Pipeline Status': pipelineStatus,
+      'Language Detection': [languageInfo.code, languageInfo.confidence],
+      'Processing Time (ms)': formatTiming(totalTiming),
+      'LLM Network (ms)': formatTiming(
+        timings.llmNetworkMs ?? timings.networkLatencyMs ?? timings.networkMs
+      ),
+      'LLM Provider': llmProvider,
+      'LLM Prompt Id': typeof llm.promptId === 'string' ? llm.promptId : '',
+      'LLM Request Id': typeof llm.requestId === 'string' ? llm.requestId : '',
+      'LLM Response Id':
         typeof llm.responseId === 'string'
           ? llm.responseId
           : typeof llm.traceId === 'string'
             ? llm.traceId
             : '',
-      Output: buildOutput(entry, metadata),
-      Status: entry.result.status,
-      ThresholdBreached: formatThreshold(timings.thresholdBreached),
-      MissingFields: serialiseArray(metadata.missingFields),
-      InvalidFields: serialiseArray(metadata.invalidFields),
-      RecognizedAirports: serialiseArray(recognized.airports),
-      RecognizedDestinations: serialiseArray(recognized.destinations),
-      RecognizedDates: serialiseArray(recognized.dates),
-      RecognizedDuration: recognized.duration,
-      RecognizedFlexibility: recognized.flexibility,
-      SessionId:
-        typeof metadata.sessionId === 'string'
-          ? metadata.sessionId
-          : typeof metadata.sessionID === 'string'
-            ? metadata.sessionID
-            : typeof metadata.session_id === 'string'
-              ? metadata.session_id
-              : '',
-      DialogStatus:
-        typeof metadata.rawStatus === 'string'
-          ? metadata.rawStatus
-          : typeof metadata.mode === 'string'
-            ? metadata.mode
-            : entry.result.status,
-      MissingParameters: serialiseArray(metadata.missingParameters),
-      Prompt: resolvePrompt(metadata, entry.result),
+      'Threshold Breached': formatThreshold(timings.thresholdBreached),
+      'Missing Fields': serialiseList(metadata.missingFields),
+      'Invalid Fields': serialiseList(metadata.invalidFields),
       Transcript: serialiseTranscript(entry, metadata),
+      'Prompt JSON': resolvePrompt(metadata, entry.result),
+      'Output JSON': buildOutput(entry, metadata),
+      'Session Id': resolveSessionId(metadata),
+      'Dialog Status': dialogStatus,
     };
 
-    return CSV_HEADERS.map((field) => row[field] ?? '');
+    return row;
   }
 
   function generateCsv(): string {
     const rows = history.map((entry) => buildRow(entry));
     const csvRows = [CSV_HEADERS.map((value) => escapeCsv(value)).join(',')];
 
-    for (const values of rows) {
-      csvRows.push(values.map((value) => escapeCsv(value)).join(','));
+    for (const row of rows) {
+      const occurrences = new Map<string, number>();
+      const values = CSV_HEADERS.map((field) => {
+        const count = occurrences.get(field) ?? 0;
+        occurrences.set(field, count + 1);
+
+        const value = row[field];
+        if (Array.isArray(value)) {
+          return escapeCsv(value[count] ?? '');
+        }
+        if (count === 0) {
+          return escapeCsv(value ?? '');
+        }
+        return '';
+      });
+
+      csvRows.push(values.join(','));
     }
 
     return csvRows.join('\n');

@@ -412,46 +412,57 @@ def _format_pipeline_response(
     llm_metadata_raw = metadata.get("llm")
     llm_metadata = llm_metadata_raw if isinstance(llm_metadata_raw, Mapping) else {}
 
+    language_code = detection.language if detection is not None else ""
+    language_confidence: object = getattr(detection, "confidence", "")
+    language_metadata = metadata.get("language")
+    if not language_code and isinstance(language_metadata, Mapping):
+        language_code = str(language_metadata.get("code") or "")
+        language_confidence = language_metadata.get("confidence", language_confidence)
+
+    if isinstance(language_confidence, (int, float)):
+        language_confidence_str = f"{float(language_confidence):.2f}"
+    else:
+        language_confidence_str = str(language_confidence) if language_confidence else ""
+
+    llm_provider = str(
+        llm_metadata.get("provider")
+        or llm_metadata.get("engine")
+        or llm_metadata.get("model")
+        or ""
+    )
+
+    prompt_payload: object = metadata.get("prompt")
+    if not isinstance(prompt_payload, (Mapping, list)):
+        prompt_payload = metadata.get("clarifications")
+    if not isinstance(prompt_payload, (Mapping, list)):
+        prompt_payload = None
+
     log_entry = {
         "Timestamp": _utc_timestamp(),
-        "Input": input_text,
-        "Language": detection.language if detection is not None else "",
-        "Method": result.method_used,
-        "STT": stt_source or "",
-        "ProcessingTime": f"{total_ms:.2f}",
-        "LanguageMs": _format_timing_ms(timings.get("languageMs")),
-        "ExtractionMs": _format_timing_ms(timings.get("extractionMs")),
-        "NormalizationMs": _format_timing_ms(timings.get("normalizationMs")),
-        "ValidationMs": _format_timing_ms(timings.get("validationMs")),
-        "LLMNetworkMs": _format_timing_ms(timings.get("llmNetworkMs")),
-        "LLMProvider": str(
-            llm_metadata.get("provider")
-            or llm_metadata.get("engine")
-            or llm_metadata.get("model")
-            or ""
-        ),
-        "LLMPromptId": str(llm_metadata.get("promptId") or ""),
-        "LLMRequestId": str(llm_metadata.get("requestId") or ""),
-        "LLMResponseId": str(
+        "User Input": input_text,
+        "Request Type": "voice" if stt_source_override else "text",
+        "Interaction Mode": metadata.get("mode", ""),
+        "Processing Method": result.method_used,
+        "Pipeline Status": status,
+        "Language Detection": [language_code, language_confidence_str],
+        "Processing Time (ms)": f"{total_ms:.2f}",
+        "LLM Network (ms)": _format_timing_ms(timings.get("llmNetworkMs")),
+        "LLM Provider": llm_provider,
+        "LLM Prompt Id": str(llm_metadata.get("promptId") or ""),
+        "LLM Request Id": str(llm_metadata.get("requestId") or ""),
+        "LLM Response Id": str(
             llm_metadata.get("responseId")
             or llm_metadata.get("traceId")
             or ""
         ),
-        "Output": output_serialised,
-        "Status": status,
-        "ThresholdBreached": "true" if threshold_breached else "false",
-        "MissingFields": json.dumps(missing_fields, ensure_ascii=False),
-        "InvalidFields": json.dumps(invalid_fields, ensure_ascii=False),
-        "RecognizedAirports": json.dumps(recognized_entities["airports"], ensure_ascii=False),
-        "RecognizedDestinations": json.dumps(recognized_entities["destinations"], ensure_ascii=False),
-        "RecognizedDates": json.dumps(recognized_entities["dates"], ensure_ascii=False),
-        "RecognizedDuration": recognized_entities.get("duration") or "",
-        "RecognizedFlexibility": recognized_entities.get("flexibility") or "",
-        "SessionId": "",
-        "DialogStatus": metadata["mode"],
-        "MissingParameters": "",
-        "Prompt": "",
+        "Threshold Breached": "true" if threshold_breached else "false",
+        "Missing Fields": json.dumps(missing_fields, ensure_ascii=False),
+        "Invalid Fields": json.dumps(invalid_fields, ensure_ascii=False),
         "Transcript": json.dumps(transcript_log, ensure_ascii=False),
+        "Prompt JSON": json.dumps(prompt_payload, ensure_ascii=False) if prompt_payload else "",
+        "Output JSON": output_serialised,
+        "Session Id": "",
+        "Dialog Status": metadata.get("rawStatus", status),
     }
 
     return status, data_payload, metadata, log_entry, error_detail
@@ -512,8 +523,6 @@ async def dialog_turn(
     metadata.setdefault("mode", payload.mode or settings.interaction_mode)
     metadata["rawStatus"] = outcome.raw_status
 
-    stt_source = settings.stt_engine if settings.stt_engine else ("voice" if settings.voice_enabled else "text")
-
     prompt_payload = outcome.prompt.to_dict() if outcome.prompt else None
 
     log_output: dict[str, object] = {
@@ -534,16 +543,8 @@ async def dialog_turn(
         log_status = "failed"
 
     transcript_serialised = json.dumps(outcome.transcript, ensure_ascii=False)
-    missing_serialised = (
-        json.dumps(outcome.missing_parameters, ensure_ascii=False)
-        if outcome.missing_parameters
-        else ""
-    )
     prompt_serialised = json.dumps(prompt_payload, ensure_ascii=False) if prompt_payload else ""
 
-    recognized_entities = metadata.get("recognizedEntities")
-    if not isinstance(recognized_entities, Mapping):
-        recognized_entities = {}
     missing_fields = metadata.get("missingFields")
     if not isinstance(missing_fields, list):
         missing_fields = []
@@ -554,48 +555,50 @@ async def dialog_turn(
     llm_metadata_raw = metadata.get("llm")
     llm_metadata = llm_metadata_raw if isinstance(llm_metadata_raw, Mapping) else {}
 
+    language_payload = metadata.get("language")
+    language_code = ""
+    language_confidence: object = ""
+    if isinstance(language_payload, Mapping):
+        language_code = str(language_payload.get("code") or "")
+        language_confidence = language_payload.get("confidence", "")
+    if isinstance(language_confidence, (int, float)):
+        language_confidence_str = f"{float(language_confidence):.2f}"
+    else:
+        language_confidence_str = str(language_confidence) if language_confidence else ""
+
+    llm_provider = str(
+        llm_metadata.get("provider")
+        or llm_metadata.get("engine")
+        or llm_metadata.get("model")
+        or ""
+    )
+
     log_entry = {
         "Timestamp": _utc_timestamp(),
-        "Input": payload.text,
-        "Language": metadata.get("language", {}).get("code", ""),
-        "Method": metadata.get("method", ""),
-        "STT": stt_source or "",
-        "ProcessingTime": f"{total_ms:.2f}",
-        "LanguageMs": _format_timing_ms(timings.get("languageMs")),
-        "ExtractionMs": _format_timing_ms(timings.get("extractionMs")),
-        "NormalizationMs": _format_timing_ms(timings.get("normalizationMs")),
-        "ValidationMs": _format_timing_ms(timings.get("validationMs")),
-        "LLMNetworkMs": _format_timing_ms(timings.get("llmNetworkMs")),
-        "LLMProvider": str(
-            llm_metadata.get("provider")
-            or llm_metadata.get("engine")
-            or llm_metadata.get("model")
-            or ""
-        ),
-        "LLMPromptId": str(llm_metadata.get("promptId") or ""),
-        "LLMRequestId": str(llm_metadata.get("requestId") or ""),
-        "LLMResponseId": str(
+        "User Input": payload.text,
+        "Request Type": "text",
+        "Interaction Mode": metadata.get("mode", ""),
+        "Processing Method": metadata.get("method", ""),
+        "Pipeline Status": log_status,
+        "Language Detection": [language_code, language_confidence_str],
+        "Processing Time (ms)": f"{total_ms:.2f}",
+        "LLM Network (ms)": _format_timing_ms(timings.get("llmNetworkMs")),
+        "LLM Provider": llm_provider,
+        "LLM Prompt Id": str(llm_metadata.get("promptId") or ""),
+        "LLM Request Id": str(llm_metadata.get("requestId") or ""),
+        "LLM Response Id": str(
             llm_metadata.get("responseId")
             or llm_metadata.get("traceId")
             or ""
         ),
-        "Output": output_serialised,
-        "Status": log_status,
-        "ThresholdBreached": "true" if threshold_breached else "false",
-        "MissingFields": json.dumps(missing_fields, ensure_ascii=False),
-        "InvalidFields": json.dumps(invalid_fields, ensure_ascii=False),
-        "RecognizedAirports": json.dumps(recognized_entities.get("airports", []), ensure_ascii=False),
-        "RecognizedDestinations": json.dumps(
-            recognized_entities.get("destinations", []), ensure_ascii=False
-        ),
-        "RecognizedDates": json.dumps(recognized_entities.get("dates", []), ensure_ascii=False),
-        "RecognizedDuration": recognized_entities.get("duration") or "",
-        "RecognizedFlexibility": recognized_entities.get("flexibility") or "",
-        "SessionId": outcome.session_id or "",
-        "DialogStatus": outcome.status,
-        "MissingParameters": missing_serialised,
-        "Prompt": prompt_serialised,
+        "Threshold Breached": "true" if threshold_breached else "false",
+        "Missing Fields": json.dumps(missing_fields, ensure_ascii=False),
+        "Invalid Fields": json.dumps(invalid_fields, ensure_ascii=False),
         "Transcript": transcript_serialised,
+        "Prompt JSON": prompt_serialised,
+        "Output JSON": output_serialised,
+        "Session Id": outcome.session_id or "",
+        "Dialog Status": outcome.status,
     }
     logger.log(log_entry)
 
