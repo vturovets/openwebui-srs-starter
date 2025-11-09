@@ -1,3 +1,38 @@
+export const CSV_LOG_FIELDS = [
+  'Timestamp',
+  'Input',
+  'Language',
+  'Method',
+  'STT',
+  'ProcessingTime',
+  'LanguageMs',
+  'ExtractionMs',
+  'NormalizationMs',
+  'ValidationMs',
+  'LLMNetworkMs',
+  'LLMProvider',
+  'LLMPromptId',
+  'LLMRequestId',
+  'LLMResponseId',
+  'Output',
+  'Status',
+  'ThresholdBreached',
+  'MissingFields',
+  'InvalidFields',
+  'RecognizedAirports',
+  'RecognizedDestinations',
+  'RecognizedDates',
+  'RecognizedDuration',
+  'RecognizedFlexibility',
+  'SessionId',
+  'DialogStatus',
+  'MissingParameters',
+  'Prompt',
+  'Transcript',
+] as const;
+
+export type CsvLogField = (typeof CSV_LOG_FIELDS)[number];
+
 export type HolidayResult = {
   status: string;
   data: Record<string, unknown> | null;
