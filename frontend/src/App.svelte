@@ -11,6 +11,7 @@
     HolidayResultEntry,
     VoiceResponse,
   } from './lib/types';
+  import { CSV_LOG_FIELDS } from './lib/types';
 
   const metaEnv = (import.meta as any)?.env ?? {};
   const baseUrl = (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
@@ -24,6 +25,10 @@
   let method: string | null = null;
   let busy = false;
   let csvPreview = '';
+  let downloadAnchor: HTMLAnchorElement | null = null;
+  let downloadUrl: string | null = null;
+
+  const CSV_HEADERS = CSV_LOG_FIELDS;
 
   onMount(async () => {
     try {
@@ -159,63 +164,306 @@
     return postVoice(baseUrl, formData);
   }
 
-  function formatRecognizedForCsv(value: unknown): string {
-    if (Array.isArray(value)) {
-      return value
-        .map((item) => formatRecognizedForCsv(item))
-        .filter((item) => item.length > 0)
-        .join(' | ');
-    }
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
 
-    if (value === null) {
-      return 'null';
-    }
-    if (value === undefined) {
-      return '';
-    }
+  function toRecord(value: unknown): Record<string, unknown> {
+    return isRecord(value) ? value : {};
+  }
+
+  function toFiniteNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
-      return Number(value.toFixed(3)).toString();
+      return value;
     }
     if (typeof value === 'string') {
-      return value;
+      const parsed = Number.parseFloat(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return null;
+  }
+
+  function formatTiming(value: unknown): string {
+    const numeric = toFiniteNumber(value);
+    return numeric === null ? '' : numeric.toFixed(2);
+  }
+
+  function extractLanguage(metadata: Record<string, unknown>, result: HolidayResult): string {
+    const language = metadata.language;
+    if (typeof language === 'string') {
+      return language;
+    }
+    if (isRecord(language)) {
+      const code = language.code;
+      if (typeof code === 'string') {
+        return code;
+      }
+      const lang = language.language ?? language.lang;
+      if (typeof lang === 'string') {
+        return lang;
+      }
+    }
+
+    const dataLanguage = (result.data as Record<string, unknown> | null)?.language;
+    if (typeof dataLanguage === 'string') {
+      return dataLanguage;
+    }
+    return '';
+  }
+
+  function extractRecognized(metadata: Record<string, unknown>): {
+    airports: unknown[];
+    destinations: unknown[];
+    dates: unknown[];
+    duration: string;
+    flexibility: string;
+  } {
+    const entities = toRecord(metadata.recognizedEntities);
+    const summaries = toRecord(metadata.recognizedSummaries);
+
+    const airports = Array.isArray(entities.airports)
+      ? entities.airports
+      : Array.isArray(summaries.airports)
+        ? summaries.airports
+        : [];
+    const destinations = Array.isArray(entities.destinations)
+      ? entities.destinations
+      : Array.isArray(summaries.destinations)
+        ? summaries.destinations
+        : [];
+    const dates = Array.isArray(entities.dates)
+      ? entities.dates
+      : Array.isArray(summaries.dates)
+        ? summaries.dates
+        : [];
+
+    const durationRaw = entities.duration ?? summaries.duration;
+    const flexibilityRaw = entities.flexibility ?? summaries.flexibility;
+
+    return {
+      airports,
+      destinations,
+      dates,
+      duration: typeof durationRaw === 'string' || typeof durationRaw === 'number' ? String(durationRaw) : '',
+      flexibility:
+        typeof flexibilityRaw === 'string' || typeof flexibilityRaw === 'number'
+          ? String(flexibilityRaw)
+          : '',
+    };
+  }
+
+  function serialiseArray(value: unknown): string {
+    if (Array.isArray(value)) {
+      return JSON.stringify(value);
+    }
+    return '[]';
+  }
+
+  function serialiseJson(value: unknown): string {
+    if (value === undefined || value === null || value === '') {
+      return '';
     }
     return JSON.stringify(value);
   }
 
-  function generateCsv(): string {
-    const header = [
-      'Timestamp',
-      'Source',
-      'Status',
-      'Input',
-      'Mode',
-      'Method',
-      'TotalMs',
-      'Airports',
-      'Destinations',
-      'Dates',
-    ];
-    const rows = history.map((entry) => {
-      const timings = entry.result.metadata?.timings ?? {};
-      const recognized = entry.result.metadata?.recognizedSummaries ?? {};
-      return [
-        entry.timestamp,
-        entry.source,
-        entry.result.status,
-        entry.input.replace(/\n/g, ' '),
-        entry.result.metadata?.mode ?? '',
-        entry.result.metadata?.method ?? '',
-        timings.totalMs ?? '',
-        formatRecognizedForCsv(recognized.airports),
-        formatRecognizedForCsv(recognized.destinations),
-        formatRecognizedForCsv(recognized.dates),
-      ].join(',');
-    });
-    return [header.join(','), ...rows].join('\n');
+  function serialiseTranscript(entry: HolidayResultEntry, metadata: Record<string, unknown>): string {
+    const transcript = metadata.transcript;
+    if (Array.isArray(transcript)) {
+      return JSON.stringify(transcript);
+    }
+    if (typeof transcript === 'string' && transcript.trim().length > 0) {
+      return JSON.stringify([{ role: 'user', text: transcript }]);
+    }
+
+    const resultTranscript = (entry.result as VoiceResponse).transcript;
+    if (typeof resultTranscript === 'string' && resultTranscript.trim().length > 0) {
+      return JSON.stringify([{ role: 'user', text: resultTranscript }]);
+    }
+
+    if (entry.input.trim().length > 0) {
+      return JSON.stringify([{ role: 'user', text: entry.input }]);
+    }
+
+    return '[]';
   }
 
-  function previewCsv() {
-    csvPreview = generateCsv();
+  function escapeCsv(value: string): string {
+    if (/["\n\r,]/.test(value)) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  }
+
+  function formatThreshold(value: unknown): string {
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    if (typeof value === 'string') {
+      const lowered = value.toLowerCase();
+      if (lowered === 'true' || lowered === 'false') {
+        return lowered;
+      }
+    }
+    return '';
+  }
+
+  function resolveStt(entry: HolidayResultEntry, metadata: Record<string, unknown>): string {
+    if (entry.source === 'voice') {
+      const engine = (entry.result as VoiceResponse).engine;
+      if (typeof engine === 'string' && engine.trim().length > 0) {
+        return engine;
+      }
+      if (typeof metadata.stt === 'string') {
+        return metadata.stt;
+      }
+      if (isRecord(metadata.stt) && typeof metadata.stt.engine === 'string') {
+        return metadata.stt.engine;
+      }
+      return 'voice';
+    }
+    return 'text';
+  }
+
+  function buildOutput(entry: HolidayResultEntry, metadata: Record<string, unknown>): string {
+    const output: Record<string, unknown> = {
+      status: entry.result.status,
+      data: entry.result.data ?? {},
+    };
+
+    if (metadata.validation !== undefined) {
+      output.validation = metadata.validation;
+    }
+    if (metadata.error !== undefined) {
+      output.error = metadata.error;
+    }
+
+    return JSON.stringify(output);
+  }
+
+  function resolvePrompt(metadata: Record<string, unknown>, result: HolidayResult): string {
+    if (metadata.prompt !== undefined) {
+      return serialiseJson(metadata.prompt);
+    }
+    if (Array.isArray(result.clarifications) && result.clarifications.length) {
+      return JSON.stringify(result.clarifications);
+    }
+    return '';
+  }
+
+  function buildRow(entry: HolidayResultEntry): string[] {
+    const metadata = toRecord(entry.result.metadata);
+    const timings = toRecord(metadata.timings);
+    const recognized = extractRecognized(metadata);
+    const llm = toRecord(metadata.llm);
+
+    const totalTiming =
+      toFiniteNumber(timings.totalMs ?? timings.total ?? timings.totalMilliseconds) ?? undefined;
+
+    const row: Record<string, string> = {
+      Timestamp: entry.timestamp,
+      Input: entry.input,
+      Language: extractLanguage(metadata, entry.result),
+      Method: typeof metadata.method === 'string' ? metadata.method : '',
+      STT: resolveStt(entry, metadata),
+      ProcessingTime: formatTiming(totalTiming),
+      LanguageMs: formatTiming(timings.languageMs),
+      ExtractionMs: formatTiming(timings.extractionMs),
+      NormalizationMs: formatTiming(timings.normalizationMs ?? timings.mappingMs),
+      ValidationMs: formatTiming(timings.validationMs),
+      LLMNetworkMs: formatTiming(timings.llmNetworkMs ?? timings.networkLatencyMs ?? timings.networkMs),
+      LLMProvider:
+        typeof llm.provider === 'string'
+          ? llm.provider
+          : typeof llm.engine === 'string'
+            ? llm.engine
+            : typeof llm.model === 'string'
+              ? llm.model
+              : '',
+      LLMPromptId: typeof llm.promptId === 'string' ? llm.promptId : '',
+      LLMRequestId: typeof llm.requestId === 'string' ? llm.requestId : '',
+      LLMResponseId:
+        typeof llm.responseId === 'string'
+          ? llm.responseId
+          : typeof llm.traceId === 'string'
+            ? llm.traceId
+            : '',
+      Output: buildOutput(entry, metadata),
+      Status: entry.result.status,
+      ThresholdBreached: formatThreshold(timings.thresholdBreached),
+      MissingFields: serialiseArray(metadata.missingFields),
+      InvalidFields: serialiseArray(metadata.invalidFields),
+      RecognizedAirports: serialiseArray(recognized.airports),
+      RecognizedDestinations: serialiseArray(recognized.destinations),
+      RecognizedDates: serialiseArray(recognized.dates),
+      RecognizedDuration: recognized.duration,
+      RecognizedFlexibility: recognized.flexibility,
+      SessionId:
+        typeof metadata.sessionId === 'string'
+          ? metadata.sessionId
+          : typeof metadata.sessionID === 'string'
+            ? metadata.sessionID
+            : typeof metadata.session_id === 'string'
+              ? metadata.session_id
+              : '',
+      DialogStatus:
+        typeof metadata.rawStatus === 'string'
+          ? metadata.rawStatus
+          : typeof metadata.mode === 'string'
+            ? metadata.mode
+            : entry.result.status,
+      MissingParameters: serialiseArray(metadata.missingParameters),
+      Prompt: resolvePrompt(metadata, entry.result),
+      Transcript: serialiseTranscript(entry, metadata),
+    };
+
+    return CSV_HEADERS.map((field) => row[field] ?? '');
+  }
+
+  function generateCsv(): string {
+    const rows = history.map((entry) => buildRow(entry));
+    const csvRows = [CSV_HEADERS.map((value) => escapeCsv(value)).join(',')];
+
+    for (const values of rows) {
+      csvRows.push(values.map((value) => escapeCsv(value)).join(','));
+    }
+
+    return csvRows.join('\n');
+  }
+
+  function exportCsv() {
+    if (!history.length) {
+      csvPreview = '';
+      return;
+    }
+
+    const csvContent = generateCsv();
+    csvPreview = csvContent;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+    }
+    downloadUrl = url;
+
+    const filename = `holiday-search-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+    if (downloadAnchor) {
+      downloadAnchor.href = url;
+      downloadAnchor.download = filename;
+      downloadAnchor.click();
+    }
+
+    setTimeout(() => {
+      if (downloadUrl === url) {
+        URL.revokeObjectURL(url);
+        downloadUrl = null;
+      } else {
+        URL.revokeObjectURL(url);
+      }
+    }, 0);
   }
 </script>
 
@@ -280,7 +528,7 @@
 
       <div class="actions">
         <button type="submit" disabled={busy} data-testid="submit-button">{busy ? 'Parsing…' : 'Parse request'}</button>
-        <button type="button" on:click={previewCsv} data-testid="export-button">Export CSV</button>
+        <button type="button" on:click={exportCsv} data-testid="export-button">Export CSV</button>
       </div>
     </form>
 
@@ -308,6 +556,8 @@
       {/each}
     {/if}
   </section>
+
+  <a bind:this={downloadAnchor} class="visually-hidden" aria-hidden="true" tabindex="-1"></a>
 </main>
 
 <style>
@@ -424,6 +674,18 @@
     font-size: 0.8rem;
     max-height: 160px;
     overflow: auto;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   @media (max-width: 900px) {

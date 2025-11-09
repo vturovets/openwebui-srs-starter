@@ -19,6 +19,7 @@ vi.mock('../lib/api', () => ({
 
 import App from '../App.svelte';
 import { fetchFixtures, parseText } from '../lib/api';
+import { CSV_LOG_FIELDS } from '../lib/types';
 
 const FIXTURE_RESPONSE = {
   airports: ['Amsterdam', 'London Gatwick'],
@@ -56,11 +57,30 @@ const PARSE_SUCCESS = {
       normalizationMs: 12,
       validationMs: 7,
       totalMs: 34,
+      thresholdBreached: false,
     },
     recognizedSummaries: {
       airports: ['AMS'],
       destinations: ['Italy'],
       dates: ['2025-10-10'],
+    },
+    recognizedEntities: {
+      airports: ['AMS'],
+      destinations: ['Italy'],
+      dates: ['2025-10-10'],
+      duration: '2007',
+      flexibility: '3',
+    },
+    missingFields: [],
+    invalidFields: [],
+    validation: { status: 'passed', errors: [] },
+    transcript: [{ role: 'user', text: 'Find a trip' }],
+    language: { code: 'en', confidence: 0.92 },
+    llm: {
+      provider: 'openai',
+      promptId: 'prompt-1',
+      requestId: 'req-1',
+      responseId: 'res-1',
     },
   },
 };
@@ -77,14 +97,25 @@ const PARSE_FAILED = {
       normalizationMs: 12,
       validationMs: 7,
       totalMs: 34,
+      thresholdBreached: false,
     },
     recognizedSummaries: {
       airports: [],
       destinations: [],
       dates: [],
     },
+    recognizedEntities: {
+      airports: [],
+      destinations: [],
+      dates: [],
+      duration: null,
+      flexibility: null,
+    },
     missingFields: ['to'],
     invalidFields: [],
+    validation: { status: 'failed', errors: [{ message: 'Utterance must include destination' }] },
+    transcript: [{ role: 'user', text: 'Missing destination' }],
+    language: { code: 'en', confidence: 0.88 },
   },
   clarifications: [
     {
@@ -94,6 +125,41 @@ const PARSE_FAILED = {
     },
   ],
 };
+
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const parseCsvLine = (line: string): string[] => {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[index + 1] === '"') {
+          current += '"';
+          index += 1;
+          continue;
+        }
+        inQuotes = false;
+      } else {
+        current += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ',') {
+      values.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current);
+  return values;
+};
+
 
 describe('Holiday search console', () => {
   const fetchFixturesMock = fetchFixtures as unknown as vi.Mock;
@@ -129,7 +195,7 @@ describe('Holiday search console', () => {
   });
 
   it('shows structured results with timings after parsing text', async () => {
-    parseTextMock.mockResolvedValueOnce(PARSE_SUCCESS);
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
     const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());
@@ -147,7 +213,7 @@ describe('Holiday search console', () => {
   });
 
   it('surfaces clarification prompts when parse fails', async () => {
-    parseTextMock.mockResolvedValueOnce(PARSE_FAILED);
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_FAILED));
     const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());
@@ -163,23 +229,125 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('issue-summary')).toBeInTheDocument();
   });
 
-  it('generates CSV preview with processed history', async () => {
-    parseTextMock.mockResolvedValueOnce(PARSE_SUCCESS);
-    const { component } = render(App);
-    await tick();
-    component.$$.on_mount.forEach((fn) => fn());
-    await tick();
-    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('fixtures-loaded');
+  it('exports backend-compatible CSV for the current session history', async () => {
+    const originalCreateObjectURL = (globalThis.URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
+    const createObjectURLSpy = vi.fn(() => 'blob:mock-url');
+    (globalThis.URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL =
+      createObjectURLSpy as unknown as typeof URL.createObjectURL;
+    const originalRevokeObjectURL = (globalThis.URL as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL;
+    const revokeObjectURLSpy = vi.fn();
+    (globalThis.URL as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL =
+      revokeObjectURLSpy as unknown as typeof URL.revokeObjectURL;
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
 
-    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
-    await fireEvent.input(input, { target: { value: 'Find a trip' } });
-    await fireEvent.submit(screen.getByTestId('parse-form'));
-    await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+    try {
+      parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
+      const { component } = render(App);
+      await tick();
+      component.$$.on_mount.forEach((fn) => fn());
+      await tick();
+      await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+      await screen.findByTestId('fixtures-loaded');
 
-    await fireEvent.click(screen.getByTestId('export-button'));
-    expect(screen.getByTestId('csv-preview')).toBeInTheDocument();
-    expect(screen.getByTestId('csv-preview').textContent).toContain('Timestamp,Source,Status');
+      const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+      await fireEvent.input(input, { target: { value: 'Find a trip' } });
+      await fireEvent.submit(screen.getByTestId('parse-form'));
+      await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+
+      await fireEvent.click(screen.getByTestId('export-button'));
+      await waitFor(() => expect(anchorClickSpy).toHaveBeenCalled());
+
+      const blob = createObjectURLSpy.mock.calls[0][0] as Blob;
+      expect(blob).toBeInstanceOf(Blob);
+      expect(blob.type).toBe('text/csv;charset=utf-8');
+      const previewNode = screen.getByTestId('csv-preview').querySelector('pre');
+      const previewText = previewNode?.textContent ?? '';
+
+      const lines = previewText.trim().split('\n');
+      expect(lines[0]).toBe(CSV_LOG_FIELDS.join(','));
+      expect(lines).toHaveLength(2);
+
+      const rowValues = parseCsvLine(lines[1]);
+      const indexFor = (field: (typeof CSV_LOG_FIELDS)[number]) => CSV_LOG_FIELDS.indexOf(field);
+
+      expect(rowValues[indexFor('Status')]).toBe('success');
+      expect(rowValues[indexFor('Input')]).toBe('Find a trip');
+      expect(rowValues[indexFor('Language')]).toBe('en');
+      expect(rowValues[indexFor('Method')]).toBe('rules');
+      expect(rowValues[indexFor('ProcessingTime')]).toBe('34.00');
+      expect(rowValues[indexFor('ThresholdBreached')]).toBe('false');
+      expect(rowValues[indexFor('MissingFields')]).toBe('[]');
+      expect(rowValues[indexFor('InvalidFields')]).toBe('[]');
+      expect(rowValues[indexFor('RecognizedAirports')]).toBe(JSON.stringify(['AMS']));
+      expect(rowValues[indexFor('RecognizedDestinations')]).toBe(JSON.stringify(['Italy']));
+      expect(rowValues[indexFor('RecognizedDuration')]).toBe('2007');
+      expect(rowValues[indexFor('RecognizedFlexibility')]).toBe('3');
+      expect(rowValues[indexFor('DialogStatus')]).toBe('dialog');
+      expect(rowValues[indexFor('Transcript')]).toBe(
+        JSON.stringify([{ role: 'user', text: 'Find a trip' }])
+      );
+
+      const outputPayload = JSON.parse(rowValues[indexFor('Output')]);
+      expect(outputPayload.status).toBe('success');
+      expect(outputPayload.data).toEqual({ from: ['AMS'], to: ['Italy'] });
+      expect(outputPayload.validation).toEqual({ status: 'passed', errors: [] });
+
+      component.$destroy();
+      createObjectURLSpy.mockClear();
+      anchorClickSpy.mockClear();
+
+      const secondPayload = clone(PARSE_SUCCESS);
+      secondPayload.metadata.transcript = [{ role: 'user', text: 'Another trip' }];
+      parseTextMock.mockResolvedValueOnce(secondPayload);
+
+      const { component: secondComponent } = render(App);
+      await tick();
+      secondComponent.$$.on_mount.forEach((fn) => fn());
+      await tick();
+      await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(2));
+      await screen.findByTestId('fixtures-loaded');
+
+      const secondInput = screen.getByTestId('query-input') as HTMLTextAreaElement;
+      await fireEvent.input(secondInput, { target: { value: 'Another trip' } });
+      await fireEvent.submit(screen.getByTestId('parse-form'));
+      await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+
+      await fireEvent.click(screen.getByTestId('export-button'));
+      await waitFor(() => expect(anchorClickSpy).toHaveBeenCalled());
+
+      const secondBlob = createObjectURLSpy.mock.calls[0][0] as Blob;
+      expect(secondBlob).toBeInstanceOf(Blob);
+      expect(secondBlob.type).toBe('text/csv;charset=utf-8');
+      const secondPreviewNode = screen.getByTestId('csv-preview').querySelector('pre');
+      const secondPreview = secondPreviewNode?.textContent ?? '';
+      const secondLines = secondPreview.trim().split('\n');
+      expect(secondLines).toHaveLength(2);
+
+      const secondRow = parseCsvLine(secondLines[1]);
+      expect(secondRow[indexFor('Transcript')]).toBe(
+        JSON.stringify([{ role: 'user', text: 'Another trip' }])
+      );
+
+      secondComponent.$destroy();
+    } finally {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      createObjectURLSpy.mockReset();
+      if (originalCreateObjectURL) {
+        (globalThis.URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL = originalCreateObjectURL;
+      } else {
+        delete (globalThis.URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
+      }
+      revokeObjectURLSpy.mockReset();
+      if (originalRevokeObjectURL) {
+        (globalThis.URL as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL = originalRevokeObjectURL;
+      } else {
+        delete (globalThis.URL as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL;
+      }
+      anchorClickSpy.mockRestore();
+    }
   });
 
   it('disables voice interactions when voice fixtures are disabled', async () => {
