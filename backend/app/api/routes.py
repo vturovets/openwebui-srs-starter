@@ -460,6 +460,13 @@ def _format_pipeline_response(
     else:
         language_confidence_str = str(language_confidence) if language_confidence else ""
 
+    llm_metadata = metadata.get("llm")
+    if isinstance(llm_metadata, Mapping):
+        llm_metadata = dict(llm_metadata)
+    else:
+        llm_metadata = {}
+    metadata["llm"] = llm_metadata
+
     llm_provider = str(
         llm_metadata.get("provider")
         or llm_metadata.get("engine")
@@ -619,6 +626,13 @@ async def dialog_turn(
     else:
         language_confidence_str = str(language_confidence) if language_confidence else ""
 
+    llm_metadata = metadata.get("llm")
+    if isinstance(llm_metadata, Mapping):
+        llm_metadata = dict(llm_metadata)
+    else:
+        llm_metadata = {}
+    metadata["llm"] = llm_metadata
+
     llm_provider = str(
         llm_metadata.get("provider")
         or llm_metadata.get("engine")
@@ -669,6 +683,7 @@ async def fetch_fixtures(
 
     repo = pipeline.fixtures
     config = pipeline.configuration
+    methods_catalog = pipeline.methods_catalog
 
     airports = repo.list_airports()
     destinations = repo.list_destinations()
@@ -681,6 +696,9 @@ async def fetch_fixtures(
         "flexibility": config.flexibility,
     }
 
+    requested_alias = settings.llm_method
+    resolved_default = methods_catalog.lookup(requested_alias) or methods_catalog.default_method
+
     return {
         "airports": airports,
         "destinations": destinations,
@@ -688,7 +706,11 @@ async def fetch_fixtures(
         "configuration": configuration,
         "voiceEnabled": settings.voice_enabled,
         "mode": settings.interaction_mode,
-        "llmMethod": settings.llm_method,
+        "llmMethod": resolved_default.id,
+        "llmMethodAlias": requested_alias,
+        "availableMethods": methods_catalog.to_metadata(),
+        "defaultMethod": methods_catalog.default_method_id,
+        "methodDefaults": dict(methods_catalog.defaults),
     }
 
 

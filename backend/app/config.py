@@ -14,6 +14,8 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_core import PydanticUndefined
 
+from .pipeline.configuration import MethodsCatalog, load_methods_catalog
+
 
 class Settings(BaseSettings):
     """Settings loaded from environment variables or ``.env`` files."""
@@ -106,11 +108,17 @@ class Settings(BaseSettings):
         alias="FIXTURES_DIR",
         description="Directory containing validation fixture data.",
     )
+    methods_config_path: Path = Field(
+        default=Path("config/methods.yaml"),
+        alias="METHODS_CONFIG_PATH",
+        description="Filesystem path to the methods catalogue YAML file.",
+    )
     processing_threshold_ms: int = Field(
         default=1000,
         alias="PROCESSING_THRESHOLD_MS",
         description="Target maximum processing time in milliseconds.",
     )
+    methods_catalog: MethodsCatalog | None = Field(default=None, exclude=True)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -118,6 +126,7 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         extra="ignore",
         populate_by_name=True,
+        arbitrary_types_allowed=True,
         # Allow validators to handle comma-separated ``.env`` overrides (e.g.
         # VOICE_ALLOWED_CONTENT_TYPES) without triggering JSON decode errors for
         # blank values by skipping automatic decoding in the settings sources.
@@ -186,7 +195,7 @@ class Settings(BaseSettings):
             return delimiter
         raise TypeError("CSV_DELIMITER must be provided as a single-character string")
 
-    @field_validator("csv_path", "fixtures_dir", mode="before")
+    @field_validator("csv_path", "fixtures_dir", "methods_config_path", mode="before")
     @classmethod
     def _ensure_path(cls, value: object) -> Path:
         if isinstance(value, Path):
@@ -194,6 +203,14 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return Path(value)
         raise TypeError("Expected a filesystem path string for CSV_PATH/FIXTURES_DIR")
+
+    def load_methods_catalog(self) -> MethodsCatalog:
+        """Load and cache the configured methods catalogue."""
+
+        if self.methods_catalog is None:
+            catalog = load_methods_catalog(self.methods_config_path)
+            object.__setattr__(self, "methods_catalog", catalog)
+        return self.methods_catalog
 
     @field_validator("llm_api_base", "llm_api_key", mode="before")
     @classmethod

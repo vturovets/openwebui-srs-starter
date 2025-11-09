@@ -292,7 +292,7 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
     assert log_entry[index_for("User input")].startswith("Book a trip")
     assert log_entry[index_for("Request type")] == "Text"
     assert log_entry[index_for("Pipeline Status")] == "Success"
-    assert log_entry[index_for("Method")] == "rules"
+    assert log_entry[index_for("Method")] == "rules-basic"
     assert log_entry[index_for("Interaction Mode")] == "dialog"
     assert float(log_entry[language_columns[0]]) >= 0.0
     assert "en" in log_entry[language_columns[1]]

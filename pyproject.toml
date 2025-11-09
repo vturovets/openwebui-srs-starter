@@ -13,6 +13,7 @@ dependencies = [
     "uvicorn[standard]>=0.23",
     "pydantic>=2.5",
     "pydantic-settings>=2.0",
+    "pyyaml>=6.0",
     "dateparser>=1.1",
     "langdetect>=1.0",
     "httpx>=0.26",

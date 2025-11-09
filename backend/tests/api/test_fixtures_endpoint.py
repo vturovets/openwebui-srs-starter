@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from backend.app.dependencies import get_llm_client, get_pipeline, get_settings
+from backend.app.dependencies import get_llm_client, get_methods_catalog, get_pipeline, get_settings
 from backend.app.main import create_app
 
 
@@ -13,9 +13,8 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
     monkeypatch.setenv("INTERACTION_MODE", "dialog")
     monkeypatch.setenv("LLM_METHOD", "rules")
 
-    get_settings.cache_clear()
-    get_pipeline.cache_clear()
-    get_llm_client.cache_clear()
+    for cache in (get_settings, get_pipeline, get_llm_client, get_methods_catalog):
+        cache.cache_clear()
 
     app = create_app()
     client = TestClient(app)
@@ -27,8 +26,13 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
         payload = response.json()
         assert payload["voiceEnabled"] is True
         assert payload["mode"] == "dialog"
-        assert payload["llmMethod"] == "rules"
+        assert payload["llmMethod"] == "rules-basic"
+        assert payload["llmMethodAlias"] == "rules"
+        assert isinstance(payload["availableMethods"], list)
+        assert payload["defaultMethod"] == "rules-basic"
+        assert isinstance(payload["methodDefaults"], dict)
     finally:
         get_settings.cache_clear()
         get_pipeline.cache_clear()
         get_llm_client.cache_clear()
+        get_methods_catalog.cache_clear()
