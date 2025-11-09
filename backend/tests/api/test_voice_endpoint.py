@@ -176,9 +176,11 @@ def test_voice_endpoint_transcribes_and_logs(tmp_path):
 
         assert logger.rows
         log_entry = logger.rows[-1]
-        assert log_entry["STT"] == "deepgram"
-        assert "book flights" in log_entry["Input"]
-        assert log_entry["ProcessingTime"] == f"{timings['totalMs']:.2f}"
+        assert log_entry["Request type"] == "Voice"
+        assert "book flights" in log_entry["User input"]
+        assert log_entry["Processing Time"] == f"{timings['totalMs']:.2f}"
+        assert log_entry["Language Detection"][0] == "20.00"
+        assert "en" in log_entry["Language Detection"][1]
 
     asyncio.run(scenario())
 

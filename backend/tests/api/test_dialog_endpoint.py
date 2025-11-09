@@ -74,18 +74,26 @@ def test_dialog_clarification_flow(dialog_context):
         assert second_payload["metadata"]["timings"]["thresholdBreached"] is False
 
         with settings.csv_path.open(newline="", encoding="utf-8") as handle:
-            rows = list(csv.DictReader(handle))
+            reader = csv.reader(handle)
+            rows = list(reader)
 
-        assert len(rows) == 2
-        first_row, second_row = rows
+        assert len(rows) == 3
+        header, first_row, second_row = rows
 
-        assert first_row["DialogStatus"] == "clarification"
-        assert json.loads(first_row["MissingParameters"])[0] == "departureDate"
-        assert json.loads(first_row["Transcript"])[0]["role"] == "user"
+        def index_for(field: str) -> int:
+            return header.index(field)
 
-        assert second_row["DialogStatus"] == "success"
-        assert second_row["Status"] == "success"
-        assert json.loads(second_row["Transcript"])[-1]["role"] == "user"
+        assert first_row[index_for("Pipeline Status")] == "Failed"
+        assert first_row[index_for("Request type")] == "Text"
+        assert first_row[index_for("Interaction Mode")] == "dialog"
+        first_output = json.loads(first_row[index_for("Output")])
+        assert first_output["status"] == "clarification"
+        assert first_output["validation"]["status"] == "failed"
+
+        assert second_row[index_for("Pipeline Status")] == "Success"
+        second_output = json.loads(second_row[index_for("Output")])
+        assert second_output["status"] == "success"
+        assert second_output["data"]["from"]
 
     asyncio.run(scenario())
 

@@ -11,37 +11,25 @@ from .integrations.llm import HolidaySearchLLMClient
 from .logging.csv_logger import CSVLogger
 
 
+# NOTE: "Language Detection" is intentionally duplicated. The first column captures the
+# language detection timing (`languageMs`), while the second records the semantic
+# detection result (code plus confidence).
 CSV_LOG_FIELDS: tuple[str, ...] = (
-    "Timestamp",
-    "Input",
-    "Language",
+    "Timestamp (UTC)",
+    "User input",
+    "Request type",
     "Method",
-    "STT",
-    "ProcessingTime",
-    "LanguageMs",
-    "ExtractionMs",
-    "NormalizationMs",
-    "ValidationMs",
-    "LLMNetworkMs",
-    "LLMProvider",
-    "LLMPromptId",
-    "LLMRequestId",
-    "LLMResponseId",
+    "Interaction Mode",
+    "Pipeline Status",
+    "Language Detection",
+    "Processing Time",
+    "Language Detection",
+    "Extraction",
+    "Mapping",
+    "Validation",
+    "Transcription",
+    "Network Latency",
     "Output",
-    "Status",
-    "ThresholdBreached",
-    "MissingFields",
-    "InvalidFields",
-    "RecognizedAirports",
-    "RecognizedDestinations",
-    "RecognizedDates",
-    "RecognizedDuration",
-    "RecognizedFlexibility",
-    "SessionId",
-    "DialogStatus",
-    "MissingParameters",
-    "Prompt",
-    "Transcript",
 )
 from .pipeline.dialog import DialogOrchestrator
 from .pipeline.pipeline import HolidaySearchPipeline

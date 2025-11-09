@@ -274,27 +274,31 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
     assert response.metadata["invalidFields"] == []
 
     with settings.csv_path.open("r", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
+        reader = csv.reader(handle)
+        rows = list(reader)
 
-    assert len(rows) == 1
-    log_entry = rows[0]
-    assert log_entry["Input"].startswith("Book a trip")
-    assert log_entry["Language"] == "en"
-    assert log_entry["Status"] == "success"
-    expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
-    assert log_entry["ThresholdBreached"] == expected_threshold
+    assert len(rows) == 2
+    header, log_entry = rows
+
+    def index_for(field: str) -> int:
+        return header.index(field)
+
+    def indices_for(field: str) -> list[int]:
+        return [index for index, value in enumerate(header) if value == field]
+
     timings = response.metadata["timings"]
-    assert log_entry["LanguageMs"] == f"{timings.get('languageMs', 0.0):.2f}"
-    assert log_entry["ExtractionMs"] == f"{timings.get('extractionMs', 0.0):.2f}"
-    assert log_entry["NormalizationMs"] == f"{timings.get('normalizationMs', 0.0):.2f}"
-    assert log_entry["ValidationMs"] == f"{timings.get('validationMs', 0.0):.2f}"
-    assert json.loads(log_entry["MissingFields"]) == response.metadata["missingFields"]
-    assert json.loads(log_entry["InvalidFields"]) == response.metadata["invalidFields"]
-    assert json.loads(log_entry["RecognizedAirports"]) == recognized["airports"]
-    assert json.loads(log_entry["RecognizedDestinations"]) == recognized["destinations"]
-    assert json.loads(log_entry["RecognizedDates"]) == recognized["dates"]
-    assert log_entry["RecognizedDuration"] == (recognized["duration"] or "")
-    assert log_entry["RecognizedFlexibility"] == (recognized["flexibility"] or "")
+    language_columns = indices_for("Language Detection")
+
+    assert log_entry[index_for("User input")].startswith("Book a trip")
+    assert log_entry[index_for("Request type")] == "Text"
+    assert log_entry[index_for("Pipeline Status")] == "Success"
+    assert log_entry[index_for("Method")] == "rules"
+    assert log_entry[index_for("Interaction Mode")] == "dialog"
+    assert float(log_entry[language_columns[0]]) >= 0.0
+    assert "en" in log_entry[language_columns[1]]
+    assert log_entry[index_for("Processing Time")] == f"{timings.get('totalMs', 0.0):.2f}"
+    output_payload = json.loads(log_entry[index_for("Output")])
+    assert output_payload["status"] == "success"
 
 
 def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
@@ -314,13 +318,19 @@ def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
     assert response.metadata["language"]["code"] == "fr"
 
     with settings.csv_path.open("r", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
+        reader = csv.reader(handle)
+        rows = list(reader)
 
-    assert len(rows) == 1
-    log_entry = rows[0]
-    assert log_entry["Language"] == "fr"
-    parsed_output = json.loads(log_entry["Output"])
-    assert parsed_output["status"] == "success"
+    assert len(rows) == 2
+    header, log_entry = rows
+
+    def indices_for(field: str) -> list[int]:
+        return [index for index, value in enumerate(header) if value == field]
+
+    language_columns = indices_for("Language Detection")
+    assert "fr" in log_entry[language_columns[1]]
+    output_payload = json.loads(log_entry[header.index("Output")])
+    assert output_payload["status"] == "success"
 def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
     settings, pipeline, logger = app_dependencies
     payload = ParseRequest(
@@ -338,18 +348,19 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     assert set(response.metadata["missingFields"]) >= {"from", "to"}
 
     with settings.csv_path.open("r", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
+        reader = csv.reader(handle)
+        rows = list(reader)
 
-    assert len(rows) == 1
-    log_entry = rows[0]
-    assert log_entry["Status"] == "failed"
-    expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
-    assert log_entry["ThresholdBreached"] == expected_threshold
-    assert "Utterance" in log_entry["Output"]
+    assert len(rows) == 2
+    header, log_entry = rows
 
-    parsed_output = json.loads(log_entry["Output"])
+    def index_for(field: str) -> int:
+        return header.index(field)
+
+    assert log_entry[index_for("Pipeline Status")] == "Failed"
+    assert "Utterance" in log_entry[index_for("Output")]
+
+    parsed_output = json.loads(log_entry[index_for("Output")])
     assert parsed_output["status"] == "failed"
     assert parsed_output["data"]["language"] == "en"
     assert parsed_output["validation"]["errors"][0]["message"].startswith("Utterance must include")
-    assert json.loads(log_entry["MissingFields"]) == response.metadata["missingFields"]
-    assert json.loads(log_entry["InvalidFields"]) == response.metadata["invalidFields"]
