@@ -11,7 +11,12 @@ test.beforeEach(async ({ page }) => {
         destinations: ['Rome'],
         voiceEnabled: true,
         mode: 'dialog',
-        llmMethod: 'rules',
+        llmMethod: 'rules-basic',
+        availableMethods: [
+          { id: 'rules-basic', type: 'rules' },
+          { id: 'gpt5-default', type: 'llm' },
+        ],
+        defaultMethod: 'rules-basic',
       }),
     });
   });

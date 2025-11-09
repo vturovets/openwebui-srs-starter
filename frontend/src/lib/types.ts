@@ -16,7 +16,7 @@ export const CSV_LOG_FIELDS = [
   'Validation',
   'Transcription',
   'Network Latency',
-  'Output',
+  'Output JSON',
 ] as const;
 
 export type CsvLogField = (typeof CSV_LOG_FIELDS)[number];
@@ -62,6 +62,15 @@ export type HolidayResultEntry = {
   timestamp: string;
 };
 
+export type MethodMetadata = {
+  id: string;
+  type: string;
+  label: string;
+  description?: string;
+  params?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
 export type FixturesConfigurationDefaults = {
   adults: number;
   nonAdults: number;
@@ -91,6 +100,10 @@ export type Fixtures = {
   voiceEnabled: boolean;
   mode: string;
   llmMethod: string | null;
+  llmMethodAlias?: string | null;
+  availableMethods?: MethodMetadata[];
+  defaultMethod?: string | null;
+  methodDefaults?: Record<string, unknown>;
   configuration?: FixturesConfiguration;
 };
 
