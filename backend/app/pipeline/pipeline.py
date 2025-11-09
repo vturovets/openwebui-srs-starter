@@ -6,13 +6,18 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Callable, Dict, Mapping
+from typing import Any, Callable, Dict, List, Mapping, Optional, Set
 
 from ..config import Settings
 from ..fixtures.repository import FixtureRepository
-from .configuration import SearchConfiguration
+from .configuration import (
+    HybridMethodConfig,
+    MethodConfig,
+    MethodsCatalog,
+    SearchConfiguration,
+)
 from .extractor_rules import ExtractionResult, RulesExtractor
-from .extractors import ExtractorOutcome, HybridExtractor, LLMExtractor
+from .extractors import ExtractorOutcome, LLMExtractor
 from .language import LanguageDetector, LanguageDetectionResult
 from .normalizer import Normalizer, NormalizedResult
 from .validator import ValidationError, Validator
@@ -46,11 +51,13 @@ class HolidaySearchPipeline:
         settings: Settings | None = None,
         fixtures_dir: str | Path | None = None,
         llm_client: Callable[[str], Mapping[str, object]] | None = None,
+        methods_catalog: MethodsCatalog | None = None,
     ) -> None:
         self._settings = settings or Settings()
         fixtures_root = Path(fixtures_dir or self._settings.fixtures_dir)
         self._fixtures = FixtureRepository(fixtures_root)
         self._configuration = self._load_search_configuration(fixtures_root)
+        self._methods_catalog = methods_catalog or self._settings.load_methods_catalog()
 
         self._language = LanguageDetector(self._settings.allowed_langs)
         self._rules_extractor = RulesExtractor(self._fixtures, self._configuration)
@@ -64,7 +71,6 @@ class HolidaySearchPipeline:
             self._configuration,
             llm_client=llm_client,
         )
-        self._hybrid_extractor = HybridExtractor(self._rules_extractor, self._llm_extractor)
 
     def _load_search_configuration(self, fixtures_root: Path) -> SearchConfiguration:
         config_path = fixtures_root / self.CONFIG_FILENAME
@@ -84,18 +90,28 @@ class HolidaySearchPipeline:
 
     def _run_single_pass(
         self,
-        method: str,
+        method: MethodConfig,
         utterance: str,
         language: str,
         timings: Dict[str, float],
     ) -> ExtractorOutcome:
-        metadata_payload: Dict[str, Any] = {}
+        runtime_kind = method.kind
+        metadata_payload: Dict[str, Any] = {
+            "methodId": method.id,
+            "methodType": runtime_kind,
+        }
+        attempts: List[Dict[str, Any]] = [
+            {
+                "method": method.id,
+                "type": runtime_kind,
+            }
+        ]
         try:
             extraction = self._measure(
                 "extractionMs",
                 timings,
                 (lambda: self._rules_extractor.extract(utterance, language=language))
-                if method == "rules"
+                if runtime_kind == "rules"
                 else (lambda: self._llm_extractor.extract(utterance)),
             )
         except ValueError as exc:
@@ -104,18 +120,20 @@ class HolidaySearchPipeline:
                 "status": "error",
                 "errors": [{"message": detail}],
             }
+            attempts[0]["status"] = "error"
+            attempts[0]["detail"] = detail
             return ExtractorOutcome(
-                method=method,
+                method=method.id,
                 status="error",
                 extraction=None,
                 normalized=None,
                 validation=validation,
                 detail=detail,
-                attempts=[{"method": method, "status": "error", "detail": detail}],
+                attempts=attempts,
                 metadata=metadata_payload,
             )
 
-        if method == "llm":
+        if runtime_kind == "llm":
             network_ms = self._llm_extractor.last_network_latency_ms
             if network_ms is not None:
                 timings["llmNetworkMs"] = timings.get("llmNetworkMs", 0.0) + network_ms
@@ -141,35 +159,141 @@ class HolidaySearchPipeline:
                 "status": "failed",
                 "errors": [{"message": detail}],
             }
+            attempts[0]["status"] = "failed"
+            attempts[0]["detail"] = detail
             return ExtractorOutcome(
-                method=method,
+                method=method.id,
                 status="failed",
                 extraction=extraction,
                 normalized=normalized,
                 validation=validation,
                 detail=detail,
-                attempts=[{"method": method, "status": "failed", "detail": detail}],
+                attempts=attempts,
                 metadata=metadata_payload,
             )
 
         validation = {"status": "passed", "errors": []}
+        attempts[0]["status"] = "success"
         return ExtractorOutcome(
-            method=method,
+            method=method.id,
             status="success",
             extraction=extraction,
             normalized=normalized,
             validation=validation,
-            attempts=[{"method": method, "status": "success"}],
+            attempts=attempts,
             metadata=metadata_payload,
         )
 
-    def _resolve_method(self, override: str | None) -> tuple[str, str]:
-        preferred = override or self._settings.llm_method or "rules"
-        requested = preferred.strip() or "rules"
-        normalised = requested.lower()
-        if normalised not in {"rules", "llm", "hybrid"}:
-            return requested, "rules"
-        return requested, normalised
+    def _execute_hybrid(
+        self,
+        method: HybridMethodConfig,
+        utterance: str,
+        language: str,
+        timings: Dict[str, float],
+        *,
+        visited: Set[str],
+    ) -> ExtractorOutcome:
+        if method.id in visited:
+            raise ValueError(f"Detected recursive hybrid execution for '{method.id}'")
+        visited.add(method.id)
+        combined_attempts: List[Dict[str, Any]] = []
+        stage_summaries: List[Dict[str, Any]] = []
+        last_outcome: Optional[ExtractorOutcome] = None
+        try:
+            for stage in method.stages:
+                outcome = self._execute_method(stage.method, utterance, language, timings, visited=visited)
+                stage_summary: Dict[str, Any] = {
+                    "id": stage.method.id,
+                    "type": stage.method.kind,
+                    "status": outcome.status,
+                }
+                if outcome.detail:
+                    stage_summary["detail"] = outcome.detail
+                stage_summaries.append(stage_summary)
+                combined_attempts.extend(dict(attempt) for attempt in outcome.attempts)
+                last_outcome = outcome
+                if outcome.status == "success":
+                    metadata = dict(outcome.metadata)
+                    metadata["hybrid"] = {
+                        "methodId": method.id,
+                        "strategy": method.strategy,
+                        "stages": stage_summaries,
+                        "selectedStage": stage.method.id,
+                        "fallbackTriggered": False,
+                    }
+                    outcome.metadata = metadata
+                    outcome.attempts = combined_attempts
+                    return outcome
+
+            if method.fallback is not None:
+                fallback_outcome = self._execute_method(method.fallback, utterance, language, timings, visited=visited)
+                fallback_summary: Dict[str, Any] = {
+                    "id": method.fallback.id,
+                    "type": method.fallback.kind,
+                    "status": fallback_outcome.status,
+                    "fallback": True,
+                }
+                if fallback_outcome.detail:
+                    fallback_summary["detail"] = fallback_outcome.detail
+                stage_summaries.append(fallback_summary)
+                combined_attempts.extend(dict(attempt) for attempt in fallback_outcome.attempts)
+                metadata = dict(fallback_outcome.metadata)
+                hybrid_meta: Dict[str, Any] = {
+                    "methodId": method.id,
+                    "strategy": method.strategy,
+                    "stages": stage_summaries,
+                    "selectedStage": fallback_outcome.method if fallback_outcome.status == "success" else None,
+                    "fallbackTriggered": True,
+                    "fallback": method.fallback.id,
+                }
+                if fallback_outcome.detail:
+                    hybrid_meta["fallbackDetail"] = fallback_outcome.detail
+                metadata["hybrid"] = hybrid_meta
+                fallback_outcome.metadata = metadata
+                fallback_outcome.attempts = combined_attempts
+                return fallback_outcome
+
+            if last_outcome is None:
+                raise RuntimeError(f"Hybrid method '{method.id}' did not execute any stages")
+            metadata = dict(last_outcome.metadata)
+            metadata["hybrid"] = {
+                "methodId": method.id,
+                "strategy": method.strategy,
+                "stages": stage_summaries,
+                "selectedStage": None,
+                "fallbackTriggered": False,
+            }
+            last_outcome.metadata = metadata
+            if combined_attempts:
+                last_outcome.attempts = combined_attempts
+            return last_outcome
+        finally:
+            visited.discard(method.id)
+
+    def _execute_method(
+        self,
+        method: MethodConfig,
+        utterance: str,
+        language: str,
+        timings: Dict[str, float],
+        *,
+        visited: Optional[Set[str]] = None,
+    ) -> ExtractorOutcome:
+        visited_set = visited or set()
+        if isinstance(method, HybridMethodConfig):
+            return self._execute_hybrid(method, utterance, language, timings, visited=visited_set)
+        if method.kind not in {"rules", "llm"}:
+            raise ValueError(f"Unsupported method kind '{method.kind}' requested")
+        return self._run_single_pass(method, utterance, language, timings)
+
+    def _resolve_method(self, override: str | None) -> tuple[str | None, MethodConfig]:
+        candidate = override or self._settings.llm_method
+        alias = candidate.strip() if isinstance(candidate, str) else None
+        if alias:
+            method = self._methods_catalog.lookup(alias)
+            if method is not None:
+                return alias, method
+        return alias, self._methods_catalog.default_method
 
     def run(self, utterance: str, *, method: str | None = None) -> PipelineRunResult:
         timings: Dict[str, float] = {}
@@ -181,21 +305,22 @@ class HolidaySearchPipeline:
             lambda: self._language.detect(utterance),
         )
 
-        requested, resolved = self._resolve_method(method)
-
-        if resolved == "hybrid":
-            outcome = self._hybrid_extractor.run(
-                run_rules=lambda: self._run_single_pass("rules", utterance, detection.language, timings),
-                run_llm=lambda: self._run_single_pass("llm", utterance, detection.language, timings),
-            )
-        else:
-            outcome = self._run_single_pass(resolved, utterance, detection.language, timings)
+        requested_alias, resolved_method = self._resolve_method(method)
+        outcome = self._execute_method(resolved_method, utterance, detection.language, timings)
 
         total_ms = (perf_counter() - total_start) * 1000
         timings["totalMs"] = total_ms
 
         metadata = dict(outcome.metadata)
-        attempts = list(outcome.attempts)
+        metadata.setdefault("methodId", resolved_method.id)
+        metadata.setdefault("methodType", resolved_method.kind)
+        if requested_alias and requested_alias.lower() != resolved_method.id.lower():
+            metadata.setdefault("requestedAlias", requested_alias)
+        metadata.setdefault("availableMethods", self._methods_catalog.to_metadata())
+        metadata.setdefault("methodDefaults", dict(self._methods_catalog.defaults))
+        metadata.setdefault("defaultMethod", self._methods_catalog.default_method_id)
+        metadata.setdefault("catalogSize", len(self._methods_catalog.list_methods()))
+        attempts = [dict(item) for item in outcome.attempts]
 
         normalized = outcome.normalized
         if not isinstance(normalized, NormalizedResult):
@@ -203,7 +328,7 @@ class HolidaySearchPipeline:
 
         return PipelineRunResult(
             status=outcome.status,
-            method_requested=requested,
+            method_requested=resolved_method.id,
             method_used=outcome.method,
             detection=detection,
             extraction=outcome.extraction,
@@ -256,6 +381,18 @@ class HolidaySearchPipeline:
         """Return the search configuration used across the pipeline."""
 
         return self._configuration
+
+    @property
+    def methods_catalog(self) -> MethodsCatalog:
+        """Expose the configured methods catalogue."""
+
+        return self._methods_catalog
+
+    @property
+    def default_method_id(self) -> str:
+        """Shortcut for the default method identifier."""
+
+        return self._methods_catalog.default_method_id
 
 
 __all__ = ["HolidaySearchPipeline", "PipelineRunResult", "SearchConfiguration"]

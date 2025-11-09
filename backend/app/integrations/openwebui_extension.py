@@ -152,6 +152,14 @@ class HolidaySearchTool:
         metadata = dict(result.metadata)
         metadata.setdefault("mode", mode or self.interaction_mode)
         metadata.setdefault("method", method or self.llm_method)
+        available_methods = metadata.get("availableMethods")
+        if not isinstance(available_methods, list):
+            metadata["availableMethods"] = []
+        if "defaultMethod" not in metadata:
+            metadata["defaultMethod"] = self.llm_method
+        defaults_payload = metadata.get("methodDefaults")
+        if not isinstance(defaults_payload, Mapping):
+            metadata["methodDefaults"] = {}
         metadata["recognizedSummaries"] = _extract_recognized(metadata)
         clarifications = _derive_clarifications(result)
 
@@ -189,6 +197,21 @@ class HolidaySearchTool:
         enriched["voiceEnabled"] = self.voice_enabled
         enriched["mode"] = self.interaction_mode
         enriched["llmMethod"] = self.llm_method
+        available_methods = response.get("availableMethods")
+        if isinstance(available_methods, list):
+            enriched["availableMethods"] = list(available_methods)
+        else:
+            enriched["availableMethods"] = []
+        default_method = response.get("defaultMethod")
+        if isinstance(default_method, str) and default_method:
+            enriched["defaultMethod"] = default_method
+        else:
+            enriched["defaultMethod"] = self.llm_method
+        defaults_payload = response.get("methodDefaults")
+        if isinstance(defaults_payload, Mapping):
+            enriched["methodDefaults"] = dict(defaults_payload)
+        else:
+            enriched["methodDefaults"] = {}
         return enriched
 
     def voice(self, audio_payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:

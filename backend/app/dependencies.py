@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Callable, Iterator, Mapping
 
 from .config import Settings
+from .pipeline.configuration import MethodsCatalog
 from .integrations.stt import DeepgramSpeechToTextClient, SpeechToTextClient
 from .integrations.llm import HolidaySearchLLMClient
 from .logging.csv_logger import CSVLogger
@@ -41,6 +42,7 @@ def get_settings() -> Settings:
 
     settings = Settings()
     settings.ensure_directories()
+    settings.load_methods_catalog()
     return settings
 
 
@@ -48,6 +50,14 @@ def settings_dependency() -> Iterator[Settings]:
     """Provide settings for FastAPI dependency injection."""
 
     yield get_settings()
+
+
+@lru_cache
+def get_methods_catalog() -> MethodsCatalog:
+    """Provide a cached view of the configured method catalogue."""
+
+    settings = get_settings()
+    return settings.load_methods_catalog()
 
 
 @lru_cache
@@ -59,6 +69,7 @@ def get_pipeline() -> HolidaySearchPipeline:
         settings=settings,
         fixtures_dir=settings.fixtures_dir,
         llm_client=get_llm_client(),
+        methods_catalog=get_methods_catalog(),
     )
 
 
@@ -116,6 +127,7 @@ __all__ = [
     "CSV_LOG_FIELDS",
     "get_settings",
     "settings_dependency",
+    "get_methods_catalog",
     "get_pipeline",
     "get_llm_client",
     "get_csv_logger",
