@@ -78,6 +78,7 @@ serving traffic. Key options mirror the SRS:
 | `VOICE_MAX_BYTES` | `10000000` | Maximum audio payload size accepted by `/v1/voice` in bytes. |
 | `VOICE_ALLOWED_CONTENT_TYPES` | see code | Comma-separated list of MIME types accepted by `/v1/voice` (defaults cover WAV, MP3, OGG, WebM, and FLAC). |
 | `FIXTURES_DIR` | `fixtures` | Directory containing the JSON fixture files. |
+| `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 
 Create a `.env` file to override defaults, for example:
@@ -112,6 +113,15 @@ services:
 
 Bind-mount a `.env` file or rely on Compose variable substitution to keep
 secrets out of version control.
+
+### Method catalog
+
+Structured extraction strategies are described in [`config/methods.yaml`](config/methods.yaml). The loader merges the `defaults` block with each enabled method, applies environment-variable substitutions (for example `${OPENAI_BASE}`), and resolves hybrid definitions into concrete stage sequences before caching the result in [`Settings`](backend/app/config.py). Each entry is surfaced through the `/v1/fixtures` endpoint so clients can list available options and defaults.
+
+- **Rules/LLM entries** – declare provider metadata, tunable parameters, and optional `api_key_env` indirection to avoid storing secrets in the catalog.
+- **Hybrid entries** – reference existing methods via `stages` and optionally specify a `fallback` that runs when upstream stages fail.
+
+Update `METHODS_CONFIG_PATH` to point at an alternate YAML file if you need to swap in different evaluation strategies per environment.
 
 ## Running the backend
 
