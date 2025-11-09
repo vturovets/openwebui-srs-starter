@@ -289,22 +289,20 @@ describe('Holiday search console', () => {
           return acc;
         }, []);
 
-      expect(rowValues[indexFor('Pipeline Status')]).toBe('success');
-      expect(rowValues[indexFor('User Input')]).toBe('Find a trip');
-      expect(rowValues[indexFor('Processing Method')]).toBe('rules');
+      expect(rowValues[indexFor('Pipeline Status')]).toBe('Success');
+      expect(rowValues[indexFor('User input')]).toBe('Find a trip');
+      expect(rowValues[indexFor('Request type')]).toBe('Text');
+      expect(rowValues[indexFor('Method')]).toBe('rules');
       expect(rowValues[indexFor('Interaction Mode')]).toBe('dialog');
       const languageColumns = indicesFor('Language Detection');
-      expect(rowValues[languageColumns[0]]).toBe('en');
-      expect(rowValues[languageColumns[1]]).toBe('0.92');
-      expect(rowValues[indexFor('Processing Time (ms)')]).toBe('34.00');
-      expect(rowValues[indexFor('LLM Network (ms)')]).toBe('');
-      expect(rowValues[indexFor('Threshold Breached')]).toBe('false');
-      expect(rowValues[indexFor('Missing Fields')]).toBe('[]');
-      expect(rowValues[indexFor('Invalid Fields')]).toBe('[]');
-      expect(rowValues[indexFor('Dialog Status')]).toBe('success');
-      expect(rowValues[indexFor('Transcript')]).toBe(
-        JSON.stringify([{ role: 'user', text: 'Find a trip' }])
-      );
+      expect(rowValues[languageColumns[0]]).toBe('5.00');
+      expect(rowValues[languageColumns[1]]).toBe('en (0.92)');
+      expect(rowValues[indexFor('Processing Time')]).toBe('34.00');
+      expect(rowValues[indexFor('Extraction')]).toBe('10.00');
+      expect(rowValues[indexFor('Mapping')]).toBe('12.00');
+      expect(rowValues[indexFor('Validation')]).toBe('7.00');
+      expect(rowValues[indexFor('Transcription')]).toBe('');
+      expect(rowValues[indexFor('Network Latency')]).toBe('');
 
       const outputPayload = JSON.parse(rowValues[indexFor('Output JSON')]);
       expect(outputPayload.status).toBe('success');
@@ -346,9 +344,7 @@ describe('Holiday search console', () => {
       expect(secondLines).toHaveLength(2);
 
       const secondRow = parseCsvLine(secondLines[1]);
-      expect(secondRow[indexFor('Transcript')]).toBe(
-        JSON.stringify([{ role: 'user', text: 'Another trip' }])
-      );
+      expect(secondRow[indexFor('User input')]).toBe('Another trip');
 
       secondComponent.$destroy();
     } finally {

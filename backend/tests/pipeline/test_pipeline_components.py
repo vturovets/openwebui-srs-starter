@@ -287,21 +287,17 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
         return [index for index, value in enumerate(header) if value == field]
 
     timings = response.metadata["timings"]
-    expected_threshold = "true" if timings["thresholdBreached"] else "false"
     language_columns = indices_for("Language Detection")
 
-    assert log_entry[index_for("User Input")].startswith("Book a trip")
-    assert log_entry[index_for("Pipeline Status")] == "success"
-    assert log_entry[index_for("Processing Method")] == "rules"
+    assert log_entry[index_for("User input")].startswith("Book a trip")
+    assert log_entry[index_for("Request type")] == "Text"
+    assert log_entry[index_for("Pipeline Status")] == "Success"
+    assert log_entry[index_for("Method")] == "rules"
     assert log_entry[index_for("Interaction Mode")] == "dialog"
-    assert log_entry[language_columns[0]] == "en"
-    assert log_entry[index_for("Threshold Breached")] == expected_threshold
-    assert log_entry[index_for("Processing Time (ms)")] == f"{timings.get('totalMs', 0.0):.2f}"
-    assert json.loads(log_entry[index_for("Missing Fields")]) == response.metadata["missingFields"]
-    assert json.loads(log_entry[index_for("Invalid Fields")]) == response.metadata["invalidFields"]
-    transcript = json.loads(log_entry[index_for("Transcript")])
-    assert transcript[0]["role"] == "user"
-    output_payload = json.loads(log_entry[index_for("Output JSON")])
+    assert float(log_entry[language_columns[0]]) >= 0.0
+    assert "en" in log_entry[language_columns[1]]
+    assert log_entry[index_for("Processing Time")] == f"{timings.get('totalMs', 0.0):.2f}"
+    output_payload = json.loads(log_entry[index_for("Output")])
     assert output_payload["status"] == "success"
 
 
@@ -332,8 +328,8 @@ def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
         return [index for index, value in enumerate(header) if value == field]
 
     language_columns = indices_for("Language Detection")
-    assert log_entry[language_columns[0]] == "fr"
-    output_payload = json.loads(log_entry[header.index("Output JSON")])
+    assert "fr" in log_entry[language_columns[1]]
+    output_payload = json.loads(log_entry[header.index("Output")])
     assert output_payload["status"] == "success"
 def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
     settings, pipeline, logger = app_dependencies
@@ -361,14 +357,10 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     def index_for(field: str) -> int:
         return header.index(field)
 
-    assert log_entry[index_for("Pipeline Status")] == "failed"
-    expected_threshold = "true" if response.metadata["timings"]["thresholdBreached"] else "false"
-    assert log_entry[index_for("Threshold Breached")] == expected_threshold
-    assert "Utterance" in log_entry[index_for("Output JSON")]
+    assert log_entry[index_for("Pipeline Status")] == "Failed"
+    assert "Utterance" in log_entry[index_for("Output")]
 
-    parsed_output = json.loads(log_entry[index_for("Output JSON")])
+    parsed_output = json.loads(log_entry[index_for("Output")])
     assert parsed_output["status"] == "failed"
     assert parsed_output["data"]["language"] == "en"
     assert parsed_output["validation"]["errors"][0]["message"].startswith("Utterance must include")
-    assert json.loads(log_entry[index_for("Missing Fields")]) == response.metadata["missingFields"]
-    assert json.loads(log_entry[index_for("Invalid Fields")]) == response.metadata["invalidFields"]

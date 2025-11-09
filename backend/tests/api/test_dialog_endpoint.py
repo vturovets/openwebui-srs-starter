@@ -83,15 +83,17 @@ def test_dialog_clarification_flow(dialog_context):
         def index_for(field: str) -> int:
             return header.index(field)
 
-        assert first_row[index_for("Dialog Status")] == "clarification"
-        assert first_row[index_for("Pipeline Status")] == "failed"
-        prompt_payload = json.loads(first_row[index_for("Prompt JSON")])
-        assert prompt_payload["parameter"] == "departureDate"
-        assert json.loads(first_row[index_for("Transcript")])[0]["role"] == "user"
+        assert first_row[index_for("Pipeline Status")] == "Failed"
+        assert first_row[index_for("Request type")] == "Text"
+        assert first_row[index_for("Interaction Mode")] == "dialog"
+        first_output = json.loads(first_row[index_for("Output")])
+        assert first_output["status"] == "clarification"
+        assert first_output["validation"]["status"] == "failed"
 
-        assert second_row[index_for("Dialog Status")] == "success"
-        assert second_row[index_for("Pipeline Status")] == "success"
-        assert json.loads(second_row[index_for("Transcript")])[-1]["role"] == "user"
+        assert second_row[index_for("Pipeline Status")] == "Success"
+        second_output = json.loads(second_row[index_for("Output")])
+        assert second_output["status"] == "success"
+        assert second_output["data"]["from"]
 
     asyncio.run(scenario())
 

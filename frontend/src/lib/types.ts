@@ -1,29 +1,22 @@
-// NOTE: "Language Detection" appears twice to satisfy the reporting template used by
-// analysts. The first column records the detected ISO language code while the second
-// repeats the heading but stores the numeric confidence score for that detection.
+// NOTE: "Language Detection" is intentionally duplicated. The first column logs the
+// timing information reported as `languageMs`, while the second captures the semantic
+// detection outcome (language code plus confidence) for downstream analytics.
 export const CSV_LOG_FIELDS = [
-  'Timestamp',
-  'User Input',
-  'Request Type',
+  'Timestamp (UTC)',
+  'User input',
+  'Request type',
+  'Method',
   'Interaction Mode',
-  'Processing Method',
   'Pipeline Status',
   'Language Detection',
+  'Processing Time',
   'Language Detection',
-  'Processing Time (ms)',
-  'LLM Network (ms)',
-  'LLM Provider',
-  'LLM Prompt Id',
-  'LLM Request Id',
-  'LLM Response Id',
-  'Threshold Breached',
-  'Missing Fields',
-  'Invalid Fields',
-  'Transcript',
-  'Prompt JSON',
-  'Output JSON',
-  'Session Id',
-  'Dialog Status',
+  'Extraction',
+  'Mapping',
+  'Validation',
+  'Transcription',
+  'Network Latency',
+  'Output',
 ] as const;
 
 export type CsvLogField = (typeof CSV_LOG_FIELDS)[number];

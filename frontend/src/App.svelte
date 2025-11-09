@@ -231,33 +231,7 @@
     return { code, confidence: formatProbability(confidence) };
   }
 
-  function serialiseJson(value: unknown): string {
-    if (value === undefined || value === null || value === '') {
-      return '';
-    }
-    return JSON.stringify(value);
-  }
 
-  function serialiseTranscript(entry: HolidayResultEntry, metadata: Record<string, unknown>): string {
-    const transcript = metadata.transcript;
-    if (Array.isArray(transcript)) {
-      return JSON.stringify(transcript);
-    }
-    if (typeof transcript === 'string' && transcript.trim().length > 0) {
-      return JSON.stringify([{ role: 'user', text: transcript }]);
-    }
-
-    const resultTranscript = (entry.result as VoiceResponse).transcript;
-    if (typeof resultTranscript === 'string' && resultTranscript.trim().length > 0) {
-      return JSON.stringify([{ role: 'user', text: resultTranscript }]);
-    }
-
-    if (entry.input.trim().length > 0) {
-      return JSON.stringify([{ role: 'user', text: entry.input }]);
-    }
-
-    return '[]';
-  }
 
   function escapeCsv(value: string): string {
     if (/["\n\r,]/.test(value)) {
@@ -266,18 +240,6 @@
     return value;
   }
 
-  function formatThreshold(value: unknown): string {
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-    if (typeof value === 'string') {
-      const lowered = value.toLowerCase();
-      if (lowered === 'true' || lowered === 'false') {
-        return lowered;
-      }
-    }
-    return '';
-  }
 
   function buildOutput(entry: HolidayResultEntry, metadata: Record<string, unknown>): string {
     const output: Record<string, unknown> = {
@@ -295,27 +257,8 @@
     return JSON.stringify(output);
   }
 
-  function resolvePrompt(metadata: Record<string, unknown>, result: HolidayResult): string {
-    if (metadata.prompt !== undefined) {
-      return serialiseJson(metadata.prompt);
-    }
-    if (Array.isArray(result.clarifications) && result.clarifications.length) {
-      return JSON.stringify(result.clarifications);
-    }
-    return '';
-  }
 
-  function serialiseList(value: unknown): string {
-    if (Array.isArray(value)) {
-      return JSON.stringify(value);
-    }
-    return '[]';
-  }
 
-  function resolveSessionId(metadata: Record<string, unknown>): string {
-    const sessionId = metadata.sessionId ?? metadata.sessionID ?? metadata.session_id;
-    return typeof sessionId === 'string' ? sessionId : '';
-  }
 
   function resolvePipelineStatus(result: HolidayResult, metadata: Record<string, unknown>): string {
     if (result.status === 'success') {
@@ -336,53 +279,58 @@
   function buildRow(entry: HolidayResultEntry): CsvRow {
     const metadata = toRecord(entry.result.metadata);
     const timings = toRecord(metadata.timings);
-    const llm = toRecord(metadata.llm);
     const languageInfo = extractLanguageInfo(metadata, entry.result);
 
     const totalTiming =
-      toFiniteNumber(timings.totalMs ?? timings.total ?? timings.totalMilliseconds) ?? undefined;
+      toFiniteNumber(
+        timings.totalTimingMs ?? timings.totalMs ?? timings.total ?? timings.totalMilliseconds
+      ) ?? undefined;
+    const languageTiming =
+      toFiniteNumber(timings.languageMs ?? timings.languageDetectionMs ?? timings.language) ??
+      undefined;
+    const extractionTiming =
+      toFiniteNumber(timings.extractionMs ?? timings.extraction) ?? undefined;
+    const mappingTiming =
+      toFiniteNumber(
+        timings.normalizationMs ??
+          timings.normalisationMs ??
+          timings.mappingMs ??
+          timings.mapping
+      ) ?? undefined;
+    const validationTiming =
+      toFiniteNumber(timings.validationMs ?? timings.validation) ?? undefined;
+    const transcriptionTiming =
+      toFiniteNumber(timings.sttMs ?? timings.transcriptionMs ?? timings.voiceMs) ?? undefined;
+    const networkLatencyTiming =
+      toFiniteNumber(
+        timings.networkLatencyMs ?? timings.llmNetworkMs ?? timings.networkMs ?? timings.network
+      ) ?? undefined;
 
     const pipelineStatus = resolvePipelineStatus(entry.result, metadata);
-    const dialogStatus =
-      typeof metadata.rawStatus === 'string' ? metadata.rawStatus : entry.result.status;
-    const llmProvider =
-      typeof llm.provider === 'string'
-        ? llm.provider
-        : typeof llm.engine === 'string'
-          ? llm.engine
-          : typeof llm.model === 'string'
-            ? llm.model
-            : '';
+
+    const languageDetectionSummary = languageInfo.code
+      ? languageInfo.confidence
+        ? `${languageInfo.code} (${languageInfo.confidence})`
+        : languageInfo.code
+      : '';
 
     const row: CsvRow = {
-      Timestamp: entry.timestamp,
-      'User Input': entry.input,
-      'Request Type': entry.source === 'voice' ? 'voice' : 'text',
+      'Timestamp (UTC)': entry.timestamp,
+      'User input': entry.input,
+      'Request type': entry.source === 'voice' ? 'Voice' : 'Text',
+      Method: typeof metadata.method === 'string' ? metadata.method : '',
       'Interaction Mode': typeof metadata.mode === 'string' ? metadata.mode : '',
-      'Processing Method': typeof metadata.method === 'string' ? metadata.method : '',
-      'Pipeline Status': pipelineStatus,
-      'Language Detection': [languageInfo.code, languageInfo.confidence],
-      'Processing Time (ms)': formatTiming(totalTiming),
-      'LLM Network (ms)': formatTiming(
-        timings.llmNetworkMs ?? timings.networkLatencyMs ?? timings.networkMs
-      ),
-      'LLM Provider': llmProvider,
-      'LLM Prompt Id': typeof llm.promptId === 'string' ? llm.promptId : '',
-      'LLM Request Id': typeof llm.requestId === 'string' ? llm.requestId : '',
-      'LLM Response Id':
-        typeof llm.responseId === 'string'
-          ? llm.responseId
-          : typeof llm.traceId === 'string'
-            ? llm.traceId
-            : '',
-      'Threshold Breached': formatThreshold(timings.thresholdBreached),
-      'Missing Fields': serialiseList(metadata.missingFields),
-      'Invalid Fields': serialiseList(metadata.invalidFields),
-      Transcript: serialiseTranscript(entry, metadata),
-      'Prompt JSON': resolvePrompt(metadata, entry.result),
-      'Output JSON': buildOutput(entry, metadata),
-      'Session Id': resolveSessionId(metadata),
-      'Dialog Status': dialogStatus,
+      'Pipeline Status': pipelineStatus
+        ? `${pipelineStatus[0].toUpperCase()}${pipelineStatus.slice(1)}`
+        : '',
+      'Language Detection': [formatTiming(languageTiming), languageDetectionSummary],
+      'Processing Time': formatTiming(totalTiming),
+      Extraction: formatTiming(extractionTiming),
+      Mapping: formatTiming(mappingTiming),
+      Validation: formatTiming(validationTiming),
+      Transcription: formatTiming(transcriptionTiming),
+      'Network Latency': formatTiming(networkLatencyTiming),
+      Output: buildOutput(entry, metadata),
     };
 
     return row;
