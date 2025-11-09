@@ -241,6 +241,15 @@ describe('Holiday search console', () => {
     const anchorClickSpy = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => {});
+    const originalBlob = globalThis.Blob;
+    const blobParts: BlobPart[][] = [];
+    class BlobMock extends (originalBlob as typeof Blob) {
+      constructor(parts: BlobPart[], options?: BlobPropertyBag) {
+        blobParts.push(parts);
+        super(parts, options);
+      }
+    }
+    (globalThis as { Blob: typeof Blob }).Blob = BlobMock as unknown as typeof Blob;
 
     try {
       parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
@@ -262,10 +271,11 @@ describe('Holiday search console', () => {
       const blob = createObjectURLSpy.mock.calls[0][0] as Blob;
       expect(blob).toBeInstanceOf(Blob);
       expect(blob.type).toBe('text/csv;charset=utf-8');
-      const previewNode = screen.getByTestId('csv-preview').querySelector('pre');
-      const previewText = previewNode?.textContent ?? '';
-
-      const lines = previewText.trim().split('\n');
+      const csvText = (blobParts[0] ?? [])
+        .map((part) => (typeof part === 'string' ? part : String(part)))
+        .join('')
+        .trim();
+      const lines = csvText.split('\n');
       expect(lines[0]).toBe(CSV_LOG_FIELDS.join(','));
       expect(lines).toHaveLength(2);
 
@@ -297,6 +307,7 @@ describe('Holiday search console', () => {
       component.$destroy();
       createObjectURLSpy.mockClear();
       anchorClickSpy.mockClear();
+      blobParts.length = 0;
 
       const secondPayload = clone(PARSE_SUCCESS);
       secondPayload.metadata.transcript = [{ role: 'user', text: 'Another trip' }];
@@ -320,9 +331,11 @@ describe('Holiday search console', () => {
       const secondBlob = createObjectURLSpy.mock.calls[0][0] as Blob;
       expect(secondBlob).toBeInstanceOf(Blob);
       expect(secondBlob.type).toBe('text/csv;charset=utf-8');
-      const secondPreviewNode = screen.getByTestId('csv-preview').querySelector('pre');
-      const secondPreview = secondPreviewNode?.textContent ?? '';
-      const secondLines = secondPreview.trim().split('\n');
+      const secondText = (blobParts[0] ?? [])
+        .map((part) => (typeof part === 'string' ? part : String(part)))
+        .join('')
+        .trim();
+      const secondLines = secondText.split('\n');
       expect(secondLines).toHaveLength(2);
 
       const secondRow = parseCsvLine(secondLines[1]);
@@ -347,6 +360,7 @@ describe('Holiday search console', () => {
         delete (globalThis.URL as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL;
       }
       anchorClickSpy.mockRestore();
+      (globalThis as { Blob: typeof Blob }).Blob = originalBlob;
     }
   });
 

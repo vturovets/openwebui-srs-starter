@@ -24,7 +24,6 @@
   let mode = 'direct-parse';
   let method: string | null = null;
   let busy = false;
-  let csvPreview = '';
   let downloadAnchor: HTMLAnchorElement | null = null;
   let downloadUrl: string | null = null;
 
@@ -434,12 +433,10 @@
 
   function exportCsv() {
     if (!history.length) {
-      csvPreview = '';
       return;
     }
 
     const csvContent = generateCsv();
-    csvPreview = csvContent;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -539,12 +536,6 @@
       voiceEnabled={fixtures?.voiceEnabled ?? true}
     />
 
-    {#if csvPreview}
-      <section class="csv" data-testid="csv-preview">
-        <h2>CSV Preview</h2>
-        <pre>{csvPreview}</pre>
-      </section>
-    {/if}
   </section>
 
   <section class="results" aria-live="polite">
@@ -665,15 +656,6 @@
 
   .error {
     color: #fca5a5;
-  }
-
-  .csv {
-    background: rgba(15, 23, 42, 0.6);
-    padding: 0.75rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    max-height: 160px;
-    overflow: auto;
   }
 
   .visually-hidden {
