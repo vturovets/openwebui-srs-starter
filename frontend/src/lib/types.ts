@@ -39,6 +39,28 @@ export type HolidayResultEntry = {
   timestamp: string;
 };
 
+export type FixturesConfigurationDefaults = {
+  adults: number;
+  nonAdults: number;
+};
+
+export type FixturesConfigurationFlexibleOption = {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+};
+
+export type FixturesConfigurationFlexibility = {
+  isFlexibleAllowed?: boolean;
+  flexibleList?: FixturesConfigurationFlexibleOption[];
+};
+
+export type FixturesConfiguration = {
+  defaults?: FixturesConfigurationDefaults;
+  flexibility?: FixturesConfigurationFlexibility;
+  [key: string]: unknown;
+};
+
 export type Fixtures = {
   airports: string[];
   destinations: string[];
@@ -46,5 +68,6 @@ export type Fixtures = {
   voiceEnabled: boolean;
   mode: string;
   llmMethod: string | null;
+  configuration?: FixturesConfiguration;
 };
 

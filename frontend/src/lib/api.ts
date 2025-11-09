@@ -31,13 +31,15 @@ async function handleResponse(response: Response) {
   return response.json();
 }
 
+type FixturesPayload = Omit<Fixtures, 'airports' | 'destinations'> & {
+  airports?: unknown;
+  destinations?: unknown;
+};
+
 export async function fetchFixtures(baseUrl: string): Promise<Fixtures> {
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/fixtures`);
   const payload = await handleResponse(response);
-  const fixtures = payload as Fixtures & {
-    airports?: unknown;
-    destinations?: unknown;
-  };
+  const fixtures = payload as FixturesPayload;
 
   return {
     ...fixtures,
