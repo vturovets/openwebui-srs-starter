@@ -448,6 +448,31 @@ def _format_pipeline_response(
         else language_code or language_confidence_str
     )
 
+    language_code = detection.language if detection is not None else ""
+    language_confidence: object = getattr(detection, "confidence", "")
+    language_metadata = metadata.get("language")
+    if not language_code and isinstance(language_metadata, Mapping):
+        language_code = str(language_metadata.get("code") or "")
+        language_confidence = language_metadata.get("confidence", language_confidence)
+
+    if isinstance(language_confidence, (int, float)):
+        language_confidence_str = f"{float(language_confidence):.2f}"
+    else:
+        language_confidence_str = str(language_confidence) if language_confidence else ""
+
+    llm_provider = str(
+        llm_metadata.get("provider")
+        or llm_metadata.get("engine")
+        or llm_metadata.get("model")
+        or ""
+    )
+
+    prompt_payload: object = metadata.get("prompt")
+    if not isinstance(prompt_payload, (Mapping, list)):
+        prompt_payload = metadata.get("clarifications")
+    if not isinstance(prompt_payload, (Mapping, list)):
+        prompt_payload = None
+
     log_entry = {
         "Timestamp (UTC)": _utc_timestamp(),
         "User input": input_text,
@@ -582,6 +607,24 @@ async def dialog_turn(
     pipeline_status_display = log_status.capitalize() if log_status else ""
     method_value = str(metadata.get("method") or "")
     interaction_mode_value = str(metadata.get("mode") or "")
+
+    language_payload = metadata.get("language")
+    language_code = ""
+    language_confidence: object = ""
+    if isinstance(language_payload, Mapping):
+        language_code = str(language_payload.get("code") or "")
+        language_confidence = language_payload.get("confidence", "")
+    if isinstance(language_confidence, (int, float)):
+        language_confidence_str = f"{float(language_confidence):.2f}"
+    else:
+        language_confidence_str = str(language_confidence) if language_confidence else ""
+
+    llm_provider = str(
+        llm_metadata.get("provider")
+        or llm_metadata.get("engine")
+        or llm_metadata.get("model")
+        or ""
+    )
 
     log_entry = {
         "Timestamp (UTC)": _utc_timestamp(),

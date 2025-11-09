@@ -304,7 +304,7 @@ describe('Holiday search console', () => {
       expect(rowValues[indexFor('Transcription')]).toBe('');
       expect(rowValues[indexFor('Network Latency')]).toBe('');
 
-      const outputPayload = JSON.parse(rowValues[indexFor('Output')]);
+      const outputPayload = JSON.parse(rowValues[indexFor('Output JSON')]);
       expect(outputPayload.status).toBe('success');
       expect(outputPayload.data).toEqual({ from: ['AMS'], to: ['Italy'] });
       expect(outputPayload.validation).toEqual({ status: 'passed', errors: [] });
