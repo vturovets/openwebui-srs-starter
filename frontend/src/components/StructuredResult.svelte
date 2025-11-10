@@ -1,61 +1,13 @@
 <script lang="ts">
-  import airportsFixture from '../../../fixtures/airports.json';
-  import destinationsFixture from '../../../fixtures/destinations.json';
-  import configurationSearchFixture from '../../../fixtures/configuration_search.json';
   import type { HolidayResultEntry } from '../lib/types';
+  import { getExtractedValueRows } from '../lib/extractedValues';
 
   export let entry: HolidayResultEntry;
-
-  type Airport = { id: string; name: string };
-  type Destination = { id: string; name: string; type?: string | null };
-  type Duration = { id: string; name: string };
 
   const metadata = entry.result.metadata ?? {};
   const timings = (metadata.timings ?? {}) as Record<string, unknown>;
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
-
-  const airportNameById = new Map<string, string>(
-    ((airportsFixture as { data?: { airports?: Airport[] } }).data?.airports ?? []).map(
-      ({ id, name }) => [id, name]
-    )
-  );
-
-  const destinationNameById = (() => {
-    const map = new Map<string, string>();
-    const groups = (destinationsFixture as { data?: Record<string, Destination[]> }).data ?? {};
-
-    Object.values(groups).forEach((destinations) => {
-      destinations.forEach(({ id, name, type }) => {
-        map.set(id, name);
-        if (type) {
-          map.set(`${id}:${type}`, name);
-        }
-      });
-    });
-
-    return map;
-  })();
-
-  const durationNameById = new Map<string, string>(
-    (
-      (configurationSearchFixture as {
-        holidaySearchConfiguration?: { durations?: Duration[] };
-      }).holidaySearchConfiguration?.durations ?? []
-    ).map(({ id, name }) => [id, name])
-  );
-
-  const LABELS: Record<string, string> = {
-    language: 'Language',
-    from: 'From',
-    to: 'To',
-    departureDate: 'Departure date range',
-    durationId: 'Duration',
-    party: 'Participants',
-    rooms: 'Rooms',
-  };
-
-  const ORDER = ['language', 'from', 'to', 'departureDate', 'durationId', 'party', 'rooms'];
 
   function getNumericTiming(key: string): number | undefined {
     const value = timings[key];
@@ -132,136 +84,7 @@
     return String(value);
   }
 
-  function formatAirportList(value: unknown): string {
-    if (Array.isArray(value)) {
-      if (!value.length) {
-        return '';
-      }
-      return value
-        .map((item) => (typeof item === 'string' ? airportNameById.get(item) ?? item : formatValue(item)))
-        .join(', ');
-    }
-    if (typeof value === 'string') {
-      return airportNameById.get(value) ?? value;
-    }
-    return formatValue(value);
-  }
-
-  function formatDestinationList(value: unknown): string {
-    if (Array.isArray(value)) {
-      if (!value.length) {
-        return '';
-      }
-      return value
-        .map((item) => (typeof item === 'string' ? destinationNameById.get(item) ?? item : formatValue(item)))
-        .join(', ');
-    }
-    if (typeof value === 'string') {
-      return destinationNameById.get(value) ?? value;
-    }
-    return formatValue(value);
-  }
-
-  function formatDateRange(value: unknown): string {
-    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-      return value.join(', ');
-    }
-    return formatValue(value);
-  }
-
-  function formatDuration(value: unknown): string {
-    if (typeof value === 'string' || typeof value === 'number') {
-      const duration = durationNameById.get(String(value));
-      if (duration) {
-        return duration;
-      }
-    }
-    return formatValue(value);
-  }
-
-  function humanizeKey(key: string): string {
-    return key
-      .replace(/([A-Z])/g, ' $1')
-      .split(' ')
-      .map((part, index) =>
-        index === 0 ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part.toLowerCase()
-      )
-      .join(' ');
-  }
-
-  function formatParticipants(value: unknown): string {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      const entries = Object.entries(value as Record<string, unknown>)
-        .filter(([, count]) => typeof count === 'number' && count > 0)
-        .map(([key, count]) => `${humanizeKey(key)}: ${formatNumber(count as number)}`);
-
-      if (entries.length) {
-        return entries.join(', ');
-      }
-    }
-    return formatValue(value);
-  }
-
-  function formatRooms(value: unknown): string {
-    if (value === null || value === undefined) {
-      return 'Auto allocation';
-    }
-    if (typeof value === 'string') {
-      const normalised = value.trim().toLowerCase();
-      if (normalised === 'autoallocation' || normalised === 'auto_allocation') {
-        return 'Auto allocation';
-      }
-    }
-    return formatValue(value);
-  }
-
-  function formatValueByKey(key: string, value: unknown): string {
-    switch (key) {
-      case 'language':
-        return typeof value === 'string' ? value : formatValue(value);
-      case 'from':
-        return formatAirportList(value);
-      case 'to':
-        return formatDestinationList(value);
-      case 'departureDate':
-        return formatDateRange(value);
-      case 'durationId':
-        return formatDuration(value);
-      case 'party':
-        return formatParticipants(value);
-      case 'rooms':
-        return formatRooms(value);
-      default:
-        return formatValue(value);
-    }
-  }
-
-  const formattedDataRows = (() => {
-    const data = (entry.result.data ?? {}) as Record<string, unknown>;
-    const seen = new Set<string>();
-    const rows: Array<{ label: string; value: string }> = [];
-
-    ORDER.forEach((key) => {
-      if (key in data) {
-        seen.add(key);
-        rows.push({
-          label: LABELS[key] ?? key,
-          value: formatValueByKey(key, data[key]),
-        });
-      }
-    });
-
-    Object.entries(data).forEach(([key, value]) => {
-      if (!seen.has(key)) {
-        rows.push({
-          label: LABELS[key] ?? key,
-          value: formatValueByKey(key, value),
-        });
-      }
-    });
-
-    return rows;
-  })();
+  const formattedDataRows = getExtractedValueRows(entry);
 </script>
 
 <article class={`result ${entry.result.status}`} data-testid="structured-result">

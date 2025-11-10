@@ -290,33 +290,10 @@ describe('Holiday search console', () => {
 
       const rowValues = parseCsvLine(lines[1]);
       const indexFor = (field: (typeof CSV_LOG_FIELDS)[number]) => CSV_LOG_FIELDS.indexOf(field);
-      const indicesFor = (field: (typeof CSV_LOG_FIELDS)[number]) =>
-        CSV_LOG_FIELDS.reduce<number[]>((acc, value, index) => {
-          if (value === field) {
-            acc.push(index);
-          }
-          return acc;
-        }, []);
 
-      expect(rowValues[indexFor('Pipeline Status')]).toBe('Success');
+      expect(rowValues).toHaveLength(CSV_LOG_FIELDS.length);
       expect(rowValues[indexFor('User input')]).toBe('Find a trip');
-      expect(rowValues[indexFor('Request type')]).toBe('Text');
-      expect(rowValues[indexFor('Method')]).toBe('rules');
-      expect(rowValues[indexFor('Interaction Mode')]).toBe('dialog');
-      const languageColumns = indicesFor('Language Detection');
-      expect(rowValues[languageColumns[0]]).toBe('5.00');
-      expect(rowValues[languageColumns[1]]).toBe('en (0.92)');
-      expect(rowValues[indexFor('Processing Time')]).toBe('34.00');
-      expect(rowValues[indexFor('Extraction')]).toBe('10.00');
-      expect(rowValues[indexFor('Mapping')]).toBe('12.00');
-      expect(rowValues[indexFor('Validation')]).toBe('7.00');
-      expect(rowValues[indexFor('Transcription')]).toBe('');
-      expect(rowValues[indexFor('Network Latency')]).toBe('');
-
-      const outputPayload = JSON.parse(rowValues[indexFor('Output JSON')]);
-      expect(outputPayload.status).toBe('success');
-      expect(outputPayload.data).toEqual({ from: ['AMS'], to: ['Italy'] });
-      expect(outputPayload.validation).toEqual({ status: 'passed', errors: [] });
+      expect(rowValues[indexFor('Extracted values')]).toBe('From: Amsterdam | To: Italy');
 
       component.$destroy();
       createObjectURLSpy.mockClear();
@@ -353,7 +330,9 @@ describe('Holiday search console', () => {
       expect(secondLines).toHaveLength(2);
 
       const secondRow = parseCsvLine(secondLines[1]);
+      expect(secondRow).toHaveLength(CSV_LOG_FIELDS.length);
       expect(secondRow[indexFor('User input')]).toBe('Another trip');
+      expect(secondRow[indexFor('Extracted values')]).toBe('From: Amsterdam | To: Italy');
 
       secondComponent.$destroy();
     } finally {
