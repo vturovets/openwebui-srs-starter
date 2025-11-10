@@ -292,8 +292,7 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('usage-cpu')).toHaveTextContent('20 ms');
     expect(screen.getByTestId('usage-ram')).toHaveTextContent('5.5 MB·s');
 
-    await waitFor(() => expect(screen.getByTestId('performance-summary')).toBeInTheDocument());
-    expect(screen.getByTestId('performance-requests')).toHaveTextContent('1');
+    await waitFor(() => expect(screen.getByTestId('performance-requests')).toHaveTextContent('1'));
     expect(screen.getByTestId('performance-mean')).toHaveTextContent('34 ms');
     expect(screen.getByTestId('performance-p95')).toHaveTextContent('—');
     expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('0%');
@@ -301,8 +300,11 @@ describe('Holiday search console', () => {
     const resetButton = screen.getByTestId('reset-button') as HTMLButtonElement;
     await waitFor(() => expect(resetButton.disabled).toBe(false));
     await fireEvent.click(resetButton);
-    await waitFor(() => expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('performance-requests')).toHaveTextContent('—'));
+    expect(screen.getByTestId('performance-mean')).toHaveTextContent('—');
+    expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('—');
+    expect(screen.getByTestId('usage-tokens-in')).toHaveTextContent('—');
+    expect(screen.getByTestId('usage-tokens-out')).toHaveTextContent('—');
 
     component.$destroy();
   });

@@ -820,69 +820,6 @@
         </div>
       {/if}
     </header>
-
-    {#if importUsageSummary}
-      <section class="usage-summary" data-testid="usage-summary">
-        <h2>Usage footprint</h2>
-        <dl>
-          <div>
-            <dt>Total tokens in</dt>
-            <dd data-testid="usage-tokens-in">{formatUsageValue(importUsageSummary.tokensIn, 0)}</dd>
-          </div>
-          <div>
-            <dt>Total tokens out</dt>
-            <dd data-testid="usage-tokens-out">{formatUsageValue(importUsageSummary.tokensOut, 0)}</dd>
-          </div>
-          <div>
-            <dt>API calls</dt>
-            <dd data-testid="usage-api-calls">{formatUsageValue(importUsageSummary.apiCalls, 0)}</dd>
-          </div>
-          <div>
-            <dt>CPU time</dt>
-            <dd data-testid="usage-cpu">{formatUsageValueWithUnit(importUsageSummary.cpuMs, 'ms')}</dd>
-          </div>
-          <div>
-            <dt>RAM footprint</dt>
-            <dd data-testid="usage-ram">{formatUsageValueWithUnit(importUsageSummary.ramMbSeconds, 'MB·s')}</dd>
-          </div>
-        </dl>
-      </section>
-    {/if}
-
-    {#if importPerformanceSummary}
-      <section class="performance-summary" data-testid="performance-summary">
-        <h2>Import performance</h2>
-        <dl>
-          <div>
-            <dt>Requests processed</dt>
-            <dd data-testid="performance-requests">{importPerformanceSummary.requestCount}</dd>
-          </div>
-          <div>
-            <dt>Mean response time</dt>
-            <dd data-testid="performance-mean">
-              {formatMetric(importPerformanceSummary.meanResponseMs)} ms
-            </dd>
-          </div>
-          <div>
-            <dt>P95 response time</dt>
-            <dd data-testid="performance-p95">
-              {#if importPerformanceSummary.p95ResponseMs !== null}
-                {formatMetric(importPerformanceSummary.p95ResponseMs)} ms
-              {:else}
-                —
-              {/if}
-            </dd>
-          </div>
-          <div>
-            <dt>Accuracy</dt>
-            <dd data-testid="performance-accuracy">
-              {formatMetric(importPerformanceSummary.accuracy)}%
-            </dd>
-          </div>
-        </dl>
-      </section>
-    {/if}
-
     <form class="query" on:submit|preventDefault={handleSubmit} data-testid="parse-form">
       <label>
         Method
@@ -954,15 +891,95 @@
 
   </section>
 
-  <section class="results" aria-live="polite">
-    {#if !history.length}
-      <p data-testid="empty-state">Run a parse to see structured output.</p>
-    {:else}
-      {#each history as entry (entry.id)}
-        <StructuredResult {entry} />
-      {/each}
-    {/if}
-  </section>
+  <div class="content">
+    <div class="summary-grid">
+      <section class="performance-summary" data-testid="performance-summary">
+        <h2>Performance summary</h2>
+        <dl>
+          <div>
+            <dt>Requests processed</dt>
+            <dd data-testid="performance-requests">
+              {#if importPerformanceSummary}
+                {importPerformanceSummary.requestCount}
+              {:else}
+                —
+              {/if}
+            </dd>
+          </div>
+          <div>
+            <dt>Mean response time</dt>
+            <dd data-testid="performance-mean">
+              {#if importPerformanceSummary}
+                {formatMetric(importPerformanceSummary.meanResponseMs)} ms
+              {:else}
+                —
+              {/if}
+            </dd>
+          </div>
+          <div>
+            <dt>P95 response time</dt>
+            <dd data-testid="performance-p95">
+              {#if importPerformanceSummary}
+                {#if importPerformanceSummary.p95ResponseMs !== null}
+                  {formatMetric(importPerformanceSummary.p95ResponseMs)} ms
+                {:else}
+                  —
+                {/if}
+              {:else}
+                —
+              {/if}
+            </dd>
+          </div>
+          <div>
+            <dt>Accuracy</dt>
+            <dd data-testid="performance-accuracy">
+              {#if importPerformanceSummary}
+                {formatMetric(importPerformanceSummary.accuracy)}%
+              {:else}
+                —
+              {/if}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="usage-summary" data-testid="usage-summary">
+        <h2>Usage footprint summary</h2>
+        <dl>
+          <div>
+            <dt>Total tokens in</dt>
+            <dd data-testid="usage-tokens-in">{formatUsageValue(importUsageSummary?.tokensIn, 0)}</dd>
+          </div>
+          <div>
+            <dt>Total tokens out</dt>
+            <dd data-testid="usage-tokens-out">{formatUsageValue(importUsageSummary?.tokensOut, 0)}</dd>
+          </div>
+          <div>
+            <dt>API calls</dt>
+            <dd data-testid="usage-api-calls">{formatUsageValue(importUsageSummary?.apiCalls, 0)}</dd>
+          </div>
+          <div>
+            <dt>CPU time</dt>
+            <dd data-testid="usage-cpu">{formatUsageValueWithUnit(importUsageSummary?.cpuMs, 'ms')}</dd>
+          </div>
+          <div>
+            <dt>RAM footprint</dt>
+            <dd data-testid="usage-ram">{formatUsageValueWithUnit(importUsageSummary?.ramMbSeconds, 'MB·s')}</dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+
+    <section class="results" aria-live="polite">
+      {#if !history.length}
+        <p data-testid="empty-state">Run a parse to see structured output.</p>
+      {:else}
+        {#each history as entry (entry.id)}
+          <StructuredResult {entry} />
+        {/each}
+      {/if}
+    </section>
+  </div>
 
   <input
     bind:this={importInput}
@@ -1002,11 +1019,33 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
   }
 
   .panel h1 {
     margin: 0 0 0.5rem;
     font-size: 1.5rem;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: relative;
+  }
+
+  .summary-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    z-index: 1;
   }
 
   .usage-summary,
@@ -1139,6 +1178,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    padding-top: 0.25rem;
   }
 
   .error {
@@ -1160,6 +1200,16 @@
   @media (max-width: 900px) {
     .app {
       grid-template-columns: 1fr;
+    }
+
+    .panel {
+      position: static;
+      max-height: none;
+      overflow: visible;
+    }
+
+    .summary-grid {
+      position: static;
     }
   }
 </style>
