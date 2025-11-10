@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_core import PydanticUndefined
 
@@ -78,6 +78,36 @@ class Settings(BaseSettings):
         default=None,
         alias="DEEPGRAM_API_KEY",
         description="API token used when STT_ENGINE is configured to 'deepgram'.",
+    )
+    whisper_model_size: str = Field(
+        default="base",
+        alias="WHISPER_MODEL_SIZE",
+        description="Model size identifier to load when using the Whisper STT engine.",
+    )
+    whisper_device: Optional[str] = Field(
+        default=None,
+        alias="WHISPER_DEVICE",
+        description="Optional device override passed to faster-whisper (e.g. 'cpu' or 'cuda').",
+    )
+    whisper_compute_type: str = Field(
+        default="int8",
+        alias="WHISPER_COMPUTE_TYPE",
+        description="Compute precision hint passed to faster-whisper (e.g. int8, float16).",
+    )
+    whisper_download_root: Optional[Path] = Field(
+        default=None,
+        alias="WHISPER_DOWNLOAD_ROOT",
+        description="Directory where Whisper models should be cached.",
+    )
+    whisper_beam_size: int = Field(
+        default=5,
+        alias="WHISPER_BEAM_SIZE",
+        description="Beam size used during Whisper decoding.",
+    )
+    whisper_vad_filter: bool = Field(
+        default=True,
+        alias="WHISPER_VAD_FILTER",
+        description="Enable the built-in voice activity detection during transcription.",
     )
     voice_enabled: bool = Field(
         default=False,
@@ -203,6 +233,61 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return Path(value)
         raise TypeError("Expected a filesystem path string for CSV_PATH/FIXTURES_DIR")
+
+    @field_validator("whisper_download_root", mode="before")
+    @classmethod
+    def _optional_path(cls, value: object) -> Path | None:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return None
+        if isinstance(value, Path):
+            return value
+        if isinstance(value, str):
+            cleaned = value.strip()
+            return Path(cleaned) if cleaned else None
+        raise TypeError("WHISPER_DOWNLOAD_ROOT must be a filesystem path string if provided")
+
+    @field_validator("whisper_model_size", "whisper_compute_type", mode="before")
+    @classmethod
+    def _strip_whisper_strings(cls, value: object, info: ValidationInfo) -> str:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value is None:
+            return "base" if info.field_name == "whisper_model_size" else "int8"
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if cleaned:
+                return cleaned
+            return "base" if info.field_name == "whisper_model_size" else "int8"
+        raise TypeError("Whisper configuration values must be provided as strings")
+
+    @field_validator("whisper_device", mode="before")
+    @classmethod
+    def _strip_optional_device(cls, value: object) -> Optional[str]:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value is None:
+            return None
+        if isinstance(value, str):
+            cleaned = value.strip()
+            return cleaned or None
+        raise TypeError("WHISPER_DEVICE must be provided as a string when set")
+
+    @field_validator("whisper_beam_size", mode="before")
+    @classmethod
+    def _validate_beam_size(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 5
+        try:
+            beam_size = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("WHISPER_BEAM_SIZE must be an integer") from exc
+        if beam_size <= 0:
+            raise ValueError("WHISPER_BEAM_SIZE must be greater than zero")
+        return beam_size
 
     def load_methods_catalog(self) -> MethodsCatalog:
         """Load and cache the configured methods catalogue."""
