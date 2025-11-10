@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import AsyncIterator, Iterable, Protocol
+
+try:  # pragma: no cover - exercised in integration scenarios
+    from faster_whisper import WhisperModel
+except ModuleNotFoundError:  # pragma: no cover - handled at runtime if missing
+    WhisperModel = None  # type: ignore[assignment]
 
 try:  # pragma: no cover - exercised in integration scenarios
     import httpx
@@ -127,8 +133,111 @@ class DeepgramSpeechToTextClient:
         return transcript, words
 
 
+class FasterWhisperSpeechToTextClient:
+    """Speech-to-text client powered by the open-source Whisper model."""
+
+    _CONTENT_TYPE_SUFFIXES = {
+        "audio/wav": ".wav",
+        "audio/x-wav": ".wav",
+        "audio/mpeg": ".mp3",
+        "audio/mp3": ".mp3",
+        "audio/ogg": ".ogg",
+        "audio/webm": ".webm",
+        "video/webm": ".webm",
+        "audio/flac": ".flac",
+    }
+
+    def __init__(
+        self,
+        *,
+        model_size: str = "base",
+        device: str | None = None,
+        compute_type: str = "int8",
+        download_root: Path | None = None,
+        beam_size: int = 5,
+        vad_filter: bool = True,
+    ) -> None:
+        if WhisperModel is None:  # pragma: no cover - requires optional dependency
+            raise SpeechToTextError(
+                "faster-whisper must be installed to use the Whisper STT engine",
+            )
+
+        kwargs: dict[str, object] = {"compute_type": compute_type}
+        if device:
+            kwargs["device"] = device
+        if download_root:
+            kwargs["download_root"] = str(download_root)
+
+        self._model = WhisperModel(model_size, **kwargs)
+        self._beam_size = beam_size
+        self._vad_filter = vad_filter
+
+    async def transcribe(
+        self,
+        *,
+        content_type: str,
+        stream: AsyncIterator[bytes] | Iterable[bytes],
+    ) -> TranscriptionResult:
+        audio_bytes = await self._collect_bytes(stream)
+        if not audio_bytes:
+            raise SpeechToTextError("No audio content received for transcription")
+
+        suffix = self._CONTENT_TYPE_SUFFIXES.get(content_type.lower(), ".bin")
+
+        from tempfile import NamedTemporaryFile
+
+        with NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
+            tmp_file.write(audio_bytes)
+            temp_path = tmp_file.name
+
+        try:
+            segments, _info = self._model.transcribe(
+                temp_path,
+                beam_size=self._beam_size,
+                vad_filter=self._vad_filter,
+                word_timestamps=True,
+            )
+        except Exception as exc:  # pragma: no cover - handled in integration tests
+            raise SpeechToTextError("Whisper transcription failed") from exc
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+        transcript_words: list[str] = []
+        words: list[TranscribedWord] = []
+        for segment in segments:
+            text = getattr(segment, "text", "")
+            if text:
+                transcript_words.append(str(text).strip())
+
+            for word in getattr(segment, "words", []) or []:
+                word_text = str(getattr(word, "word", "")).strip()
+                if not word_text:
+                    continue
+                start = float(getattr(word, "start", 0.0) or 0.0)
+                end = float(getattr(word, "end", start) or start)
+                words.append(TranscribedWord(word=word_text, start=start, end=end))
+
+        transcript = " ".join(part for part in transcript_words if part)
+        return TranscriptionResult(text=transcript.strip(), words=words)
+
+    async def _collect_bytes(
+        self, stream: AsyncIterator[bytes] | Iterable[bytes]
+    ) -> bytes:  # pragma: no cover - exercised via public API
+        data = bytearray()
+        if hasattr(stream, "__aiter__"):
+            async for chunk in stream:  # type: ignore[assignment]
+                if chunk:
+                    data.extend(chunk)
+        else:
+            for chunk in stream:
+                if chunk:
+                    data.extend(chunk)
+        return bytes(data)
+
+
 __all__ = [
     "DeepgramSpeechToTextClient",
+    "FasterWhisperSpeechToTextClient",
     "SpeechToTextClient",
     "SpeechToTextError",
     "TranscribedWord",
