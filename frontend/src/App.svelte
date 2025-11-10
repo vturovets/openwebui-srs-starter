@@ -896,7 +896,7 @@
       <section class="summary-card performance-summary" data-testid="performance-summary">
         <h2>Performance summary</h2>
         <dl>
-          <div>
+          <div class="metric-row">
             <dt>Requests processed</dt>
             <dd data-testid="performance-requests">
               {#if importPerformanceSummary}
@@ -906,7 +906,7 @@
               {/if}
             </dd>
           </div>
-          <div>
+          <div class="metric-row">
             <dt>Mean response time</dt>
             <dd data-testid="performance-mean">
               {#if importPerformanceSummary}
@@ -916,7 +916,7 @@
               {/if}
             </dd>
           </div>
-          <div>
+          <div class="metric-row">
             <dt>P95 response time</dt>
             <dd data-testid="performance-p95">
               {#if importPerformanceSummary}
@@ -930,7 +930,7 @@
               {/if}
             </dd>
           </div>
-          <div>
+          <div class="metric-row">
             <dt>Accuracy</dt>
             <dd data-testid="performance-accuracy">
               {#if importPerformanceSummary}
@@ -946,23 +946,23 @@
       <section class="summary-card usage-summary" data-testid="usage-summary">
         <h2>Usage footprint summary</h2>
         <dl>
-          <div>
+          <div class="metric-row">
             <dt>Total tokens in</dt>
             <dd data-testid="usage-tokens-in">{formatUsageValue(importUsageSummary?.tokensIn, 0)}</dd>
           </div>
-          <div>
+          <div class="metric-row">
             <dt>Total tokens out</dt>
             <dd data-testid="usage-tokens-out">{formatUsageValue(importUsageSummary?.tokensOut, 0)}</dd>
           </div>
-          <div>
+          <div class="metric-row">
             <dt>API calls</dt>
             <dd data-testid="usage-api-calls">{formatUsageValue(importUsageSummary?.apiCalls, 0)}</dd>
           </div>
-          <div>
+          <div class="metric-row">
             <dt>CPU time</dt>
             <dd data-testid="usage-cpu">{formatUsageValueWithUnit(importUsageSummary?.cpuMs, 'ms')}</dd>
           </div>
-          <div>
+          <div class="metric-row">
             <dt>RAM footprint</dt>
             <dd data-testid="usage-ram">{formatUsageValueWithUnit(importUsageSummary?.ramMbSeconds, 'MB·s')}</dd>
           </div>
@@ -1086,12 +1086,11 @@
     gap: 1rem;
   }
 
-  .summary-card dl > div {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    align-items: center;
-    text-align: center;
+  .summary-card .metric-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: baseline;
   }
 
   .summary-card dt {
@@ -1099,12 +1098,14 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #94a3b8;
+    text-align: left;
   }
 
   .summary-card dd {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
+    text-align: right;
   }
 
   .fixtures {
