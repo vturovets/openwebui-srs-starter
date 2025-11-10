@@ -384,6 +384,32 @@ describe('Holiday search console', () => {
     }
   });
 
+  it('resets the results history when the reset button is clicked', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const resetButton = screen.getByTestId('reset-button') as HTMLButtonElement;
+    expect(resetButton).toBeDisabled();
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'Find a trip' } });
+    await fireEvent.submit(screen.getByTestId('parse-form'));
+
+    await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+    expect(resetButton.disabled).toBe(false);
+
+    await fireEvent.click(resetButton);
+    await waitFor(() => expect(screen.getByTestId('empty-state')).toBeInTheDocument());
+    expect(resetButton).toBeDisabled();
+  });
+
   it('disables voice interactions when voice fixtures are disabled', async () => {
     fetchFixturesMock.mockResolvedValueOnce({
       ...FIXTURE_RESPONSE,
