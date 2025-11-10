@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import json
+import os
+from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any, Callable, Dict, Mapping, MutableMapping, Sequence
 
 import httpx
 
 from ..config import Settings
 from ..fixtures.repository import FixtureRepository
-from ..pipeline.configuration import SearchConfiguration
+from ..pipeline.configuration import MethodConfig, MethodsCatalog, SearchConfiguration
+from .gemini import GeminiStructuredLLMClient
 
 
 DEFAULT_API_BASE = "https://api.openai.com/v1"
@@ -212,4 +215,115 @@ class HolidaySearchLLMClient(StructuredLLMClient):
         return messages
 
 
-__all__ = ["StructuredLLMClient", "HolidaySearchLLMClient"]
+@dataclass(frozen=True)
+class LLMClientHandle:
+    """Resolved LLM client details for a configured pipeline method."""
+
+    method_id: str
+    provider: str
+    client: Callable[[str], Mapping[str, Any]]
+    model: str | None = None
+    config: Mapping[str, Any] | None = None
+
+    def __post_init__(self) -> None:  # pragma: no cover - dataclass hook
+        if self.config is None:
+            object.__setattr__(self, "config", {})
+
+
+class LLMClientRegistry(Mapping[str, LLMClientHandle]):
+    """Instantiate and expose LLM clients keyed by method identifier."""
+
+    def __init__(self, clients: Mapping[str, LLMClientHandle] | None = None) -> None:
+        self._clients: Dict[str, LLMClientHandle] = dict(clients or {})
+
+    def __getitem__(self, key: str) -> LLMClientHandle:
+        return self._clients[key]
+
+    def __iter__(self):  # type: ignore[override]
+        return iter(self._clients)
+
+    def __len__(self) -> int:
+        return len(self._clients)
+
+    def get(self, key: str, default: LLMClientHandle | None = None) -> LLMClientHandle | None:
+        return self._clients.get(key, default)
+
+    @classmethod
+    def from_methods_catalog(
+        cls,
+        *,
+        settings: Settings,
+        catalog: MethodsCatalog,
+        fixtures_dir: str | Path | None = None,
+    ) -> "LLMClientRegistry":
+        fixtures_path = Path(fixtures_dir or settings.fixtures_dir)
+        clients: Dict[str, LLMClientHandle] = {}
+        for method in catalog.list_methods():
+            if method.kind != "llm":
+                continue
+
+            handle = _build_llm_client_handle(settings=settings, method=method, fixtures_dir=fixtures_path)
+            if handle is not None:
+                clients[method.id] = handle
+
+        return cls(clients)
+
+
+def _build_llm_client_handle(
+    *,
+    settings: Settings,
+    method: MethodConfig,
+    fixtures_dir: Path,
+) -> LLMClientHandle | None:
+    config = method.config or {}
+    provider_raw = str(config.get("provider", "")).strip().lower()
+    provider = provider_raw or "openai"
+
+    api_base = str(config.get("api_base", settings.llm_api_base or "")).strip() or None
+    model = str(config.get("model", settings.llm_model)).strip() or settings.llm_model
+    api_key_env = config.get("api_key_env")
+    api_key = settings.llm_api_key
+    if isinstance(api_key_env, str) and api_key_env.strip():
+        api_key = os.environ.get(api_key_env.strip(), api_key)
+
+    timeout_value = method.params.get("timeout_s") if isinstance(method.params, Mapping) else None
+    try:
+        timeout = float(timeout_value) if timeout_value is not None else float(settings.llm_timeout)
+    except (TypeError, ValueError):  # pragma: no cover - invalid configuration handled elsewhere
+        timeout = float(settings.llm_timeout)
+
+    if not api_key:
+        return None
+
+    override_settings = settings.model_copy(
+        update={
+            "llm_api_base": api_base,
+            "llm_api_key": api_key,
+            "llm_model": model,
+            "llm_timeout": timeout,
+            "fixtures_dir": fixtures_dir,
+        }
+    )
+
+    if provider == "openai":
+        client = HolidaySearchLLMClient(settings=override_settings, fixtures_dir=fixtures_dir)
+    elif provider == "google":
+        client = GeminiStructuredLLMClient(settings=override_settings, fixtures_dir=fixtures_dir)
+    else:
+        return None
+
+    return LLMClientHandle(
+        method_id=method.id,
+        provider=provider,
+        client=client,
+        model=model,
+        config=dict(config),
+    )
+
+
+__all__ = [
+    "StructuredLLMClient",
+    "HolidaySearchLLMClient",
+    "LLMClientHandle",
+    "LLMClientRegistry",
+]
