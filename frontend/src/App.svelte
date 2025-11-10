@@ -35,6 +35,107 @@
   let importInput: HTMLInputElement | null = null;
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
+  const PERFORMANCE_P95_MIN_REQUESTS = 1000;
+
+  type PerformanceSummary = {
+    requestCount: number;
+    meanResponseMs: number;
+    p95ResponseMs: number | null;
+    accuracy: number;
+  };
+
+  let importPerformanceSummary: PerformanceSummary | null = null;
+
+  function toFiniteNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const parsed = Number(trimmed);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return null;
+  }
+
+  function getTotalTimingMs(result: HolidayResult): number | null {
+    const timings = result?.metadata?.timings;
+    if (!timings || typeof timings !== 'object') {
+      return null;
+    }
+
+    const timingRecord = timings as Record<string, unknown>;
+    const candidateKeys = ['totalMs', 'pipelineTotalMs', 'total', 'totalMilliseconds'];
+
+    for (const key of candidateKeys) {
+      const numericValue = toFiniteNumber(timingRecord[key]);
+      if (numericValue !== null) {
+        return numericValue;
+      }
+    }
+
+    for (const [key, value] of Object.entries(timingRecord)) {
+      if (!/total/i.test(key)) {
+        continue;
+      }
+      const numericValue = toFiniteNumber(value);
+      if (numericValue !== null) {
+        return numericValue;
+      }
+    }
+
+    return null;
+  }
+
+  function hasExpectedValueMismatches(result: HolidayResult): boolean {
+    const mismatches = result?.metadata?.expectedValueMismatches;
+    return Array.isArray(mismatches) && mismatches.length > 0;
+  }
+
+  function calculatePercentile(values: number[], percentile: number): number {
+    const sorted = [...values].sort((a, b) => a - b);
+    const index = Math.min(sorted.length - 1, Math.ceil(percentile * sorted.length) - 1);
+    return sorted[index];
+  }
+
+  function calculatePerformanceSummary({
+    requestCount,
+    mismatchCount,
+    totalValues,
+    totalSum,
+  }: {
+    requestCount: number;
+    mismatchCount: number;
+    totalValues: number[];
+    totalSum: number;
+  }): PerformanceSummary {
+    const meanResponseMs = requestCount > 0 ? totalSum / requestCount : 0;
+    const p95ResponseMs =
+      requestCount > PERFORMANCE_P95_MIN_REQUESTS && totalValues.length
+        ? calculatePercentile(totalValues, 0.95)
+        : null;
+    const rawAccuracy = requestCount > 0 ? (1 - mismatchCount / requestCount) * 100 : 0;
+    const accuracy = Math.min(100, Math.max(0, rawAccuracy));
+
+    return {
+      requestCount,
+      meanResponseMs,
+      p95ResponseMs,
+      accuracy,
+    };
+  }
+
+  function formatMetric(value: number, decimals = 2): string {
+    if (!Number.isFinite(value)) {
+      return value.toString();
+    }
+    return Number(value.toFixed(decimals)).toString();
+  }
 
   function normaliseMethodOptions(value: unknown): MethodOption[] {
     if (!Array.isArray(value)) {
@@ -239,6 +340,24 @@
 
     const [file] = target.files;
     busy = true;
+    const totalValues: number[] = [];
+    let totalSum = 0;
+    let processedCount = 0;
+    let mismatchCount = 0;
+
+    const recordImportedEntry = (entry: HolidayResultEntry) => {
+      processedCount += 1;
+      if (hasExpectedValueMismatches(entry.result)) {
+        mismatchCount += 1;
+      }
+      const totalTiming = getTotalTimingMs(entry.result);
+      if (typeof totalTiming === 'number' && Number.isFinite(totalTiming)) {
+        totalValues.push(totalTiming);
+        totalSum += totalTiming;
+      }
+      addEntry(entry);
+    };
+
     try {
       const text = await file.text();
       const records = parseCsv(text);
@@ -282,7 +401,7 @@
             }
           }
 
-          addEntry(entry);
+          recordImportedEntry(entry);
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to parse request';
           const failureResult: HolidayResult = {
@@ -291,12 +410,22 @@
             metadata: { message },
             clarifications: [],
           };
-          addEntry(createEntry('text', failureResult, userInput));
+          recordImportedEntry(createEntry('text', failureResult, userInput));
         }
       }
     } finally {
       busy = false;
       target.value = '';
+      if (processedCount > 0) {
+        importPerformanceSummary = calculatePerformanceSummary({
+          requestCount: processedCount,
+          mismatchCount,
+          totalValues,
+          totalSum,
+        });
+      } else {
+        importPerformanceSummary = null;
+      }
     }
   }
 
@@ -370,6 +499,7 @@
     }
 
     history = [];
+    importPerformanceSummary = null;
 
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
@@ -407,6 +537,40 @@
         </div>
       {/if}
     </header>
+
+    {#if importPerformanceSummary}
+      <section class="performance-summary" data-testid="performance-summary">
+        <h2>Import performance</h2>
+        <dl>
+          <div>
+            <dt>Requests processed</dt>
+            <dd data-testid="performance-requests">{importPerformanceSummary.requestCount}</dd>
+          </div>
+          <div>
+            <dt>Mean response time</dt>
+            <dd data-testid="performance-mean">
+              {formatMetric(importPerformanceSummary.meanResponseMs)} ms
+            </dd>
+          </div>
+          <div>
+            <dt>P95 response time</dt>
+            <dd data-testid="performance-p95">
+              {#if importPerformanceSummary.p95ResponseMs !== null}
+                {formatMetric(importPerformanceSummary.p95ResponseMs)} ms
+              {:else}
+                —
+              {/if}
+            </dd>
+          </div>
+          <div>
+            <dt>Accuracy</dt>
+            <dd data-testid="performance-accuracy">
+              {formatMetric(importPerformanceSummary.accuracy)}%
+            </dd>
+          </div>
+        </dl>
+      </section>
+    {/if}
 
     <form class="query" on:submit|preventDefault={handleSubmit} data-testid="parse-form">
       <label>
@@ -532,6 +696,45 @@
   .panel h1 {
     margin: 0 0 0.5rem;
     font-size: 1.5rem;
+  }
+
+  .performance-summary {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 10px;
+    padding: 1rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .performance-summary h2 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+
+  .performance-summary dl {
+    margin: 0;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  }
+
+  .performance-summary dl > div {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .performance-summary dt {
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #94a3b8;
+  }
+
+  .performance-summary dd {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
   }
 
   .fixtures {
