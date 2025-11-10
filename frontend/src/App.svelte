@@ -892,83 +892,85 @@
   </section>
 
   <div class="content">
-    <div class="summary-row">
-      <section class="summary-card performance-summary" data-testid="performance-summary">
-        <h2>Performance summary</h2>
-        <dl>
-          <div class="metric-row">
-            <dt>Requests processed</dt>
-            <dd data-testid="performance-requests">
-              {#if importPerformanceSummary}
-                {importPerformanceSummary.requestCount}
-              {:else}
-                —
-              {/if}
-            </dd>
-          </div>
-          <div class="metric-row">
-            <dt>Mean response time</dt>
-            <dd data-testid="performance-mean">
-              {#if importPerformanceSummary}
-                {formatMetric(importPerformanceSummary.meanResponseMs)} ms
-              {:else}
-                —
-              {/if}
-            </dd>
-          </div>
-          <div class="metric-row">
-            <dt>P95 response time</dt>
-            <dd data-testid="performance-p95">
-              {#if importPerformanceSummary}
-                {#if importPerformanceSummary.p95ResponseMs !== null}
-                  {formatMetric(importPerformanceSummary.p95ResponseMs)} ms
+    {#if importPerformanceSummary || importUsageSummary}
+      <div class="summary-row">
+        <section class="summary-card performance-summary" data-testid="performance-summary">
+          <h2>Performance summary</h2>
+          <dl>
+            <div class="metric-row">
+              <dt>Requests processed</dt>
+              <dd data-testid="performance-requests">
+                {#if importPerformanceSummary}
+                  {importPerformanceSummary.requestCount}
                 {:else}
                   —
                 {/if}
-              {:else}
-                —
-              {/if}
-            </dd>
-          </div>
-          <div class="metric-row">
-            <dt>Accuracy</dt>
-            <dd data-testid="performance-accuracy">
-              {#if importPerformanceSummary}
-                {formatMetric(importPerformanceSummary.accuracy)}%
-              {:else}
-                —
-              {/if}
-            </dd>
-          </div>
-        </dl>
-      </section>
+              </dd>
+            </div>
+            <div class="metric-row">
+              <dt>Mean response time</dt>
+              <dd data-testid="performance-mean">
+                {#if importPerformanceSummary}
+                  {formatMetric(importPerformanceSummary.meanResponseMs)} ms
+                {:else}
+                  —
+                {/if}
+              </dd>
+            </div>
+            <div class="metric-row">
+              <dt>P95 response time</dt>
+              <dd data-testid="performance-p95">
+                {#if importPerformanceSummary}
+                  {#if importPerformanceSummary.p95ResponseMs !== null}
+                    {formatMetric(importPerformanceSummary.p95ResponseMs)} ms
+                  {:else}
+                    —
+                  {/if}
+                {:else}
+                  —
+                {/if}
+              </dd>
+            </div>
+            <div class="metric-row">
+              <dt>Accuracy</dt>
+              <dd data-testid="performance-accuracy">
+                {#if importPerformanceSummary}
+                  {formatMetric(importPerformanceSummary.accuracy)}%
+                {:else}
+                  —
+                {/if}
+              </dd>
+            </div>
+          </dl>
+        </section>
 
-      <section class="summary-card usage-summary" data-testid="usage-summary">
-        <h2>Usage footprint summary</h2>
-        <dl>
-          <div class="metric-row">
-            <dt>Total tokens in</dt>
-            <dd data-testid="usage-tokens-in">{formatUsageValue(importUsageSummary?.tokensIn, 0)}</dd>
-          </div>
-          <div class="metric-row">
-            <dt>Total tokens out</dt>
-            <dd data-testid="usage-tokens-out">{formatUsageValue(importUsageSummary?.tokensOut, 0)}</dd>
-          </div>
-          <div class="metric-row">
-            <dt>API calls</dt>
-            <dd data-testid="usage-api-calls">{formatUsageValue(importUsageSummary?.apiCalls, 0)}</dd>
-          </div>
-          <div class="metric-row">
-            <dt>CPU time</dt>
-            <dd data-testid="usage-cpu">{formatUsageValueWithUnit(importUsageSummary?.cpuMs, 'ms')}</dd>
-          </div>
-          <div class="metric-row">
-            <dt>RAM footprint</dt>
-            <dd data-testid="usage-ram">{formatUsageValueWithUnit(importUsageSummary?.ramMbSeconds, 'MB·s')}</dd>
-          </div>
-        </dl>
-      </section>
-    </div>
+        <section class="summary-card usage-summary" data-testid="usage-summary">
+          <h2>Usage footprint summary</h2>
+          <dl>
+            <div class="metric-row">
+              <dt>Total tokens in</dt>
+              <dd data-testid="usage-tokens-in">{formatUsageValue(importUsageSummary?.tokensIn, 0)}</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Total tokens out</dt>
+              <dd data-testid="usage-tokens-out">{formatUsageValue(importUsageSummary?.tokensOut, 0)}</dd>
+            </div>
+            <div class="metric-row">
+              <dt>API calls</dt>
+              <dd data-testid="usage-api-calls">{formatUsageValue(importUsageSummary?.apiCalls, 0)}</dd>
+            </div>
+            <div class="metric-row">
+              <dt>CPU time</dt>
+              <dd data-testid="usage-cpu">{formatUsageValueWithUnit(importUsageSummary?.cpuMs, 'ms')}</dd>
+            </div>
+            <div class="metric-row">
+              <dt>RAM footprint</dt>
+              <dd data-testid="usage-ram">{formatUsageValueWithUnit(importUsageSummary?.ramMbSeconds, 'MB·s')}</dd>
+            </div>
+          </dl>
+        </section>
+      </div>
+    {/if}
 
     <section class="results" aria-live="polite">
       {#if !history.length}

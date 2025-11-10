@@ -268,6 +268,9 @@ describe('Holiday search console', () => {
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
     await screen.findByTestId('fixtures-loaded');
 
+    expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
+
     const csvContent = 'User input,Expected values\n"Find a trip","From: Amsterdam | To: Spain"\n';
     const file = {
       name: 'requests.csv',
@@ -300,11 +303,8 @@ describe('Holiday search console', () => {
     const resetButton = screen.getByTestId('reset-button') as HTMLButtonElement;
     await waitFor(() => expect(resetButton.disabled).toBe(false));
     await fireEvent.click(resetButton);
-    await waitFor(() => expect(screen.getByTestId('performance-requests')).toHaveTextContent('—'));
-    expect(screen.getByTestId('performance-mean')).toHaveTextContent('—');
-    expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('—');
-    expect(screen.getByTestId('usage-tokens-in')).toHaveTextContent('—');
-    expect(screen.getByTestId('usage-tokens-out')).toHaveTextContent('—');
+    await waitFor(() => expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
 
     component.$destroy();
   });
