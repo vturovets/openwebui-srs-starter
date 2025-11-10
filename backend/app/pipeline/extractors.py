@@ -120,29 +120,27 @@ class LLMExtractor:
 
         self._last_handle = None
         handle: LLMClientHandle | None = None
-        method_identifier: str | None = None
 
-        if method is not None and self._llm_registry is not None:
+        if method is not None:
             method_identifier = method.id
-            handle = self._llm_registry.get(method.id)
+            if self._llm_registry is not None:
+                handle = self._llm_registry.get(method.id)
+                if handle is None:
+                    provider_hint = str(method.config.get("provider")) if method.config else ""
+                    if provider_hint:
+                        for candidate in self._llm_registry.values():
+                            if candidate.provider == provider_hint:
+                                handle = candidate
+                                break
             if handle is None:
-                provider_hint = str(method.config.get("provider")) if method.config else ""
-                for candidate in self._llm_registry.values():
-                    if candidate.provider == provider_hint and provider_hint:
-                        handle = candidate
-                        break
-
-        if handle is None and self._llm_registry is not None and len(self._llm_registry) == 1:
-            handle = next(iter(self._llm_registry.values()))
-            method_identifier = handle.method_id
-
-        if handle is None:
-            handle = self._default_handle
-
-        if handle is None:
-            if method_identifier:
                 raise ValueError(f"LLM method '{method_identifier}' is not configured")
-            raise ValueError("LLM extractor is not configured")
+        else:
+            if self._default_handle is not None:
+                handle = self._default_handle
+            elif self._llm_registry is not None and len(self._llm_registry) == 1:
+                handle = next(iter(self._llm_registry.values()))
+            else:
+                raise ValueError("LLM extractor is not configured")
 
         self._last_handle = handle
         self._last_network_latency_ms = None
