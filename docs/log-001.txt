@@ -1,10 +1,11 @@
+(.venv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest
 ================================================================================= test session starts =================================================================================
 platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
 rootdir: C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search
 configfile: pyproject.toml
 testpaths: backend/tests
 plugins: anyio-4.11.0
-collected 69 items                                                                                                                                                                     
+collected 69 items
 
 backend\tests\api\test_cors_preflight.py .                                                                                                                                       [  1%]
 backend\tests\api\test_dialog_endpoint.py F.                                                                                                                                     [  4%]
@@ -17,13 +18,13 @@ backend\tests\logging\test_csv_logger.py ....                                   
 backend\tests\pipeline\test_methods_catalog.py ........                                                                                                                          [ 46%]
 backend\tests\pipeline\test_pipeline_components.py ..................                                                                                                            [ 72%]
 backend\tests\pipeline\test_pipeline_methods.py .......F....                                                                                                                     [ 89%]
-backend\tests\test_openwebui_connector.py ...                                                                                                                                    [ 94%] 
-backend\tests\test_openwebui_extension.py ....                                                                                                                                   [100%] 
+backend\tests\test_openwebui_connector.py ...                                                                                                                                    [ 94%]
+backend\tests\test_openwebui_extension.py ....                                                                                                                                   [100%]
 
-====================================================================================== FAILURES ======================================================================================= 
-___________________________________________________________________________ test_dialog_clarification_flow ____________________________________________________________________________ 
+====================================================================================== FAILURES =======================================================================================
+___________________________________________________________________________ test_dialog_clarification_flow ____________________________________________________________________________
 
-dialog_context = {'logger': CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-218/test_dialog_clarific...i-1.5-pro', 'hybrid-v1', 'gemini-2_5-pro'), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))}
+dialog_context = {'logger': CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-221/test_dialog_clarific...i-1.5-pro', 'hybrid-v1', 'gemini-2_5-pro'), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))}
 
     def test_dialog_clarification_flow(dialog_context):
         async def scenario() -> None:
@@ -83,7 +84,7 @@ dialog_context = {'logger': CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Lo
 >       asyncio.run(scenario())
 
 backend\tests\api\test_dialog_endpoint.py:98:
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
     return runner.run(main)
            ^^^^^^^^^^^^^^^^
@@ -93,7 +94,7 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:118
 C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:685: in run_until_complete
     return future.result()
            ^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
     async def scenario() -> None:
         settings = dialog_context["settings"]
@@ -124,7 +125,7 @@ E         - success
 E         + failed
 
 backend\tests\api\test_dialog_endpoint.py:66: AssertionError
-_______________________________________________________________________ test_voice_endpoint_noop_when_disabled ________________________________________________________________________ 
+_______________________________________________________________________ test_voice_endpoint_noop_when_disabled ________________________________________________________________________
 
     def test_voice_endpoint_noop_when_disabled():
         async def scenario() -> None:
@@ -142,7 +143,7 @@ _______________________________________________________________________ test_voi
 >       asyncio.run(scenario())
 
 backend\tests\api\test_voice_endpoint.py:90:
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
     return runner.run(main)
            ^^^^^^^^^^^^^^^^
@@ -155,13 +156,13 @@ C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py
 backend\tests\api\test_voice_endpoint.py:82: in scenario
     response = await voice_endpoint(audio=upload, settings=settings)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 audio = UploadFile(filename='audio.wav', size=None, headers=Headers({'content-type': 'audio/wav'}))
 settings = Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('data/log.csv'), csv_delimiter=';...'fixtures'), methods_config_path=WindowsPath('config/methods.yaml'), processing_threshold_ms=750, methods_catalog=None)
-pipeline = Depends(dependency=<functools._lru_cache_wrapper object at 0x00000221BF54D640>, use_cache=True, scope=None)
-logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x00000221BF54D7A0>, use_cache=True, scope=None)
-stt_client = Depends(dependency=<functools._lru_cache_wrapper object at 0x00000221BF54D900>, use_cache=True, scope=None)
+pipeline = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001C515311640>, use_cache=True, scope=None)
+logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001C5153117A0>, use_cache=True, scope=None)
+stt_client = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001C515311900>, use_cache=True, scope=None)
 
     @api_router.post("/voice", response_model=VoiceResponse)
     async def voice_endpoint(
@@ -265,9 +266,9 @@ stt_client = Depends(dependency=<functools._lru_cache_wrapper object at 0x000002
 E           AttributeError: 'Depends' object has no attribute 'transcribe'
 
 backend\app\api\routes.py:811: AttributeError
-__________________________________________________________________ test_llm_client_success_payload_matches_extractor __________________________________________________________________ 
+__________________________________________________________________ test_llm_client_success_payload_matches_extractor __________________________________________________________________
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-218/test_llm_client_success_payloa0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-221/test_llm_client_success_payloa0')
 
     def test_llm_client_success_payload_matches_extractor(tmp_path: Path) -> None:
         """HolidaySearchLLMClient should return structured payloads the extractor accepts."""
@@ -323,9 +324,9 @@ tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-2
 E       TypeError: LLMExtractor.__init__() got an unexpected keyword argument 'llm_client'
 
 backend\tests\integrations\test_llm_client.py:100: TypeError
-____________________________________________________________________ test_gemini_client_builds_structured_payload _____________________________________________________________________ 
+____________________________________________________________________ test_gemini_client_builds_structured_payload _____________________________________________________________________
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-218/test_gemini_client_builds_stru0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-221/test_gemini_client_builds_stru0')
 
     def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
         """The Gemini client should build structured requests and propagate metadata."""
@@ -394,7 +395,7 @@ tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-2
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 backend\tests\integrations\test_llm_client.py:204:
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 backend\app\integrations\gemini.py:292: in __call__
     response = self._client.post(
 .venv\Lib\site-packages\httpx\_client.py:1144: in post
@@ -415,7 +416,7 @@ backend\app\integrations\gemini.py:292: in __call__
 .venv\Lib\site-packages\httpx\_transports\mock.py:24: in handle_request
     response = self.handler(request)
                ^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 request = <Request('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=gemini-key')>
 
@@ -433,10 +434,10 @@ E         + /v1beta/models/gemini-1.5-pro:generateContent
 E         ?                           ^^^
 
 backend\tests\integrations\test_llm_client.py:182: AssertionError
-__________________________________________________________________ test_pipeline_hybrid_triggers_configured_fallback __________________________________________________________________ 
+__________________________________________________________________ test_pipeline_hybrid_triggers_configured_fallback __________________________________________________________________
 
-pipeline_factory = <function pipeline_factory.<locals>.factory at 0x00000221C3AA6B60>
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-218/test_pipeline_hybrid_triggers_0')
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x000001C51A79D800>
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-221/test_pipeline_hybrid_triggers_0')
 
     def test_pipeline_hybrid_triggers_configured_fallback(pipeline_factory, tmp_path: Path) -> None:
         methods_yaml = tmp_path / "methods.yaml"
@@ -496,7 +497,7 @@ E         - success
 E         + failed
 
 backend\tests\pipeline\test_pipeline_methods.py:305: AssertionError
-================================================================================== warnings summary =================================================================================== 
+================================================================================== warnings summary ===================================================================================
 backend\app\main.py:26
 backend/tests/api/test_cors_preflight.py::test_parse_endpoint_allows_preflight_request
 backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voice_configuration
@@ -534,10 +535,10 @@ backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voi
     @app.on_event("shutdown")
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-=============================================================================== short test summary info =============================================================================== 
+=============================================================================== short test summary info ===============================================================================
 FAILED backend/tests/api/test_dialog_endpoint.py::test_dialog_clarification_flow - AssertionError: assert 'failed' == 'success'
 FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_noop_when_disabled - AttributeError: 'Depends' object has no attribute 'transcribe'
 FAILED backend/tests/integrations/test_llm_client.py::test_llm_client_success_payload_matches_extractor - TypeError: LLMExtractor.__init__() got an unexpected keyword argument 'llm_client'
 FAILED backend/tests/integrations/test_llm_client.py::test_gemini_client_builds_structured_payload - AssertionError: assert '/v1beta/mode...nerateContent' == '/v1beta/mode...nerateContent'
 FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_hybrid_triggers_configured_fallback - AssertionError: assert 'failed' == 'success'
-====================================================================== 5 failed, 64 passed, 12 warnings in 3.94s ====================================================================== 
+====================================================================== 5 failed, 64 passed, 12 warnings in 4.01s ======================================================================
