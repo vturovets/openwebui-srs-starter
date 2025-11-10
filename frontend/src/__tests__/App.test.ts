@@ -264,6 +264,17 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('status-label')).toHaveTextContent('failed');
     expect(screen.getByText('Expected value mismatches:')).toBeInTheDocument();
 
+    await waitFor(() => expect(screen.getByTestId('performance-summary')).toBeInTheDocument());
+    expect(screen.getByTestId('performance-requests')).toHaveTextContent('1');
+    expect(screen.getByTestId('performance-mean')).toHaveTextContent('34 ms');
+    expect(screen.getByTestId('performance-p95')).toHaveTextContent('—');
+    expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('0%');
+
+    const resetButton = screen.getByTestId('reset-button') as HTMLButtonElement;
+    await waitFor(() => expect(resetButton.disabled).toBe(false));
+    await fireEvent.click(resetButton);
+    await waitFor(() => expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument());
+
     component.$destroy();
   });
 
