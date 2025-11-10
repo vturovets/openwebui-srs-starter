@@ -1,22 +1,6 @@
-// NOTE: "Language Detection" is intentionally duplicated. The first column logs the
-// timing information reported as `languageMs`, while the second captures the semantic
-// detection outcome (language code plus confidence) for downstream analytics.
 export const CSV_LOG_FIELDS = [
-  'Timestamp (UTC)',
   'User input',
-  'Request type',
-  'Method',
-  'Interaction Mode',
-  'Pipeline Status',
-  'Language Detection',
-  'Processing Time',
-  'Language Detection',
-  'Extraction',
-  'Mapping',
-  'Validation',
-  'Transcription',
-  'Network Latency',
-  'Output JSON',
+  'Extracted values',
 ] as const;
 
 export type CsvLogField = (typeof CSV_LOG_FIELDS)[number];

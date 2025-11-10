@@ -12,6 +12,7 @@
     VoiceResponse,
   } from './lib/types';
   import { CSV_LOG_FIELDS } from './lib/types';
+  import { getExtractedValueRows } from './lib/extractedValues';
 
   const metaEnv = (import.meta as any)?.env ?? {};
   const baseUrl = (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
@@ -212,203 +213,36 @@
     return postVoice(baseUrl, formData);
   }
 
-  function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
-  }
-
-  function toRecord(value: unknown): Record<string, unknown> {
-    return isRecord(value) ? value : {};
-  }
-
-  function toFiniteNumber(value: unknown): number | null {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === 'string') {
-      const parsed = Number.parseFloat(value);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-    return null;
-  }
-
-  function formatTiming(value: unknown): string {
-    const numeric = toFiniteNumber(value);
-    return numeric === null ? '' : numeric.toFixed(2);
-  }
-
-  function formatProbability(value: unknown): string {
-    const numeric = toFiniteNumber(value);
-    if (numeric !== null) {
-      return numeric.toFixed(2);
-    }
-    if (typeof value === 'string') {
-      return value;
-    }
-    return '';
-  }
-
-  function extractLanguageInfo(
-    metadata: Record<string, unknown>,
-    result: HolidayResult
-  ): { code: string; confidence: string } {
-    const language = metadata.language;
-    let code = '';
-    let confidence: unknown;
-
-    if (typeof language === 'string') {
-      code = language;
-    } else if (isRecord(language)) {
-      if (typeof language.code === 'string') {
-        code = language.code;
-      } else if (typeof language.language === 'string') {
-        code = language.language;
-      } else if (typeof language.lang === 'string') {
-        code = language.lang;
-      }
-      confidence = language.confidence ?? language.score ?? language.probability;
-    }
-
-    if (!code) {
-      const dataLanguage = (result.data as Record<string, unknown> | null)?.language;
-      if (typeof dataLanguage === 'string') {
-        code = dataLanguage;
-      }
-    }
-
-    return { code, confidence: formatProbability(confidence) };
-  }
-
-
 
   function escapeCsv(value: string): string {
-    if (/["\n\r,]/.test(value)) {
-      return `"${value.replace(/"/g, '""')}"`;
+    if (/[",\n\r]/.test(value)) {
+      return '"' + value.replace(/"/g, '""') + '"';
     }
     return value;
   }
 
-
-  function buildOutput(entry: HolidayResultEntry, metadata: Record<string, unknown>): string {
-    const output: Record<string, unknown> = {
-      status: entry.result.status,
-      data: entry.result.data ?? {},
-    };
-
-    if (metadata.validation !== undefined) {
-      output.validation = metadata.validation;
-    }
-    if (metadata.error !== undefined) {
-      output.error = metadata.error;
-    }
-
-    return JSON.stringify(output);
-  }
-
-
-
-
-  function resolvePipelineStatus(result: HolidayResult, metadata: Record<string, unknown>): string {
-    if (result.status === 'success') {
-      return 'success';
-    }
-    const rawStatus = typeof metadata.rawStatus === 'string' ? metadata.rawStatus : '';
-    if (rawStatus === 'error') {
-      return 'error';
-    }
-    if (result.status === 'clarification' || result.status === 'failed') {
-      return 'failed';
-    }
-    return result.status;
-  }
-
-  type CsvRow = Record<string, string | string[]>;
+  type CsvRow = Record<string, string>;
 
   function buildRow(entry: HolidayResultEntry): CsvRow {
-    const metadata = toRecord(entry.result.metadata);
-    const timings = toRecord(metadata.timings);
-    const languageInfo = extractLanguageInfo(metadata, entry.result);
-
-    const totalTiming =
-      toFiniteNumber(
-        timings.totalTimingMs ?? timings.totalMs ?? timings.total ?? timings.totalMilliseconds
-      ) ?? undefined;
-    const languageTiming =
-      toFiniteNumber(timings.languageMs ?? timings.languageDetectionMs ?? timings.language) ??
-      undefined;
-    const extractionTiming =
-      toFiniteNumber(timings.extractionMs ?? timings.extraction) ?? undefined;
-    const mappingTiming =
-      toFiniteNumber(
-        timings.normalizationMs ??
-          timings.normalisationMs ??
-          timings.mappingMs ??
-          timings.mapping
-      ) ?? undefined;
-    const validationTiming =
-      toFiniteNumber(timings.validationMs ?? timings.validation) ?? undefined;
-    const transcriptionTiming =
-      toFiniteNumber(timings.sttMs ?? timings.transcriptionMs ?? timings.voiceMs) ?? undefined;
-    const networkLatencyTiming =
-      toFiniteNumber(
-        timings.networkLatencyMs ?? timings.llmNetworkMs ?? timings.networkMs ?? timings.network
-      ) ?? undefined;
-
-    const pipelineStatus = resolvePipelineStatus(entry.result, metadata);
-
-    const languageDetectionSummary = languageInfo.code
-      ? languageInfo.confidence
-        ? `${languageInfo.code} (${languageInfo.confidence})`
-        : languageInfo.code
+    const extractedRows = getExtractedValueRows(entry);
+    const extractedValues = extractedRows.length
+      ? extractedRows.map(({ label, value }) => `${label}: ${value}`).join(' | ')
       : '';
 
-    const row: CsvRow = {
-      'Timestamp (UTC)': entry.timestamp,
+    return {
       'User input': entry.input,
-      'Request type': entry.source === 'voice' ? 'Voice' : 'Text',
-      Method: typeof metadata.method === 'string' ? metadata.method : '',
-      'Interaction Mode': typeof metadata.mode === 'string' ? metadata.mode : '',
-      'Pipeline Status': pipelineStatus
-        ? `${pipelineStatus[0].toUpperCase()}${pipelineStatus.slice(1)}`
-        : '',
-      'Language Detection': [formatTiming(languageTiming), languageDetectionSummary],
-      'Processing Time': formatTiming(totalTiming),
-      Extraction: formatTiming(extractionTiming),
-      Mapping: formatTiming(mappingTiming),
-      Validation: formatTiming(validationTiming),
-      Transcription: formatTiming(transcriptionTiming),
-      'Network Latency': formatTiming(networkLatencyTiming),
-      'Output JSON': buildOutput(entry, metadata),
+      'Extracted values': extractedValues,
     };
-
-    return row;
   }
 
   function generateCsv(): string {
-    const rows = history.map((entry) => buildRow(entry));
-    const csvRows = [CSV_HEADERS.map((value) => escapeCsv(value)).join(',')];
+    const header = CSV_HEADERS.map((value) => escapeCsv(value)).join(',');
+    const data = history.map((entry) => {
+      const row = buildRow(entry);
+      return CSV_HEADERS.map((field) => escapeCsv(row[field] ?? '')).join(',');
+    });
 
-    for (const row of rows) {
-      const occurrences = new Map<string, number>();
-      const values = CSV_HEADERS.map((field) => {
-        const count = occurrences.get(field) ?? 0;
-        occurrences.set(field, count + 1);
-
-        const value = row[field];
-        if (Array.isArray(value)) {
-          return escapeCsv(value[count] ?? '');
-        }
-        if (count === 0) {
-          return escapeCsv(value ?? '');
-        }
-        return '';
-      });
-
-      csvRows.push(values.join(','));
-    }
-
-    return csvRows.join('\n');
+    return [header, ...data].join('\n');
   }
 
   function exportCsv() {
