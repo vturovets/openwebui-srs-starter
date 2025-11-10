@@ -517,6 +517,7 @@
     min-height: 100vh;
     padding: 1.5rem;
     box-sizing: border-box;
+    align-items: start;
   }
 
   .panel {
