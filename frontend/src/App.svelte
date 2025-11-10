@@ -1047,7 +1047,17 @@
     align-self: stretch;
     z-index: 2;
     padding-block: 0.5rem;
+    isolation: isolate;
+  }
+
+  .summary-row::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background: #0f172a;
+    border-radius: 18px;
+    z-index: -1;
+    pointer-events: none;
   }
 
   .summary-card {
@@ -1213,9 +1223,13 @@
     }
 
     .summary-row {
-      position: static;
+      position: relative;
       grid-template-columns: 1fr;
       gap: 1rem;
+    }
+
+    .summary-row::before {
+      border-radius: 0;
     }
   }
 </style>
