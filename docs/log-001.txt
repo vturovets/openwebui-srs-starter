@@ -1,30 +1,9 @@
-(.venv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest
-================================================================================= test session starts =================================================================================
-platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
-rootdir: C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search
-configfile: pyproject.toml
-testpaths: backend/tests
-plugins: anyio-4.11.0
-collected 69 items
-
-backend\tests\api\test_cors_preflight.py .                                                                                                                                       [  1%]
-backend\tests\api\test_dialog_endpoint.py F.                                                                                                                                     [  4%]
-backend\tests\api\test_fixtures_endpoint.py .                                                                                                                                    [  5%]
-backend\tests\api\test_voice_endpoint.py F.....                                                                                                                                  [ 14%]
-backend\tests\fixtures\test_repository.py ...                                                                                                                                    [ 18%]
-backend\tests\integrations\test_llm_client.py F.F.                                                                                                                               [ 24%]
-backend\tests\integrations\test_stt_client.py ...                                                                                                                                [ 28%]
-backend\tests\logging\test_csv_logger.py ....                                                                                                                                    [ 34%]
-backend\tests\pipeline\test_methods_catalog.py ........                                                                                                                          [ 46%]
-backend\tests\pipeline\test_pipeline_components.py ..................                                                                                                            [ 72%]
-backend\tests\pipeline\test_pipeline_methods.py .......F....                                                                                                                     [ 89%]
-backend\tests\test_openwebui_connector.py ...                                                                                                                                    [ 94%]
-backend\tests\test_openwebui_extension.py ....                                                                                                                                   [100%]
-
+nv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest backend/tests -q
+.F..F..........F.........................................F...........                                                                                                            [100%]
 ====================================================================================== FAILURES =======================================================================================
 ___________________________________________________________________________ test_dialog_clarification_flow ____________________________________________________________________________
 
-dialog_context = {'logger': CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-221/test_dialog_clarific...i-1.5-pro', 'hybrid-v1', 'gemini-2_5-pro'), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))}
+dialog_context = {'logger': CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-223/test_dialog_clarific...i-1.5-pro', 'hybrid-v1', 'gemini-2_5-pro'), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))}
 
     def test_dialog_clarification_flow(dialog_context):
         async def scenario() -> None:
@@ -160,9 +139,8 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 audio = UploadFile(filename='audio.wav', size=None, headers=Headers({'content-type': 'audio/wav'}))
 settings = Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('data/log.csv'), csv_delimiter=';...'fixtures'), methods_config_path=WindowsPath('config/methods.yaml'), processing_threshold_ms=750, methods_catalog=None)
-pipeline = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001C515311640>, use_cache=True, scope=None)
-logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001C5153117A0>, use_cache=True, scope=None)
-stt_client = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001C515311900>, use_cache=True, scope=None)
+pipeline = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001DFD3319640>, use_cache=True, scope=None)
+logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001DFD33197A0>, use_cache=True, scope=None), stt_client = None
 
     @api_router.post("/voice", response_model=VoiceResponse)
     async def voice_endpoint(
@@ -175,6 +153,9 @@ stt_client = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001
         """Transcribe an audio sample and feed it through the holiday search pipeline."""
 
         total_start = perf_counter()
+
+        if isinstance(stt_client, fastapi_params.Depends):  # pragma: no cover - direct invocation safety
+            stt_client = None
 
         if not settings.voice_enabled:
             await audio.close()
@@ -193,140 +174,16 @@ stt_client = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001
             )
 
         if stt_client is None:
-            raise HTTPException(
+>           raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Speech-to-text provider is not configured",
             )
+E           fastapi.exceptions.HTTPException: 500: Speech-to-text provider is not configured
 
-        raw_content_type = (audio.content_type or "").lower()
-        base_content_type = raw_content_type.split(";")[0].strip() or raw_content_type
-        allowed_types = {item.lower() for item in settings.voice_allowed_content_types}
-        if base_content_type not in allowed_types:
-            await audio.close()
-            raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail="Unsupported audio format",
-            )
-
-        file_obj = getattr(audio, "file", None)
-        if file_obj is not None:
-            try:
-                current_pos = file_obj.tell()
-            except (OSError, AttributeError):
-                current_pos = None
-            try:
-                file_obj.seek(0, 2)
-                size = file_obj.tell()
-            except (OSError, AttributeError):
-                size = None
-            finally:
-                try:
-                    if current_pos is None:
-                        file_obj.seek(0)
-                    else:
-                        file_obj.seek(current_pos)
-                except (OSError, AttributeError):
-                    pass
-            if size is not None and size > settings.voice_max_bytes:
-                await audio.close()
-                raise HTTPException(
-                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                    detail="Audio payload exceeds maximum allowed size",
-                )
-
-        try:
-            await audio.seek(0)
-        except (AttributeError, TypeError):
-            pass
-
-        class _AudioTooLargeError(Exception):
-            """Raised when the streamed payload exceeds the configured limit."""
-
-        async def audio_stream() -> AsyncIterator[bytes]:
-            remaining = settings.voice_max_bytes
-            try:
-                while True:
-                    chunk = await audio.read(8192)
-                    if not chunk:
-                        break
-                    remaining -= len(chunk)
-                    if remaining < 0:
-                        raise _AudioTooLargeError
-                    yield chunk
-            finally:
-                await audio.close()
-
-        stt_start = perf_counter()
-        try:
->           transcription: TranscriptionResult = await stt_client.transcribe(
-                                                       ^^^^^^^^^^^^^^^^^^^^^
-                content_type=raw_content_type or base_content_type,
-                stream=audio_stream(),
-            )
-E           AttributeError: 'Depends' object has no attribute 'transcribe'
-
-backend\app\api\routes.py:811: AttributeError
-__________________________________________________________________ test_llm_client_success_payload_matches_extractor __________________________________________________________________
-
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-221/test_llm_client_success_payloa0')
-
-    def test_llm_client_success_payload_matches_extractor(tmp_path: Path) -> None:
-        """HolidaySearchLLMClient should return structured payloads the extractor accepts."""
-
-        llm_content = {
-            "airports": ["AMS", {"id": "ANR", "name": "Antwerp", "available": True}],
-            "destinations": [
-                "d7b4bb39-123d-1234-123f-1234567f",
-                {"id": "d7b4bb39-123e-1234-123d-1234567g", "name": "Greece"},
-            ],
-            "duration": "2007",
-            "flexibility": {"id": "3", "name": "+- 3 days"},
-            "dates": [
-                "2025-10-10",
-                {"phrase": "12 October 2025", "iso": "2025-10-12"},
-            ],
-            "_metadata": {
-                "provider": "mock-llm",
-                "promptId": "prompt-xyz",
-                "responseId": "response-abc",
-            },
-        }
-
-        response_payload = {
-            "choices": [
-                {
-                    "message": {
-                        "content": json.dumps(llm_content),
-                    }
-                }
-            ]
-        }
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/chat/completions"
-            return httpx.Response(200, json=response_payload)
-
-        http_client = httpx.Client(transport=httpx.MockTransport(handler), base_url="https://mock-llm")
-
-        settings = _build_settings(tmp_path)
-        llm_client = HolidaySearchLLMClient(
-            settings=settings,
-            fixtures_dir=settings.fixtures_dir,
-            http_client=http_client,
-        )
-
-        payload = llm_client("Plan a sunny holiday")
-
-        fixtures = FixtureRepository(FIXTURES_DIR)
-        configuration = _load_configuration()
->       extractor = LLMExtractor(fixtures, configuration, llm_client=lambda _: payload)
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       TypeError: LLMExtractor.__init__() got an unexpected keyword argument 'llm_client'
-
-backend\tests\integrations\test_llm_client.py:100: TypeError
+backend\app\api\routes.py:750: HTTPException
 ____________________________________________________________________ test_gemini_client_builds_structured_payload _____________________________________________________________________
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-221/test_gemini_client_builds_stru0')
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-223/test_gemini_client_builds_stru0')
 
     def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
         """The Gemini client should build structured requests and propagate metadata."""
@@ -436,8 +293,8 @@ E         ?                           ^^^
 backend\tests\integrations\test_llm_client.py:182: AssertionError
 __________________________________________________________________ test_pipeline_hybrid_triggers_configured_fallback __________________________________________________________________
 
-pipeline_factory = <function pipeline_factory.<locals>.factory at 0x000001C51A79D800>
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-221/test_pipeline_hybrid_triggers_0')
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x000001DFD7E2D440>
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-223/test_pipeline_hybrid_triggers_0')
 
     def test_pipeline_hybrid_triggers_configured_fallback(pipeline_factory, tmp_path: Path) -> None:
         methods_yaml = tmp_path / "methods.yaml"
@@ -537,8 +394,7 @@ backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voi
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =============================================================================== short test summary info ===============================================================================
 FAILED backend/tests/api/test_dialog_endpoint.py::test_dialog_clarification_flow - AssertionError: assert 'failed' == 'success'
-FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_noop_when_disabled - AttributeError: 'Depends' object has no attribute 'transcribe'
-FAILED backend/tests/integrations/test_llm_client.py::test_llm_client_success_payload_matches_extractor - TypeError: LLMExtractor.__init__() got an unexpected keyword argument 'llm_client'
+FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_noop_when_disabled - fastapi.exceptions.HTTPException: 500: Speech-to-text provider is not configured
 FAILED backend/tests/integrations/test_llm_client.py::test_gemini_client_builds_structured_payload - AssertionError: assert '/v1beta/mode...nerateContent' == '/v1beta/mode...nerateContent'
 FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_hybrid_triggers_configured_fallback - AssertionError: assert 'failed' == 'success'
-====================================================================== 5 failed, 64 passed, 12 warnings in 4.01s ======================================================================
+4 failed, 65 passed, 12 warnings in 3.96s
