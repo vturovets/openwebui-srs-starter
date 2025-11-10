@@ -892,8 +892,8 @@
   </section>
 
   <div class="content">
-    <div class="summary-grid">
-      <section class="performance-summary" data-testid="performance-summary">
+    <div class="summary-row">
+      <section class="summary-card performance-summary" data-testid="performance-summary">
         <h2>Performance summary</h2>
         <dl>
           <div>
@@ -943,7 +943,7 @@
         </dl>
       </section>
 
-      <section class="usage-summary" data-testid="usage-summary">
+      <section class="summary-card usage-summary" data-testid="usage-summary">
         <h2>Usage footprint summary</h2>
         <dl>
           <div>
@@ -1038,58 +1038,62 @@
     position: relative;
   }
 
-  .summary-grid {
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  .summary-row {
     position: sticky;
     top: 1.5rem;
-    align-self: start;
-    z-index: 1;
-  }
-
-  .usage-summary,
-  .performance-summary {
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    border-radius: 10px;
-    padding: 1rem;
     display: grid;
-    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+    align-self: stretch;
+    z-index: 2;
+    padding-block: 0.5rem;
+    background: #0f172a;
   }
 
-  .usage-summary h2,
-  .performance-summary h2 {
+  .summary-card {
+    background: #1e293b;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 16px;
+    padding: 2rem 2.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.4);
+  }
+
+  .summary-card h2 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.75rem;
+    text-align: center;
+    letter-spacing: 0.02em;
   }
 
-  .usage-summary dl,
-  .performance-summary dl {
+  .summary-card dl {
     margin: 0;
+    width: 100%;
     display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 1rem;
   }
 
-  .usage-summary dl > div,
-  .performance-summary dl > div {
-    display: grid;
-    gap: 0.25rem;
+  .summary-card dl > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: center;
+    text-align: center;
   }
 
-  .usage-summary dt,
-  .performance-summary dt {
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
+  .summary-card dt {
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #94a3b8;
   }
 
-  .usage-summary dd,
-  .performance-summary dd {
+  .summary-card dd {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     font-weight: 600;
   }
 
@@ -1208,8 +1212,10 @@
       overflow: visible;
     }
 
-    .summary-grid {
+    .summary-row {
       position: static;
+      grid-template-columns: 1fr;
+      gap: 1rem;
     }
   }
 </style>
