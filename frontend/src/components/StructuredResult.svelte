@@ -8,6 +8,7 @@
   const timings = (metadata.timings ?? {}) as Record<string, unknown>;
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
+  const mismatches = metadata.expectedValueMismatches ?? [];
 
   function getNumericTiming(key: string): number | undefined {
     const value = timings[key];
@@ -141,7 +142,7 @@
     </table>
   </section>
 
-  {#if missing.length || invalid.length}
+  {#if missing.length || invalid.length || mismatches.length}
     <section class="issues" data-testid="issue-summary">
       <h3>Validation summary</h3>
       {#if missing.length}
@@ -149,6 +150,19 @@
       {/if}
       {#if invalid.length}
         <p><strong>Invalid:</strong> {invalid.join(', ')}</p>
+      {/if}
+      {#if mismatches.length}
+        <div class="mismatches">
+          <p><strong>Expected value mismatches:</strong></p>
+          <ul>
+            {#each mismatches as mismatch}
+              <li>
+                <strong>{mismatch.label}</strong>: expected “{mismatch.expected || '—'}” but got “
+                {mismatch.actual || '—'}”.
+              </li>
+            {/each}
+          </ul>
+        </div>
       {/if}
     </section>
   {/if}
@@ -280,6 +294,16 @@
     margin: 0;
     white-space: pre-wrap;
     font-size: 0.75rem;
+  }
+
+  .mismatches ul {
+    margin: 0.25rem 0 0;
+    padding-left: 1.25rem;
+  }
+
+  .mismatches li {
+    margin-bottom: 0.25rem;
+    font-size: 0.8rem;
   }
 
   .issues p {
