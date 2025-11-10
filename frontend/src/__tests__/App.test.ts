@@ -88,6 +88,27 @@ const PARSE_SUCCESS = {
       requestId: 'req-1',
       responseId: 'res-1',
     },
+    usage: {
+      components: [
+        {
+          name: 'llm',
+          usage: {
+            tokensIn: 50,
+            tokensOut: 10,
+            apiCalls: 1,
+            cpuMs: 12.5,
+            ramMbSeconds: 3.4,
+          },
+        },
+        {
+          name: 'validator',
+          usage: {
+            cpuMs: 7.5,
+            ramMbSeconds: 2.1,
+          },
+        },
+      ],
+    },
   },
 };
 
@@ -264,6 +285,13 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('status-label')).toHaveTextContent('failed');
     expect(screen.getByText('Expected value mismatches:')).toBeInTheDocument();
 
+    await waitFor(() => expect(screen.getByTestId('usage-summary')).toBeInTheDocument());
+    expect(screen.getByTestId('usage-tokens-in')).toHaveTextContent('50');
+    expect(screen.getByTestId('usage-tokens-out')).toHaveTextContent('10');
+    expect(screen.getByTestId('usage-api-calls')).toHaveTextContent('1');
+    expect(screen.getByTestId('usage-cpu')).toHaveTextContent('20 ms');
+    expect(screen.getByTestId('usage-ram')).toHaveTextContent('5.5 MB·s');
+
     await waitFor(() => expect(screen.getByTestId('performance-summary')).toBeInTheDocument());
     expect(screen.getByTestId('performance-requests')).toHaveTextContent('1');
     expect(screen.getByTestId('performance-mean')).toHaveTextContent('34 ms');
@@ -274,6 +302,7 @@ describe('Holiday search console', () => {
     await waitFor(() => expect(resetButton.disabled).toBe(false));
     await fireEvent.click(resetButton);
     await waitFor(() => expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument());
 
     component.$destroy();
   });
