@@ -2,15 +2,14 @@
 
 Prototype monorepo for the **NLP-Powered Holiday Request** project outlined in the
 accompanying Software Requirements Specification (SRS) and Software Design
-Description (SDD). It ships a deterministic FastAPI backend and a Svelte-based
-reference frontend so teams can benchmark NLP strategies end-to-end. The backend
-accepts natural-language holiday requests, derives structured parameters using a
-fixture-backed pipeline, and records every transaction for benchmarking and UI
-telemetry.
+Description (SDD). It ships a deterministic FastAPI backend, a Vite + Svelte
+frontend, and supporting fixtures so teams can benchmark NLP strategies end-to-end.
 
-The implementation favours transparency over ML magic: language detection,
-extraction, normalisation, validation, and logging are explicitly coded so
-alternate approaches can be swapped in while retaining comparable output.
+The backend accepts natural-language holiday requests, derives structured
+parameters through a transparent pipeline, and records every transaction to a CSV
+audit trail. Dialogue flows, voice transcription, and pluggable LLM strategies are
+implemented as explicit modules so alternative approaches can be swapped in while
+retaining comparable output for experiments.
 
 ## Project structure
 
@@ -18,10 +17,13 @@ alternate approaches can be swapped in while retaining comparable output.
 .
 ├── backend/
 │   ├── app/                    # FastAPI application, pipeline stages, integrations
+│   ├── openai.yaml             # Docker Compose example pairing the backend with OpenWebUI
 │   └── tests/                  # Pytest coverage for fixtures, pipeline, and API
+├── config/                     # Method catalogue and supporting YAML
 ├── docs/                       # SRS, SDD, and integration reference material
 ├── fixtures/                   # Airports, destinations, durations, and configuration JSON
 ├── frontend/                   # Svelte SPA that consumes the backend contract
+├── scripts/                    # Helper scripts (e.g. PowerShell launcher for Windows)
 ├── Makefile                    # Convenience targets for linting and tests
 └── pyproject.toml              # Backend dependency metadata
 ```
@@ -51,8 +53,8 @@ The editable install pulls both runtime and development dependencies
 | Task | Command |
 | --- | --- |
 | Run API locally | `uvicorn backend.app.main:app --reload`
-| Lint backend code | `make lint` *(wraps `ruff check backend`)* |
-| Run backend tests | `make test` *(wraps `pytest`)* |
+| Lint backend code | `make lint` *(ruff check backend)* |
+| Run backend tests | `make test` *(pytest)* |
 
 ## Configuration
 
@@ -98,17 +100,20 @@ PROCESSING_THRESHOLD_MS=750
 ```
 
 When deploying with Docker Compose, mirror the same environment variables in the
-service definition so the backend receives the credentials at startup:
+service definition so the backend receives the credentials at startup. The
+repository includes [`backend/openai.yaml`](backend/openai.yaml), which spins up
+OpenWebUI and the FastAPI service side-by-side for rapid prototyping:
 
 ```yaml
 services:
   backend:
-    image: ghcr.io/openwebui/starter-backend:latest
+    build: ./backend
     environment:
-      - LLM_METHOD=llm
-      - LLM_API_KEY=${LLM_API_KEY}
-      - LLM_MODEL=${LLM_MODEL:-gpt-3.5-turbo}
+      - INTERACTION_MODE=${INTERACTION_MODE:-direct-parse}
+      - CSV_PATH=/logs/transactions.csv
+      - LLM_METHOD=${LLM_METHOD:-rules}
       - LLM_API_BASE=${LLM_API_BASE:-https://api.openai.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-gpt-3.5-turbo}
 ```
 
 Bind-mount a `.env` file or rely on Compose variable substitution to keep
@@ -143,10 +148,8 @@ ngrok http 8000
 
 Use the HTTPS forwarding URL reported by your tunnel as the base URL when
 configuring Open-WebUI. See [`docs/ui_integration_contracts.md`](docs/ui_integration_contracts.md)
-for the full endpoint contracts, and
-[`docs/openwebui_configuration.md`](docs/openwebui_configuration.md) for
-step-by-step instructions on wiring the custom Open-WebUI connector and
-renderer.
+for the full endpoint contracts, and [`docs/openwebui_configuration.md`](docs/openwebui_configuration.md)
+for step-by-step instructions on wiring the custom Open-WebUI connector and renderer.
 
 Behind the scenes, reusable dependencies are provided via
 [`backend/app/dependencies.py`](backend/app/dependencies.py). Settings,
@@ -202,7 +205,8 @@ audio to Deepgram’s REST API and returns word-level timings for the UI.
 ## Frontend quick start
 
 The `frontend/` directory contains a Vite + Svelte single-page application that
-consumes the backend contract. To work on the UI:
+consumes the backend contract and mirrors the Open-WebUI holiday search
+experience. To work on the UI locally (default dev server on <http://127.0.0.1:4173>):
 
 ```bash
 cd frontend
@@ -215,11 +219,13 @@ Additional scripts:
 | Task | Command |
 | --- | --- |
 | Run component tests | `npm test` *(Vitest)* |
+| Run component tests in watch mode | `npm run test:watch` |
 | Run Playwright E2E tests | `npm run test:ui` |
 | Build production bundle | `npm run build` |
+| Preview built bundle | `npm run preview` |
 
-Vitest is configured with JSDOM in `vitest.setup.ts`, and Playwright suites live
-under [`frontend/tests`](frontend/tests).
+Vitest is configured with JSDOM in [`frontend/vitest.setup.ts`](frontend/vitest.setup.ts),
+and Playwright suites live under [`frontend/tests`](frontend/tests).
 
 ## API endpoints
 
