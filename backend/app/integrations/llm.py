@@ -36,6 +36,7 @@ class StructuredLLMClient:
         self._model = model
         self._api_key = api_key
         self._last_latency_ms: float | None = None
+        self._json_mode_enabled: bool = self._supports_json_mode()
 
         self._client = http_client or httpx.Client(base_url=base, timeout=timeout)
         self._client_owner = http_client is None
@@ -59,7 +60,7 @@ class StructuredLLMClient:
             "temperature": 0,
         }
 
-        if self._supports_json_mode():
+        if self._json_mode_enabled:
             payload["response_format"] = {"type": "json_object"}
 
         return payload
@@ -115,6 +116,24 @@ class StructuredLLMClient:
         try:
             response = self._client.post(self._endpoint, json=payload, headers=self._headers())
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if self._json_mode_enabled and exc.response is not None and exc.response.status_code == 400:
+                # Some providers (see docs/log-001.txt) reject the JSON mode flag even
+                # when advertised as supported. Disable it for future requests and
+                # immediately retry without the response_format hint.
+                self._json_mode_enabled = False
+                payload = self._build_request_payload(text)
+                try:
+                    response = self._client.post(
+                        self._endpoint,
+                        json=payload,
+                        headers=self._headers(),
+                    )
+                    response.raise_for_status()
+                except httpx.HTTPError as retry_exc:
+                    raise RuntimeError(f"LLM provider request failed: {retry_exc}") from retry_exc
+            else:
+                raise RuntimeError(f"LLM provider request failed: {exc}") from exc
         except httpx.HTTPError as exc:
             raise RuntimeError(f"LLM provider request failed: {exc}") from exc
         self._last_latency_ms = (perf_counter() - start) * 1000
