@@ -363,6 +363,19 @@
       }
     }, 0);
   }
+
+  function resetHistory() {
+    if (!history.length) {
+      return;
+    }
+
+    history = [];
+
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      downloadUrl = null;
+    }
+  }
 </script>
 
 <main class="app">
@@ -451,6 +464,18 @@
       mode={mode}
       voiceEnabled={fixtures?.voiceEnabled ?? true}
     />
+
+    <div class="reset-actions">
+      <button
+        type="button"
+        class="reset-button"
+        on:click={resetHistory}
+        disabled={!history.length}
+        data-testid="reset-button"
+      >
+        Reset
+      </button>
+    </div>
 
   </section>
 
@@ -572,6 +597,21 @@
 
   button:hover:enabled {
     background: #0ea5e9;
+  }
+
+  .reset-actions {
+    margin-top: auto;
+  }
+
+  .reset-button {
+    background: transparent;
+    color: #38bdf8;
+    border: 1px solid #38bdf8;
+    padding-inline: 1.25rem;
+  }
+
+  .reset-button:hover:enabled {
+    background: rgba(56, 189, 248, 0.1);
   }
 
   .results {
