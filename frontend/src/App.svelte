@@ -180,11 +180,26 @@
       return 'apiCalls';
     }
 
-    if (key.includes('cpu') && (key.includes('ms') || key.includes('time'))) {
+    if (
+      key.includes('cpu') &&
+      (key.includes('ms') ||
+        key.includes('millisecond') ||
+        key.includes('time') ||
+        key.includes('duration') ||
+        key.endsWith('cpu'))
+    ) {
       return 'cpuMs';
     }
 
-    if ((key.includes('ram') || key.includes('memory')) && (key.includes('mbs') || key.includes('mbsec') || key.includes('mbseconds'))) {
+    const ramIndicator = key.includes('ram') || key.includes('memory') || key.includes('mem');
+    const sizeIndicator = key.includes('mb') || key.includes('megabyte') || key.includes('byte');
+    const durationIndicator = key.includes('sec') || key.includes('time') || key.includes('duration');
+
+    if (
+      ramIndicator &&
+      (sizeIndicator || key.includes('footprint')) &&
+      (durationIndicator || key.includes('footprint') || key.includes('usage'))
+    ) {
       return 'ramMbSeconds';
     }
 
@@ -211,7 +226,10 @@
       normalisedKey.includes('metric') ||
       normalisedKey.includes('footprint') ||
       normalisedKey.includes('resource') ||
-      normalisedKey.includes('component')
+      normalisedKey.includes('component') ||
+      normalisedKey.includes('summary') ||
+      normalisedKey.includes('total') ||
+      normalisedKey.includes('aggregate')
     );
   }
 
