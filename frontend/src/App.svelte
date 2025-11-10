@@ -44,7 +44,19 @@
     accuracy: number;
   };
 
+  type UsageMetricKey = 'tokensIn' | 'tokensOut' | 'apiCalls' | 'cpuMs' | 'ramMbSeconds';
+
+  type UsageAggregateField = {
+    total: number;
+    seen: boolean;
+  };
+
+  type UsageAggregate = Record<UsageMetricKey, UsageAggregateField>;
+
+  type UsageSummary = Partial<Record<UsageMetricKey, number>>;
+
   let importPerformanceSummary: PerformanceSummary | null = null;
+  let importUsageSummary: UsageSummary | null = null;
 
   function toFiniteNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -135,6 +147,264 @@
       return value.toString();
     }
     return Number(value.toFixed(decimals)).toString();
+  }
+
+  function createUsageAggregate(): UsageAggregate {
+    return {
+      tokensIn: { total: 0, seen: false },
+      tokensOut: { total: 0, seen: false },
+      apiCalls: { total: 0, seen: false },
+      cpuMs: { total: 0, seen: false },
+      ramMbSeconds: { total: 0, seen: false },
+    };
+  }
+
+  function normaliseKey(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function identifyUsageMetric(key: string): UsageMetricKey | null {
+    if (key.includes('token')) {
+      if (key.includes('out') || key.includes('output') || key.includes('completion') || key.includes('response')) {
+        return 'tokensOut';
+      }
+      if (key.includes('in') || key.includes('input') || key.includes('prompt')) {
+        return 'tokensIn';
+      }
+    }
+
+    if (key.includes('api') && (key.includes('call') || key.includes('request'))) {
+      return 'apiCalls';
+    }
+    if (key === 'requests' || key.endsWith('requestcount')) {
+      return 'apiCalls';
+    }
+
+    if (key.includes('cpu') && (key.includes('ms') || key.includes('time'))) {
+      return 'cpuMs';
+    }
+
+    if ((key.includes('ram') || key.includes('memory')) && (key.includes('mbs') || key.includes('mbsec') || key.includes('mbseconds'))) {
+      return 'ramMbSeconds';
+    }
+
+    return null;
+  }
+
+  function recordUsageValue(aggregate: UsageAggregate, metric: UsageMetricKey, value: unknown): boolean {
+    const numericValue = toFiniteNumber(value);
+    if (numericValue === null) {
+      return false;
+    }
+    aggregate[metric].total += numericValue;
+    aggregate[metric].seen = true;
+    return true;
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+  }
+
+  function shouldDescend(normalisedKey: string): boolean {
+    return (
+      normalisedKey.includes('usage') ||
+      normalisedKey.includes('metric') ||
+      normalisedKey.includes('footprint') ||
+      normalisedKey.includes('resource') ||
+      normalisedKey.includes('component')
+    );
+  }
+
+  function processUsageObject(
+    record: Record<string, unknown>,
+    aggregate: UsageAggregate,
+    visited: Set<object>,
+    allowNested: boolean
+  ): boolean {
+    if (visited.has(record)) {
+      return false;
+    }
+    visited.add(record);
+
+    let updated = false;
+
+    for (const [key, rawValue] of Object.entries(record)) {
+      const normalisedKey = normaliseKey(key);
+      const metric = identifyUsageMetric(normalisedKey);
+      if (metric && recordUsageValue(aggregate, metric, rawValue)) {
+        updated = true;
+        continue;
+      }
+
+      if (!allowNested) {
+        continue;
+      }
+
+      if (Array.isArray(rawValue)) {
+        for (const item of rawValue) {
+          if (isRecord(item) && processUsageObject(item, aggregate, visited, true)) {
+            updated = true;
+          }
+        }
+        continue;
+      }
+
+      if (isRecord(rawValue) && shouldDescend(normalisedKey)) {
+        if (processUsageObject(rawValue, aggregate, visited, true)) {
+          updated = true;
+        }
+      }
+    }
+
+    return updated;
+  }
+
+  function processUsageArray(
+    entries: unknown[],
+    aggregate: UsageAggregate,
+    visited: Set<object>
+  ): boolean {
+    let updated = false;
+
+    for (const entry of entries) {
+      if (!isRecord(entry)) {
+        continue;
+      }
+      if (visited.has(entry)) {
+        continue;
+      }
+      visited.add(entry);
+
+      let componentUpdated = false;
+
+      if (isRecord(entry.usage)) {
+        if (processUsageObject(entry.usage, aggregate, visited, true)) {
+          componentUpdated = true;
+        }
+      }
+
+      if (isRecord(entry.metrics)) {
+        if (processUsageObject(entry.metrics, aggregate, visited, true)) {
+          componentUpdated = true;
+        }
+      }
+
+      if (!componentUpdated) {
+        if (processUsageObject(entry, aggregate, visited, false)) {
+          componentUpdated = true;
+        }
+      }
+
+      if (componentUpdated) {
+        updated = true;
+      }
+    }
+
+    return updated;
+  }
+
+  function accumulateUsageFromMetadata(
+    metadata: Record<string, unknown> | null | undefined,
+    aggregate: UsageAggregate
+  ): boolean {
+    if (!isRecord(metadata)) {
+      return false;
+    }
+
+    const visited = new Set<object>();
+    let updated = false;
+    const components: unknown[] = [];
+
+    if (Array.isArray(metadata.components)) {
+      components.push(metadata.components);
+    }
+
+    const usage = isRecord(metadata.usage) ? metadata.usage : null;
+    if (usage && Array.isArray(usage.components)) {
+      components.push(usage.components);
+    }
+
+    const llm = isRecord(metadata.llm) ? metadata.llm : null;
+    if (llm) {
+      if (Array.isArray(llm.components)) {
+        components.push(llm.components);
+      }
+      const llmUsage = isRecord(llm.usage) ? llm.usage : null;
+      if (llmUsage && Array.isArray(llmUsage.components)) {
+        components.push(llmUsage.components);
+      }
+    }
+
+    const usageFootprint = isRecord(metadata.usageFootprint) ? metadata.usageFootprint : null;
+    if (usageFootprint && Array.isArray(usageFootprint.components)) {
+      components.push(usageFootprint.components);
+    }
+
+    const metrics = isRecord(metadata.metrics) ? metadata.metrics : null;
+    if (metrics && Array.isArray(metrics.components)) {
+      components.push(metrics.components);
+    }
+
+    const pipeline = isRecord(metadata.pipeline) ? metadata.pipeline : null;
+    if (pipeline && Array.isArray(pipeline.components)) {
+      components.push(pipeline.components);
+    }
+
+    const resources = isRecord(metadata.resources) ? metadata.resources : null;
+    if (resources && Array.isArray(resources.components)) {
+      components.push(resources.components);
+    }
+
+    const details = isRecord(metadata.details) ? metadata.details : null;
+    if (details && Array.isArray(details.components)) {
+      components.push(details.components);
+    }
+
+    for (const array of components) {
+      if (Array.isArray(array) && processUsageArray(array, aggregate, visited)) {
+        updated = true;
+      }
+    }
+
+    const containers = [usage, usageFootprint, metrics, llm?.usage];
+    for (const container of containers) {
+      if (isRecord(container) && processUsageObject(container, aggregate, visited, true)) {
+        updated = true;
+      }
+    }
+
+    return updated;
+  }
+
+  function finaliseUsageSummary(aggregate: UsageAggregate): UsageSummary | null {
+    const summary: UsageSummary = {};
+    let hasValue = false;
+    (Object.keys(aggregate) as UsageMetricKey[]).forEach((key) => {
+      const entry = aggregate[key];
+      if (entry.seen) {
+        summary[key] = entry.total;
+        hasValue = true;
+      }
+    });
+    return hasValue ? summary : null;
+  }
+
+  function formatUsageValue(value: number | undefined, decimals = 2): string {
+    if (typeof value !== 'number') {
+      return '—';
+    }
+    return formatMetric(value, decimals);
+  }
+
+  function formatUsageValueWithUnit(
+    value: number | undefined,
+    unit: string,
+    decimals = 2
+  ): string {
+    if (typeof value !== 'number') {
+      return '—';
+    }
+    return `${formatMetric(value, decimals)} ${unit}`;
   }
 
   function normaliseMethodOptions(value: unknown): MethodOption[] {
@@ -344,6 +614,8 @@
     let totalSum = 0;
     let processedCount = 0;
     let mismatchCount = 0;
+    const usageAggregate = createUsageAggregate();
+    let usageDetected = false;
 
     const recordImportedEntry = (entry: HolidayResultEntry) => {
       processedCount += 1;
@@ -354,6 +626,14 @@
       if (typeof totalTiming === 'number' && Number.isFinite(totalTiming)) {
         totalValues.push(totalTiming);
         totalSum += totalTiming;
+      }
+      if (
+        accumulateUsageFromMetadata(
+          entry.result.metadata as Record<string, unknown> | null | undefined,
+          usageAggregate
+        )
+      ) {
+        usageDetected = true;
       }
       addEntry(entry);
     };
@@ -423,8 +703,10 @@
           totalValues,
           totalSum,
         });
+        importUsageSummary = usageDetected ? finaliseUsageSummary(usageAggregate) : null;
       } else {
         importPerformanceSummary = null;
+        importUsageSummary = null;
       }
     }
   }
@@ -500,6 +782,7 @@
 
     history = [];
     importPerformanceSummary = null;
+    importUsageSummary = null;
 
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
@@ -537,6 +820,34 @@
         </div>
       {/if}
     </header>
+
+    {#if importUsageSummary}
+      <section class="usage-summary" data-testid="usage-summary">
+        <h2>Usage footprint</h2>
+        <dl>
+          <div>
+            <dt>Total tokens in</dt>
+            <dd data-testid="usage-tokens-in">{formatUsageValue(importUsageSummary.tokensIn, 0)}</dd>
+          </div>
+          <div>
+            <dt>Total tokens out</dt>
+            <dd data-testid="usage-tokens-out">{formatUsageValue(importUsageSummary.tokensOut, 0)}</dd>
+          </div>
+          <div>
+            <dt>API calls</dt>
+            <dd data-testid="usage-api-calls">{formatUsageValue(importUsageSummary.apiCalls, 0)}</dd>
+          </div>
+          <div>
+            <dt>CPU time</dt>
+            <dd data-testid="usage-cpu">{formatUsageValueWithUnit(importUsageSummary.cpuMs, 'ms')}</dd>
+          </div>
+          <div>
+            <dt>RAM footprint</dt>
+            <dd data-testid="usage-ram">{formatUsageValueWithUnit(importUsageSummary.ramMbSeconds, 'MB·s')}</dd>
+          </div>
+        </dl>
+      </section>
+    {/if}
 
     {#if importPerformanceSummary}
       <section class="performance-summary" data-testid="performance-summary">
@@ -698,6 +1009,7 @@
     font-size: 1.5rem;
   }
 
+  .usage-summary,
   .performance-summary {
     background: rgba(15, 23, 42, 0.65);
     border: 1px solid rgba(56, 189, 248, 0.25);
@@ -707,11 +1019,13 @@
     gap: 0.75rem;
   }
 
+  .usage-summary h2,
   .performance-summary h2 {
     margin: 0;
     font-size: 1.1rem;
   }
 
+  .usage-summary dl,
   .performance-summary dl {
     margin: 0;
     display: grid;
@@ -719,11 +1033,13 @@
     grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   }
 
+  .usage-summary dl > div,
   .performance-summary dl > div {
     display: grid;
     gap: 0.25rem;
   }
 
+  .usage-summary dt,
   .performance-summary dt {
     font-size: 0.75rem;
     letter-spacing: 0.05em;
@@ -731,6 +1047,7 @@
     color: #94a3b8;
   }
 
+  .usage-summary dd,
   .performance-summary dd {
     margin: 0;
     font-size: 1.2rem;
