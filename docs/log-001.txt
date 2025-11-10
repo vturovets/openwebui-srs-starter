@@ -1,68 +1,154 @@
-INFO:     127.0.0.1:65292 - "POST /v1/voice HTTP/1.1" 500 Internal Server Error
-ERROR:    Exception in ASGI application
-Traceback (most recent call last):
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 409, in run_asgi
-    result = await app(  # type: ignore[func-returns-value]
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
-    return await self.app(scope, receive, send)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\applications.py", line 1134, in __call__
-    await super().__call__(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\applications.py", line 113, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
-    raise exc
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
-    await self.app(scope, receive, _send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\middleware\cors.py", line 93, in __call__
-    await self.simple_response(scope, receive, send, request_headers=headers)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\middleware\cors.py", line 144, in simple_response
-    await self.app(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
-    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
-    raise exc
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
-    await app(scope, receive, sender)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
-    await self.app(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
-    await route.handle(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
-    await self.app(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\routing.py", line 125, in app
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
-    raise exc
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
-    await app(scope, receive, sender)
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\routing.py", line 111, in app
-    response = await f(request)
-               ^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\routing.py", line 381, in app
-    solved_result = await solve_dependencies(
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\dependencies\utils.py", line 643, in solve_dependencies
-    solved = await run_in_threadpool(call, **solved_result.values)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\concurrency.py", line 38, in run_in_threadpool
-    return await anyio.to_thread.run_sync(func)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\anyio\to_thread.py", line 56, in run_sync
-    return await get_async_backend().run_sync_in_worker_thread(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2485, in run_sync_in_worker_thread
-    return await future
-           ^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 976, in run
-    result = context.run(func, *args)
-             ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\dependencies.py", line 128, in get_stt_client
-    return FasterWhisperSpeechToTextClient(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\integrations\stt.py", line 161, in __init__
-    raise SpeechToTextError(
-backend.app.integrations.stt.SpeechToTextError: faster-whisper must be installed to use the Whisper STT engine
+(.venv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest backend/tests/integrations/test_llm_client.py
+================================================================================= test session starts =================================================================================
+platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
+rootdir: C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search
+configfile: pyproject.toml
+plugins: anyio-4.11.0
+collected 4 items                                                                                                                                                                      
+
+backend\tests\integrations\test_llm_client.py ..F.                                                                                                                               [100%]
+
+====================================================================================== FAILURES =======================================================================================
+____________________________________________________________________ test_gemini_client_builds_structured_payload _____________________________________________________________________
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-213/test_gemini_client_builds_stru0')
+
+    def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
+        """The Gemini client should build structured requests and propagate metadata."""
+
+        captured: dict[str, object] = {}
+
+        structured_response = {
+            "airports": ["AMS", {"id": "ANR", "name": "Antwerp"}],
+            "destinations": [
+                "d7b4bb39-123d-1234-123f-1234567f",
+                {"id": "d7b4bb39-123e-1234-123d-1234567g", "name": "Greece"},
+            ],
+            "duration": "2007",
+            "flexibility": {"id": "3", "name": "+- 3 days"},
+            "dates": [
+                "2025-10-10",
+                {"phrase": "12 October 2025", "iso": "2025-10-12"},
+            ],
+        }
+
+        response_payload = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": json.dumps(structured_response),
+                            }
+                        ],
+                    },
+                    "finishReason": "STOP",
+                }
+            ],
+            "modelVersion": "2024-05-01",
+            "usageMetadata": {"promptTokenCount": 42},
+        }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["url"] = str(request.url)
+            captured["headers"] = dict(request.headers)
+            captured["json"] = json.loads(request.content.decode("utf-8"))
+
+            assert request.url.path == "/v1beta/models/gemini-1.5-flash:generateContent"
+            assert request.url.params["key"] == "gemini-key"
+            assert request.headers["Content-Type"] == "application/json"
+
+            return httpx.Response(
+                200,
+                json=response_payload,
+                headers={"x-request-id": "req-123", "x-trace-id": "trace-456"},
+            )
+
+        http_client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://generativelanguage.googleapis.com",
+        )
+
+        settings = _build_gemini_settings(tmp_path)
+        llm_client = GeminiStructuredLLMClient(
+            settings=settings,
+            fixtures_dir=settings.fixtures_dir,
+            http_client=http_client,
+        )
+
+>       payload = llm_client("Plan a sunny holiday")
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\integrations\test_llm_client.py:204:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+backend\app\integrations\gemini.py:292: in __call__
+    response = self._client.post(
+.venv\Lib\site-packages\httpx\_client.py:1144: in post
+    return self.request(
+.venv\Lib\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+.venv\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_transports\mock.py:24: in handle_request
+    response = self.handler(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+request = <Request('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gpt-4.1:generateContent?key=gemini-key')>
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["headers"] = dict(request.headers)
+        captured["json"] = json.loads(request.content.decode("utf-8"))
+
+>       assert request.url.path == "/v1beta/models/gemini-1.5-flash:generateContent"
+E       AssertionError: assert '/v1beta/mode...nerateContent' == '/v1beta/mode...nerateContent'
+E
+E         - /v1beta/models/gemini-1.5-flash:generateContent
+E         ?                 ^^^^^  --------
+E         + /v1beta/models/gpt-4.1:generateContent
+E         ?                 ^^ ++
+
+backend\tests\integrations\test_llm_client.py:182: AssertionError
+================================================================================== warnings summary =================================================================================== 
+backend\app\main.py:26
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py:26: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+.venv\Lib\site-packages\fastapi\applications.py:4575
+.venv\Lib\site-packages\fastapi\applications.py:4575
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\applications.py:4575: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)
+
+backend\app\main.py:31
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py:31: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================================================================== short test summary info =============================================================================== 
+FAILED backend/tests/integrations/test_llm_client.py::test_gemini_client_builds_structured_payload - AssertionError: assert '/v1beta/mode...nerateContent' == '/v1beta/mode...nerateContent'
+======================================================================= 1 failed, 3 passed, 4 warnings in 0.82s ======================================================================= 
