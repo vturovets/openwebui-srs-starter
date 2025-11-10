@@ -34,6 +34,26 @@ def test_methods_catalog_expands_env_defaults(monkeypatch) -> None:
     assert llm.config["api_base"] == "https://example.test/v1"
 
 
+def test_methods_catalog_includes_google_gemini(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_GENAI_BASE", "https://generativelanguage.test/v1beta")
+    monkeypatch.setenv("GOOGLE_GENAI_MODEL", "models/gemini-pro-custom")
+
+    catalog = load_methods_catalog(METHODS_FILE)
+
+    gemini = catalog.methods["gemini-1.5-pro"]
+    assert gemini.config["provider"] == "google"
+    assert gemini.config["api_base"] == "https://generativelanguage.test/v1beta"
+    assert gemini.config["model"] == "models/gemini-pro-custom"
+    assert gemini.config["api_key_env"] == "GOOGLE_GENAI_API_KEY"
+    assert gemini.params["temperature"] == 0.2
+    assert gemini.params["top_p"] == 0.95
+    assert gemini.params["timeout_s"] == 45
+
+    metadata = gemini.to_metadata()
+    assert metadata["provider"] == "google"
+    assert metadata["api_key_env"] == "GOOGLE_GENAI_API_KEY"
+
+
 def test_methods_catalog_honours_explicit_default(tmp_path: Path) -> None:
     methods_yaml = tmp_path / "methods.yaml"
     methods_yaml.write_text(
