@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import AsyncIterator, Callable, Iterable, Iterator, Mapping
+from typing import AsyncIterator, Iterable, Iterator
 
 from .config import Settings
 from .pipeline.configuration import MethodsCatalog
@@ -15,7 +15,7 @@ from .integrations.stt import (
     SpeechToTextError,
     TranscriptionResult,
 )
-from .integrations.llm import HolidaySearchLLMClient
+from .integrations.llm import LLMClientRegistry
 from .logging.csv_logger import CSVLogger
 
 
@@ -75,21 +75,24 @@ def get_pipeline() -> HolidaySearchPipeline:
     return HolidaySearchPipeline(
         settings=settings,
         fixtures_dir=settings.fixtures_dir,
-        llm_client=get_llm_client(),
+        llm_registry=get_llm_client(),
         methods_catalog=get_methods_catalog(),
     )
 
 
 @lru_cache
-def get_llm_client() -> Callable[[str], Mapping[str, object]] | None:
-    """Instantiate the configured LLM client when credentials are provided."""
+def get_llm_client() -> LLMClientRegistry | None:
+    """Instantiate LLM clients for configured methods when credentials are present."""
 
     settings = get_settings()
-    if not (settings.llm_api_key and settings.llm_api_key.strip()):
-        return None
+    catalog = get_methods_catalog()
 
-    client = HolidaySearchLLMClient(settings=settings, fixtures_dir=settings.fixtures_dir)
-    return client
+    registry = LLMClientRegistry.from_methods_catalog(
+        settings=settings,
+        catalog=catalog,
+        fixtures_dir=settings.fixtures_dir,
+    )
+    return registry if len(registry) > 0 else None
 
 
 @lru_cache
