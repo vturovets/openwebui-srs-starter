@@ -73,6 +73,9 @@ serving traffic. Key options mirror the SRS:
 | `LLM_API_BASE` | _(unset)_ | Override the LLM provider base URL when using a proxy or self-hosted gateway. |
 | `LLM_API_KEY` | _(unset)_ | Credential passed to the structured LLM client when `LLM_METHOD=llm` or `hybrid`. |
 | `LLM_MODEL` | `gpt-3.5-turbo` | Model identifier requested from the LLM provider. |
+| `GOOGLE_GENAI_API_KEY` | _(unset)_ | API key used when enabling the Gemini catalogue entry in `config/methods.yaml`. |
+| `GOOGLE_GENAI_BASE` | `https://generativelanguage.googleapis.com/v1beta` | Override the Gemini REST endpoint when routing through a proxy. |
+| `GOOGLE_GENAI_MODEL` | `models/gemini-1.5-pro` | Gemini model identifier passed to Google's API when the method is active. |
 | `LLM_TIMEOUT` | `30` | Client-side timeout (seconds) for outbound LLM requests. |
 | `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled (e.g., `deepgram`, `faster-whisper`). |
 | `DEEPGRAM_API_KEY` | _(unset)_ | API key for Deepgram when `STT_ENGINE=deepgram`. |

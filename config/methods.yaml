@@ -34,6 +34,20 @@ methods:
     params:
       temperature: 0.1
 
+  - id: gemini-1.5-pro
+    type: llm
+    enabled: true
+    provider: google
+    model: ${GOOGLE_GENAI_MODEL:-models/gemini-1.5-pro}
+    api_base: ${GOOGLE_GENAI_BASE:-https://generativelanguage.googleapis.com/v1beta}
+    api_key_env: GOOGLE_GENAI_API_KEY
+    params:
+      temperature: 0.2
+      top_p: 0.95
+      top_k: 32
+      max_output_tokens: 1024
+      timeout_s: 45
+
   - id: hybrid-v1
     type: hybrid
     enabled: true
