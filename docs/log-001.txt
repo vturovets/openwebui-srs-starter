@@ -1,15 +1,5 @@
-INFO:     127.0.0.1:53225 - "POST /v1/parse HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:65292 - "POST /v1/voice HTTP/1.1" 500 Internal Server Error
 ERROR:    Exception in ASGI application
-Traceback (most recent call last):
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\integrations\llm.py", line 104, in __call__
-    response.raise_for_status()
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
-    raise HTTPStatusError(message, request=request, response=self)
-httpx.HTTPStatusError: Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
-
-The above exception was the direct cause of the following exception:
-
 Traceback (most recent call last):
   File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 409, in run_asgi
     result = await app(  # type: ignore[func-returns-value]
@@ -52,31 +42,27 @@ Traceback (most recent call last):
   File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\routing.py", line 111, in app
     response = await f(request)
                ^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\routing.py", line 391, in app
-    raw_response = await run_endpoint_function(
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\routing.py", line 290, in run_endpoint_function
-    return await dependant.call(**values)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\api\routes.py", line 461, in parse_text
-    result = pipeline.run(payload.text, method=payload.method)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\pipeline\pipeline.py", line 192, in run
-    outcome = self._run_single_pass(resolved, utterance, detection.language, timings)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\pipeline\pipeline.py", line 94, in _run_single_pass
-    extraction = self._measure(
-                 ^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\pipeline\pipeline.py", line 81, in _measure
-    return func()
-           ^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\pipeline\pipeline.py", line 99, in <lambda>
-    else (lambda: self._llm_extractor.extract(utterance)),
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\pipeline\extractors.py", line 100, in extract
-    payload = self._llm_client(utterance)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\integrations\llm.py", line 106, in __call__
-    raise RuntimeError(f"LLM provider request failed: {exc}") from exc
-RuntimeError: LLM provider request failed: Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\routing.py", line 381, in app
+    solved_result = await solve_dependencies(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\dependencies\utils.py", line 643, in solve_dependencies
+    solved = await run_in_threadpool(call, **solved_result.values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\starlette\concurrency.py", line 38, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\anyio\to_thread.py", line 56, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2485, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 976, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\dependencies.py", line 128, in get_stt_client
+    return FasterWhisperSpeechToTextClient(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\integrations\stt.py", line 161, in __init__
+    raise SpeechToTextError(
+backend.app.integrations.stt.SpeechToTextError: faster-whisper must be installed to use the Whisper STT engine
