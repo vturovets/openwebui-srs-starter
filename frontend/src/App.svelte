@@ -13,6 +13,8 @@
   } from './lib/types';
   import { CSV_LOG_FIELDS } from './lib/types';
   import { getExtractedValueRows } from './lib/extractedValues';
+  import { parseCsv } from './lib/csv';
+  import { compareExpectedValues, parseExpectedValues } from './lib/importUtils';
 
   const metaEnv = (import.meta as any)?.env ?? {};
   const baseUrl = (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
@@ -30,6 +32,7 @@
   let busy = false;
   let downloadAnchor: HTMLAnchorElement | null = null;
   let downloadUrl: string | null = null;
+  let importInput: HTMLInputElement | null = null;
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
 
@@ -111,6 +114,26 @@
     return `entry-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
+  function createEntry(
+    source: 'text' | 'voice',
+    result: HolidayResult,
+    input: string
+  ): HolidayResultEntry {
+    const resolvedInput = input || result.transcript || '';
+    return {
+      id: generateId(),
+      source,
+      input: resolvedInput,
+      result,
+      prompt: buildClarificationPrompt(result),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  function addEntry(entry: HolidayResultEntry) {
+    history = [entry, ...history];
+  }
+
   function formatDefaultParticipants(defaults?: FixturesConfigurationDefaults): string {
     if (!defaults) {
       return '—';
@@ -164,18 +187,7 @@
     result: HolidayResult,
     input: string
   ) {
-    const resolvedInput = input || result.transcript || '';
-    history = [
-      {
-        id: generateId(),
-        source,
-        input: resolvedInput,
-        result,
-        prompt: buildClarificationPrompt(result),
-        timestamp: new Date().toISOString(),
-      },
-      ...history,
-    ];
+    addEntry(createEntry(source, result, input));
   }
 
   async function handleSubmit(event: Event) {
@@ -211,6 +223,81 @@
 
   async function handleVoiceUpload(formData: FormData) {
     return postVoice(baseUrl, formData);
+  }
+
+  function triggerImport() {
+    if (importInput) {
+      importInput.click();
+    }
+  }
+
+  async function handleImportChange(event: Event) {
+    const target = event.currentTarget as HTMLInputElement | null;
+    if (!target?.files || target.files.length === 0) {
+      return;
+    }
+
+    const [file] = target.files;
+    busy = true;
+    try {
+      const text = await file.text();
+      const records = parseCsv(text);
+
+      for (const record of records) {
+        const userInput = (record['User input'] ?? '').trim();
+        if (!userInput) {
+          continue;
+        }
+
+        const expectedRaw = record['Expected values'] ?? '';
+        const expectedValues = parseExpectedValues(expectedRaw);
+
+        try {
+          const payload = await parseText(baseUrl, userInput, {
+            mode,
+            method: method || undefined,
+          });
+
+          let entry = createEntry('text', payload, userInput);
+
+          if (expectedValues.length) {
+            const actualRows = getExtractedValueRows(entry);
+            const mismatches = compareExpectedValues(actualRows, expectedValues);
+
+            if (mismatches.length) {
+              const updatedResult: HolidayResult = {
+                ...payload,
+                status: 'failed',
+                metadata: {
+                  ...payload.metadata,
+                  expectedValueMismatches: mismatches,
+                },
+              };
+
+              entry = {
+                ...entry,
+                result: updatedResult,
+                prompt: buildClarificationPrompt(updatedResult),
+              };
+            }
+          }
+
+          addEntry(entry);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unable to parse request';
+          const failureResult: HolidayResult = {
+            status: 'error',
+            data: {},
+            metadata: { message },
+            clarifications: [],
+          };
+          addEntry(createEntry('text', failureResult, userInput));
+        }
+      }
+    } finally {
+      busy = false;
+      target.value = '';
+    }
   }
 
 
@@ -346,6 +433,14 @@
 
       <div class="actions">
         <button type="submit" disabled={busy} data-testid="submit-button">{busy ? 'Parsing…' : 'Parse request'}</button>
+        <button
+          type="button"
+          on:click={triggerImport}
+          disabled={busy}
+          data-testid="import-button"
+        >
+          Import CSV
+        </button>
         <button type="button" on:click={exportCsv} data-testid="export-button">Export CSV</button>
       </div>
     </form>
@@ -369,6 +464,16 @@
     {/if}
   </section>
 
+  <input
+    bind:this={importInput}
+    class="visually-hidden"
+    type="file"
+    accept=".csv,text/csv"
+    on:change={handleImportChange}
+    aria-hidden="true"
+    data-testid="import-input"
+    tabindex="-1"
+  />
   <a bind:this={downloadAnchor} class="visually-hidden" aria-hidden="true" tabindex="-1"></a>
 </main>
 

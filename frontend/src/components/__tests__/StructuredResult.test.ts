@@ -34,4 +34,34 @@ describe('StructuredResult', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('[object Object]')).toBeNull();
   });
+
+  it('renders expected value mismatches when provided', () => {
+    const entry: HolidayResultEntry = {
+      id: 'entry-2',
+      source: 'text',
+      input: 'Find a trip to Italy',
+      prompt: '',
+      timestamp: '2025-01-01T12:00:00.000Z',
+      result: {
+        status: 'failed',
+        data: { from: ['AMS'], to: ['Italy'] },
+        metadata: {
+          timings: {},
+          expectedValueMismatches: [
+            { label: 'To', expected: 'Spain', actual: 'Italy' },
+            { label: 'Duration', expected: '7 nights', actual: '' },
+          ],
+        },
+      },
+    };
+
+    render(StructuredResult, { entry });
+
+    const summaryHeading = screen.getByText('Expected value mismatches:');
+    expect(summaryHeading).toBeInTheDocument();
+    const summaryContainer = summaryHeading.closest('div');
+    const normalised = summaryContainer?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    expect(normalised).toMatch(/expected “Spain” but got “\s*Italy”/);
+    expect(normalised).toMatch(/expected “7 nights” but got “\s*—”/);
+  });
 });

@@ -19,6 +19,11 @@ export type HolidayResult = {
     };
     missingFields?: string[];
     invalidFields?: string[];
+    expectedValueMismatches?: Array<{
+      label: string;
+      expected: string;
+      actual: string;
+    }>;
   };
   clarifications?: Array<{ parameter: string; message: string; reason: string }>;
   transcript?: string;

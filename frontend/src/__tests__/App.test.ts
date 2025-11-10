@@ -238,6 +238,35 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('issue-summary')).toBeInTheDocument();
   });
 
+  it('imports CSV requests and flags expected mismatches', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const csvContent = 'User input,Expected values\n"Find a trip","From: Amsterdam | To: Spain"\n';
+    const file = {
+      name: 'requests.csv',
+      type: 'text/csv',
+      text: () => Promise.resolve(csvContent),
+    } as unknown as File;
+    const importInput = screen.getByTestId('import-input') as HTMLInputElement;
+    Object.defineProperty(importInput, 'files', {
+      value: [file],
+      configurable: true,
+    });
+    await fireEvent.change(importInput);
+
+    await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+    expect(screen.getByTestId('status-label')).toHaveTextContent('failed');
+    expect(screen.getByText('Expected value mismatches:')).toBeInTheDocument();
+
+    component.$destroy();
+  });
+
   it('exports backend-compatible CSV for the current session history', async () => {
     const originalCreateObjectURL = (globalThis.URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
     const createObjectURLSpy = vi.fn(() => 'blob:mock-url');
