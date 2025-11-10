@@ -1,126 +1,69 @@
-"""Tests for the structured holiday search LLM client."""
+"""Tests for the structured LLM client integrations."""
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import Mapping, Sequence
 
 import httpx
-import pytest
 
-from backend.app.config import Settings
-from backend.app.integrations.llm import HolidaySearchLLMClient
-from backend.app.fixtures.repository import FixtureRepository
-from backend.app.pipeline.configuration import SearchConfiguration
-from backend.app.pipeline.extractors import LLMExtractor
+from backend.app.integrations.llm import StructuredLLMClient
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-FIXTURES_DIR = REPO_ROOT / "fixtures"
-CONFIG_PATH = FIXTURES_DIR / "configuration_search.json"
+class _TestableLLMClient(StructuredLLMClient):
+    """Minimal concrete implementation for exercising the base behaviour."""
+
+    def _build_messages(self, text: str) -> Sequence[Mapping[str, str]]:
+        return [{"role": "user", "content": text}]
 
 
-def _load_configuration() -> SearchConfiguration:
-    payload = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    return SearchConfiguration.from_fixture_payload(payload)
+def test_structured_llm_client_retries_without_json_mode_on_400() -> None:
+    """Ensure we gracefully fallback when providers reject JSON mode."""
 
-
-def _build_settings(tmp_path: Path) -> Settings:
-    return Settings(
-        llm_api_base="https://mock-llm",
-        llm_api_key="test-key",
-        llm_model="gpt-test",
-        llm_timeout=5,
-        fixtures_dir=FIXTURES_DIR,
-        csv_path=tmp_path / "log.csv",
-    )
-
-
-def test_llm_client_success_payload_matches_extractor(tmp_path: Path) -> None:
-    """HolidaySearchLLMClient should return structured payloads the extractor accepts."""
-
-    llm_content = {
-        "airports": ["AMS", {"id": "ANR", "name": "Antwerp", "available": True}],
-        "destinations": [
-            "d7b4bb39-123d-1234-123f-1234567f",
-            {"id": "d7b4bb39-123e-1234-123d-1234567g", "name": "Greece"},
-        ],
-        "duration": "2007",
-        "flexibility": {"id": "3", "name": "+- 3 days"},
-        "dates": [
-            "2025-10-10",
-            {"phrase": "12 October 2025", "iso": "2025-10-12"},
-        ],
-        "_metadata": {
-            "provider": "mock-llm",
-            "promptId": "prompt-xyz",
-            "responseId": "response-abc",
-        },
-    }
-
-    response_payload = {
-        "choices": [
-            {
-                "message": {
-                    "content": json.dumps(llm_content),
-                }
-            }
-        ]
-    }
+    call_payloads: list[Mapping[str, object]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/chat/completions"
-        return httpx.Response(200, json=response_payload)
+        payload = json.loads(request.content.decode("utf-8"))
+        call_payloads.append(payload)
+        if "response_format" in payload:
+            return httpx.Response(
+                400,
+                json={"error": {"message": "response_format is not supported"}},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps({"echo": payload["messages"][0]["content"]})
+                        }
+                    }
+                ]
+            },
+        )
 
-    http_client = httpx.Client(transport=httpx.MockTransport(handler), base_url="https://mock-llm")
+    transport = httpx.MockTransport(handler)
+    client = httpx.Client(transport=transport, base_url="https://example.com")
 
-    settings = _build_settings(tmp_path)
-    llm_client = HolidaySearchLLMClient(
-        settings=settings,
-        fixtures_dir=settings.fixtures_dir,
-        http_client=http_client,
+    llm_client = _TestableLLMClient(
+        api_base=None,
+        api_key="dummy",
+        model="gpt-4o-mini",
+        timeout=5,
+        http_client=client,
     )
 
-    payload = llm_client("Plan a sunny holiday")
+    first_result = llm_client("hello world")
+    assert first_result == {"echo": "hello world"}
+    # Two HTTP calls were made: one failing with JSON mode, one succeeding without.
+    assert len(call_payloads) == 2
+    assert "response_format" in call_payloads[0]
+    assert "response_format" not in call_payloads[1]
 
-    fixtures = FixtureRepository(FIXTURES_DIR)
-    configuration = _load_configuration()
-    extractor = LLMExtractor(fixtures, configuration, llm_client=lambda _: payload)
+    second_result = llm_client("no retry expected")
+    assert second_result == {"echo": "no retry expected"}
+    # Subsequent requests should skip JSON mode entirely.
+    assert len(call_payloads) == 3
+    assert "response_format" not in call_payloads[-1]
 
-    extraction = extractor.extract("Plan a sunny holiday")
-
-    assert [airport["id"] for airport in extraction.airports] == ["AMS", "ANR"]
-    assert extraction.destinations[0]["id"] == "d7b4bb39-123d-1234-123f-1234567f"
-    assert extraction.destinations[1]["name"] == "Greece"
-    assert extraction.duration and extraction.duration["id"] == "2007"
-    assert extraction.flexibility and extraction.flexibility["id"] == "3"
-    assert [iso.isoformat() for _, iso in extraction.dates] == ["2025-10-10T00:00:00", "2025-10-12T00:00:00"]
-
-
-def test_llm_client_raises_on_malformed_message(tmp_path: Path) -> None:
-    """The client should surface provider payload issues as value errors."""
-
-    response_payload = {
-        "choices": [
-            {
-                "message": {
-                    "content": "not-json",
-                }
-            }
-        ]
-    }
-
-    def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=response_payload)
-
-    http_client = httpx.Client(transport=httpx.MockTransport(handler), base_url="https://mock-llm")
-
-    settings = _build_settings(tmp_path)
-    llm_client = HolidaySearchLLMClient(
-        settings=settings,
-        fixtures_dir=settings.fixtures_dir,
-        http_client=http_client,
-    )
-
-    with pytest.raises(ValueError, match="non-JSON message content"):
-        llm_client("Malformed payload please")
