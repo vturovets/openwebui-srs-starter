@@ -1,17 +1,331 @@
-(.venv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest backend/tests/integrations/test_llm_client.py
 ================================================================================= test session starts =================================================================================
 platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
 rootdir: C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search
 configfile: pyproject.toml
+testpaths: backend/tests
 plugins: anyio-4.11.0
-collected 4 items                                                                                                                                                                      
+collected 69 items                                                                                                                                                                     
 
-backend\tests\integrations\test_llm_client.py ..F.                                                                                                                               [100%]
+backend\tests\api\test_cors_preflight.py .                                                                                                                                       [  1%]
+backend\tests\api\test_dialog_endpoint.py F.                                                                                                                                     [  4%]
+backend\tests\api\test_fixtures_endpoint.py .                                                                                                                                    [  5%]
+backend\tests\api\test_voice_endpoint.py F.....                                                                                                                                  [ 14%]
+backend\tests\fixtures\test_repository.py ...                                                                                                                                    [ 18%]
+backend\tests\integrations\test_llm_client.py F.F.                                                                                                                               [ 24%]
+backend\tests\integrations\test_stt_client.py ...                                                                                                                                [ 28%]
+backend\tests\logging\test_csv_logger.py ....                                                                                                                                    [ 34%]
+backend\tests\pipeline\test_methods_catalog.py ........                                                                                                                          [ 46%]
+backend\tests\pipeline\test_pipeline_components.py ..................                                                                                                            [ 72%]
+backend\tests\pipeline\test_pipeline_methods.py .......F....                                                                                                                     [ 89%]
+backend\tests\test_openwebui_connector.py ...                                                                                                                                    [ 94%] 
+backend\tests\test_openwebui_extension.py ....                                                                                                                                   [100%] 
 
-====================================================================================== FAILURES =======================================================================================
-____________________________________________________________________ test_gemini_client_builds_structured_payload _____________________________________________________________________
+====================================================================================== FAILURES ======================================================================================= 
+___________________________________________________________________________ test_dialog_clarification_flow ____________________________________________________________________________ 
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-213/test_gemini_client_builds_stru0')
+dialog_context = {'logger': CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-218/test_dialog_clarific...i-1.5-pro', 'hybrid-v1', 'gemini-2_5-pro'), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))}
+
+    def test_dialog_clarification_flow(dialog_context):
+        async def scenario() -> None:
+            settings = dialog_context["settings"]
+            orchestrator = dialog_context["orchestrator"]
+            logger = dialog_context["logger"]
+
+            first_request = DialogRequest(text="Plan a holiday from Amsterdam to Spain", mode="dialog")
+            first_response = await dialog_turn(first_request, settings=settings, orchestrator=orchestrator, logger=logger)
+            first_payload = first_response.model_dump(by_alias=True)
+
+            assert first_payload["status"] == "clarification"
+            assert first_payload["prompt"]["parameter"] == "departureDate"
+            assert first_payload["sessionId"]
+            assert first_payload["metadata"]["mode"] == "dialog"
+            assert first_payload["metadata"]["missingParameters"] == ["departureDate"]
+            assert len(first_payload["metadata"]["transcript"]) == 2
+
+            session_id = first_payload["sessionId"]
+
+            second_request = DialogRequest(text="Leaving on 10 October 2025", sessionId=session_id)
+            second_response = await dialog_turn(second_request, settings=settings, orchestrator=orchestrator, logger=logger)
+            second_payload = second_response.model_dump(by_alias=True)
+
+            assert second_payload["status"] == "success"
+            assert second_payload["sessionId"] == session_id
+            assert second_payload["prompt"] is None
+            assert second_payload["data"]["from"]
+            assert second_payload["data"]["to"]
+            assert second_payload["data"]["departureDate"]
+            assert second_payload["metadata"]["missingParameters"] == []
+            assert len(second_payload["metadata"]["transcript"]) == 3
+            assert second_payload["metadata"]["timings"]["thresholdBreached"] is False
+
+            with settings.csv_path.open(newline="", encoding="utf-8") as handle:
+                reader = csv.reader(handle)
+                rows = list(reader)
+
+            assert len(rows) == 3
+            header, first_row, second_row = rows
+
+            def index_for(field: str) -> int:
+                return header.index(field)
+
+            assert first_row[index_for("Pipeline Status")] == "Failed"
+            assert first_row[index_for("Request type")] == "Text"
+            assert first_row[index_for("Interaction Mode")] == "dialog"
+            first_output = json.loads(first_row[index_for("Output")])
+            assert first_output["status"] == "clarification"
+            assert first_output["validation"]["status"] == "failed"
+
+            assert second_row[index_for("Pipeline Status")] == "Success"
+            second_output = json.loads(second_row[index_for("Output")])
+            assert second_output["status"] == "success"
+            assert second_output["data"]["from"]
+
+>       asyncio.run(scenario())
+
+backend\tests\api\test_dialog_endpoint.py:98:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:685: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def scenario() -> None:
+        settings = dialog_context["settings"]
+        orchestrator = dialog_context["orchestrator"]
+        logger = dialog_context["logger"]
+
+        first_request = DialogRequest(text="Plan a holiday from Amsterdam to Spain", mode="dialog")
+        first_response = await dialog_turn(first_request, settings=settings, orchestrator=orchestrator, logger=logger)
+        first_payload = first_response.model_dump(by_alias=True)
+
+        assert first_payload["status"] == "clarification"
+        assert first_payload["prompt"]["parameter"] == "departureDate"
+        assert first_payload["sessionId"]
+        assert first_payload["metadata"]["mode"] == "dialog"
+        assert first_payload["metadata"]["missingParameters"] == ["departureDate"]
+        assert len(first_payload["metadata"]["transcript"]) == 2
+
+        session_id = first_payload["sessionId"]
+
+        second_request = DialogRequest(text="Leaving on 10 October 2025", sessionId=session_id)
+        second_response = await dialog_turn(second_request, settings=settings, orchestrator=orchestrator, logger=logger)
+        second_payload = second_response.model_dump(by_alias=True)
+
+>       assert second_payload["status"] == "success"
+E       AssertionError: assert 'failed' == 'success'
+E
+E         - success
+E         + failed
+
+backend\tests\api\test_dialog_endpoint.py:66: AssertionError
+_______________________________________________________________________ test_voice_endpoint_noop_when_disabled ________________________________________________________________________ 
+
+    def test_voice_endpoint_noop_when_disabled():
+        async def scenario() -> None:
+            settings = Settings(voice_enabled=False)
+            upload = create_upload(b"fake", content_type="audio/wav")
+
+            response = await voice_endpoint(audio=upload, settings=settings)
+
+            assert isinstance(response, VoiceResponse)
+            assert response.status == "noop"
+            assert response.voice_enabled is False
+            assert response.transcript is None
+            assert response.metadata["mode"] == settings.interaction_mode
+
+>       asyncio.run(scenario())
+
+backend\tests\api\test_voice_endpoint.py:90:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:685: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\tests\api\test_voice_endpoint.py:82: in scenario
+    response = await voice_endpoint(audio=upload, settings=settings)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+audio = UploadFile(filename='audio.wav', size=None, headers=Headers({'content-type': 'audio/wav'}))
+settings = Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('data/log.csv'), csv_delimiter=';...'fixtures'), methods_config_path=WindowsPath('config/methods.yaml'), processing_threshold_ms=750, methods_catalog=None)
+pipeline = Depends(dependency=<functools._lru_cache_wrapper object at 0x00000221BF54D640>, use_cache=True, scope=None)
+logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x00000221BF54D7A0>, use_cache=True, scope=None)
+stt_client = Depends(dependency=<functools._lru_cache_wrapper object at 0x00000221BF54D900>, use_cache=True, scope=None)
+
+    @api_router.post("/voice", response_model=VoiceResponse)
+    async def voice_endpoint(
+        audio: UploadFile = File(...),
+        settings: Settings = Depends(get_settings),
+        pipeline: HolidaySearchPipeline = Depends(get_pipeline),
+        logger: CSVLogger = Depends(get_csv_logger),
+        stt_client: SpeechToTextClient | None = Depends(get_stt_client),
+    ) -> VoiceResponse:
+        """Transcribe an audio sample and feed it through the holiday search pipeline."""
+
+        total_start = perf_counter()
+
+        if not settings.voice_enabled:
+            await audio.close()
+            metadata = {
+                "timings": {"totalMs": (perf_counter() - total_start) * 1000},
+                "mode": settings.interaction_mode,
+            }
+            return VoiceResponse(
+                status="noop",
+                voice_enabled=False,
+                engine=None,
+                transcript=None,
+                words=[],
+                data=None,
+                metadata=metadata,
+            )
+
+        if stt_client is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Speech-to-text provider is not configured",
+            )
+
+        raw_content_type = (audio.content_type or "").lower()
+        base_content_type = raw_content_type.split(";")[0].strip() or raw_content_type
+        allowed_types = {item.lower() for item in settings.voice_allowed_content_types}
+        if base_content_type not in allowed_types:
+            await audio.close()
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Unsupported audio format",
+            )
+
+        file_obj = getattr(audio, "file", None)
+        if file_obj is not None:
+            try:
+                current_pos = file_obj.tell()
+            except (OSError, AttributeError):
+                current_pos = None
+            try:
+                file_obj.seek(0, 2)
+                size = file_obj.tell()
+            except (OSError, AttributeError):
+                size = None
+            finally:
+                try:
+                    if current_pos is None:
+                        file_obj.seek(0)
+                    else:
+                        file_obj.seek(current_pos)
+                except (OSError, AttributeError):
+                    pass
+            if size is not None and size > settings.voice_max_bytes:
+                await audio.close()
+                raise HTTPException(
+                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                    detail="Audio payload exceeds maximum allowed size",
+                )
+
+        try:
+            await audio.seek(0)
+        except (AttributeError, TypeError):
+            pass
+
+        class _AudioTooLargeError(Exception):
+            """Raised when the streamed payload exceeds the configured limit."""
+
+        async def audio_stream() -> AsyncIterator[bytes]:
+            remaining = settings.voice_max_bytes
+            try:
+                while True:
+                    chunk = await audio.read(8192)
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    if remaining < 0:
+                        raise _AudioTooLargeError
+                    yield chunk
+            finally:
+                await audio.close()
+
+        stt_start = perf_counter()
+        try:
+>           transcription: TranscriptionResult = await stt_client.transcribe(
+                                                       ^^^^^^^^^^^^^^^^^^^^^
+                content_type=raw_content_type or base_content_type,
+                stream=audio_stream(),
+            )
+E           AttributeError: 'Depends' object has no attribute 'transcribe'
+
+backend\app\api\routes.py:811: AttributeError
+__________________________________________________________________ test_llm_client_success_payload_matches_extractor __________________________________________________________________ 
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-218/test_llm_client_success_payloa0')
+
+    def test_llm_client_success_payload_matches_extractor(tmp_path: Path) -> None:
+        """HolidaySearchLLMClient should return structured payloads the extractor accepts."""
+
+        llm_content = {
+            "airports": ["AMS", {"id": "ANR", "name": "Antwerp", "available": True}],
+            "destinations": [
+                "d7b4bb39-123d-1234-123f-1234567f",
+                {"id": "d7b4bb39-123e-1234-123d-1234567g", "name": "Greece"},
+            ],
+            "duration": "2007",
+            "flexibility": {"id": "3", "name": "+- 3 days"},
+            "dates": [
+                "2025-10-10",
+                {"phrase": "12 October 2025", "iso": "2025-10-12"},
+            ],
+            "_metadata": {
+                "provider": "mock-llm",
+                "promptId": "prompt-xyz",
+                "responseId": "response-abc",
+            },
+        }
+
+        response_payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(llm_content),
+                    }
+                }
+            ]
+        }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/chat/completions"
+            return httpx.Response(200, json=response_payload)
+
+        http_client = httpx.Client(transport=httpx.MockTransport(handler), base_url="https://mock-llm")
+
+        settings = _build_settings(tmp_path)
+        llm_client = HolidaySearchLLMClient(
+            settings=settings,
+            fixtures_dir=settings.fixtures_dir,
+            http_client=http_client,
+        )
+
+        payload = llm_client("Plan a sunny holiday")
+
+        fixtures = FixtureRepository(FIXTURES_DIR)
+        configuration = _load_configuration()
+>       extractor = LLMExtractor(fixtures, configuration, llm_client=lambda _: payload)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: LLMExtractor.__init__() got an unexpected keyword argument 'llm_client'
+
+backend\tests\integrations\test_llm_client.py:100: TypeError
+____________________________________________________________________ test_gemini_client_builds_structured_payload _____________________________________________________________________ 
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-218/test_gemini_client_builds_stru0')
 
     def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
         """The Gemini client should build structured requests and propagate metadata."""
@@ -103,7 +417,7 @@ backend\app\integrations\gemini.py:292: in __call__
                ^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-request = <Request('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gpt-4.1:generateContent?key=gemini-key')>
+request = <Request('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=gemini-key')>
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = str(request.url)
@@ -114,13 +428,78 @@ request = <Request('POST', 'https://generativelanguage.googleapis.com/v1beta/mod
 E       AssertionError: assert '/v1beta/mode...nerateContent' == '/v1beta/mode...nerateContent'
 E
 E         - /v1beta/models/gemini-1.5-flash:generateContent
-E         ?                 ^^^^^  --------
-E         + /v1beta/models/gpt-4.1:generateContent
-E         ?                 ^^ ++
+E         ?                           ^^^^^
+E         + /v1beta/models/gemini-1.5-pro:generateContent
+E         ?                           ^^^
 
 backend\tests\integrations\test_llm_client.py:182: AssertionError
+__________________________________________________________________ test_pipeline_hybrid_triggers_configured_fallback __________________________________________________________________ 
+
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x00000221C3AA6B60>
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-218/test_pipeline_hybrid_triggers_0')
+
+    def test_pipeline_hybrid_triggers_configured_fallback(pipeline_factory, tmp_path: Path) -> None:
+        methods_yaml = tmp_path / "methods.yaml"
+        methods_yaml.write_text(
+            """
+    defaults:
+      timeout_s: 30
+      temperature: 0.0
+
+    methods:
+      - id: rules-basic
+        type: rules
+        enabled: true
+        params:
+          dictionary_filename: data/dictionary.csv
+          configuration_filename: configs/rules.conf
+
+      - id: gpt5-default
+        type: llm
+        enabled: true
+        provider: openai
+        model: gpt-5-chat-latest
+        api_base: https://api.openai.com/v1
+        api_key_env: OPENAI_API_KEY
+        params:
+          temperature: 0.1
+
+      - id: fallback-hybrid
+        type: hybrid
+        enabled: true
+        strategy: cascade
+        stages:
+          - ref: rules-basic
+        fallback: gpt5-default
+    """,
+            encoding="utf-8",
+        )
+
+        llm_payloads = {
+            "Fallback hybrid": {
+                "airports": ["AMS"],
+                "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+                "dates": ["2025-11-25"],
+            }
+        }
+        pipeline = pipeline_factory(
+            llm_payloads,
+            methods_config_path=methods_yaml,
+        )
+
+        result = pipeline.run("Fallback hybrid", method="fallback-hybrid")
+
+>       assert result.status == "success"
+E       AssertionError: assert 'failed' == 'success'
+E
+E         - success
+E         + failed
+
+backend\tests\pipeline\test_pipeline_methods.py:305: AssertionError
 ================================================================================== warnings summary =================================================================================== 
 backend\app\main.py:26
+backend/tests/api/test_cors_preflight.py::test_parse_endpoint_allows_preflight_request
+backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voice_configuration
   C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py:26: DeprecationWarning:
           on_event is deprecated, use lifespan event handlers instead.
 
@@ -131,6 +510,10 @@ backend\app\main.py:26
 
 .venv\Lib\site-packages\fastapi\applications.py:4575
 .venv\Lib\site-packages\fastapi\applications.py:4575
+backend/tests/api/test_cors_preflight.py::test_parse_endpoint_allows_preflight_request
+backend/tests/api/test_cors_preflight.py::test_parse_endpoint_allows_preflight_request
+backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voice_configuration
+backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voice_configuration
   C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\applications.py:4575: DeprecationWarning:
           on_event is deprecated, use lifespan event handlers instead.
 
@@ -140,6 +523,8 @@ backend\app\main.py:26
     return self.router.on_event(event_type)
 
 backend\app\main.py:31
+backend/tests/api/test_cors_preflight.py::test_parse_endpoint_allows_preflight_request
+backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voice_configuration
   C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py:31: DeprecationWarning:
           on_event is deprecated, use lifespan event handlers instead.
 
@@ -150,5 +535,9 @@ backend\app\main.py:31
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =============================================================================== short test summary info =============================================================================== 
+FAILED backend/tests/api/test_dialog_endpoint.py::test_dialog_clarification_flow - AssertionError: assert 'failed' == 'success'
+FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_noop_when_disabled - AttributeError: 'Depends' object has no attribute 'transcribe'
+FAILED backend/tests/integrations/test_llm_client.py::test_llm_client_success_payload_matches_extractor - TypeError: LLMExtractor.__init__() got an unexpected keyword argument 'llm_client'
 FAILED backend/tests/integrations/test_llm_client.py::test_gemini_client_builds_structured_payload - AssertionError: assert '/v1beta/mode...nerateContent' == '/v1beta/mode...nerateContent'
-======================================================================= 1 failed, 3 passed, 4 warnings in 0.82s ======================================================================= 
+FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_hybrid_triggers_configured_fallback - AssertionError: assert 'failed' == 'success'
+====================================================================== 5 failed, 64 passed, 12 warnings in 3.94s ====================================================================== 
