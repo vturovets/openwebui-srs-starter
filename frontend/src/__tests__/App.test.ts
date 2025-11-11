@@ -224,6 +224,23 @@ describe('Holiday search console', () => {
     expect(methodSelect.value).toBe('rules-basic');
   });
 
+  it('hides interaction mode selector when dialog mode is disabled', async () => {
+    fetchFixturesMock.mockResolvedValueOnce({
+      ...FIXTURE_RESPONSE,
+      mode: 'direct-parse',
+    });
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    expect(screen.queryByTestId('mode-select')).not.toBeInTheDocument();
+  });
+
   it('shows structured results with timings after parsing text', async () => {
     parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
     const { component } = render(App);
