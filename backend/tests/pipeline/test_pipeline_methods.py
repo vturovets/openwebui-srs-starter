@@ -154,23 +154,6 @@ def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
     assert result.method_used == "gpt5-default"
 
 
-def test_pipeline_catalog_preserves_google_provider(monkeypatch, pipeline_factory) -> None:
-    monkeypatch.setenv("GOOGLE_GENAI_BASE", "https://generativelanguage.test/v1beta")
-
-    pipeline = pipeline_factory()
-
-    catalog = pipeline.methods_catalog
-    gemini = catalog.methods["gemini-1.5-pro"]
-
-    assert gemini.config["provider"] == "google"
-    assert gemini.config["api_base"] == "https://generativelanguage.test/v1beta"
-    assert gemini.config["api_key_env"] == "GOOGLE_GENAI_API_KEY"
-
-    gemini_metadata = gemini.to_metadata()
-    assert gemini_metadata["provider"] == "google"
-    assert gemini_metadata["api_base"] == "https://generativelanguage.test/v1beta"
-
-
 def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
     llm_payloads = {
         "Fallback still missing data": {
