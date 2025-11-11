@@ -233,12 +233,17 @@ methods:
     assert result.status == "success"
     assert result.method_requested == "fallback-hybrid"
     assert result.method_used == "gpt5-default"
+    assert result.validation["status"] == "passed"
     hybrid_meta = result.metadata.get("hybrid", {})
     assert hybrid_meta.get("fallbackTriggered") is True
     assert hybrid_meta.get("fallback") == "gpt5-default"
+    assert hybrid_meta.get("selectedStage") == "gpt5-default"
     stages = hybrid_meta.get("stages", [])
     assert stages and stages[0]["id"] == "rules-basic"
     assert stages[-1].get("fallback") is True
+    assert stages[-1].get("status") == "success"
+    assert result.metadata.get("methodId") == "fallback-hybrid"
+    assert result.metadata.get("methodType") == "hybrid"
 
 
 def test_dependency_wiring_triggers_llm_when_configured(monkeypatch, tmp_path: Path) -> None:
