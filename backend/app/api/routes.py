@@ -727,8 +727,7 @@ async def voice_endpoint(
 
     total_start = perf_counter()
 
-    dependency_marker = fastapi_params.Depends
-    if isinstance(stt_client, dependency_marker) or not hasattr(stt_client, "transcribe"):
+    if isinstance(stt_client, fastapi_params.Depends):  # pragma: no cover - direct invocation safety
         stt_client = None
 
     if not settings.voice_enabled:
