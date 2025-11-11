@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from typing import AsyncIterator
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi import params as fastapi_params
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import Settings
@@ -726,9 +725,6 @@ async def voice_endpoint(
     """Transcribe an audio sample and feed it through the holiday search pipeline."""
 
     total_start = perf_counter()
-
-    if isinstance(stt_client, fastapi_params.Depends):  # pragma: no cover - direct invocation safety
-        stt_client = None
 
     if not settings.voice_enabled:
         await audio.close()
