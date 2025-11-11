@@ -34,6 +34,28 @@
   let downloadAnchor: HTMLAnchorElement | null = null;
   let downloadUrl: string | null = null;
   let importInput: HTMLInputElement | null = null;
+  let importInProgress = false;
+  function resolveBoolean(value: unknown, fallback: boolean): boolean {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) {
+        return true;
+      }
+      if (['false', '0', 'no', 'n', 'off'].includes(normalized)) {
+        return false;
+      }
+    }
+    return fallback;
+  }
+
+  const SHOW_ONLY_FAILED = resolveBoolean(
+    metaEnv?.SHOW_ONLY_FAILED ?? metaEnv?.VITE_SHOW_ONLY_FAILED,
+    true
+  );
+  let visibleHistory: HolidayResultEntry[] = [];
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const PERFORMANCE_P95_MIN_REQUESTS = 1000;
@@ -58,6 +80,18 @@
 
   let importPerformanceSummary: PerformanceSummary | null = null;
   let importUsageSummary: UsageSummary | null = null;
+
+  function isFailureEntry(entry: HolidayResultEntry): boolean {
+    const status = entry?.result?.status;
+    if (typeof status !== 'string') {
+      return true;
+    }
+    return status.trim().toLowerCase() !== 'success';
+  }
+
+  $: visibleHistory = SHOW_ONLY_FAILED
+    ? history.filter((entry) => !entry.imported || isFailureEntry(entry))
+    : history;
 
   function toFiniteNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -516,8 +550,10 @@
   function createEntry(
     source: 'text' | 'voice',
     result: HolidayResult,
-    input: string
+    input: string,
+    options: { imported?: boolean } = {}
   ): HolidayResultEntry {
+    const { imported = false } = options;
     const resolvedInput = input || result.transcript || '';
     return {
       id: generateId(),
@@ -526,6 +562,7 @@
       result,
       prompt: buildClarificationPrompt(result),
       timestamp: new Date().toISOString(),
+      imported,
     };
   }
 
@@ -637,6 +674,7 @@
     }
 
     const [file] = target.files;
+    importInProgress = true;
     busy = true;
     const totalValues: number[] = [];
     let totalSum = 0;
@@ -685,7 +723,7 @@
             method: method || undefined,
           });
 
-          let entry = createEntry('text', payload, userInput);
+          let entry = createEntry('text', payload, userInput, { imported: true });
 
           if (expectedValues.length) {
             const actualRows = getExtractedValueRows(entry);
@@ -718,11 +756,12 @@
             metadata: { message },
             clarifications: [],
           };
-          recordImportedEntry(createEntry('text', failureResult, userInput));
+          recordImportedEntry(createEntry('text', failureResult, userInput, { imported: true }));
         }
       }
     } finally {
       busy = false;
+      importInProgress = false;
       target.value = '';
       if (processedCount > 0) {
         importPerformanceSummary = calculatePerformanceSummary({
@@ -1005,8 +1044,10 @@
     <section class="results" aria-live="polite">
       {#if !history.length}
         <p data-testid="empty-state">Run a parse to see structured output.</p>
+      {:else if SHOW_ONLY_FAILED && !visibleHistory.length}
+        <p class="filter-empty" data-testid="import-filter-empty">No failed requests found.</p>
       {:else}
-        {#each history as entry (entry.id)}
+        {#each visibleHistory as entry (entry.id)}
           <StructuredResult {entry} />
         {/each}
       {/if}
@@ -1234,6 +1275,11 @@
     flex-direction: column;
     gap: 1rem;
     padding-top: 0.25rem;
+  }
+
+  .filter-empty {
+    text-align: center;
+    color: #94a3b8;
   }
 
   .error {

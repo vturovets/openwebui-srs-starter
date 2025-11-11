@@ -144,3 +144,23 @@ test('voice upload routes through parse flow and updates status indicators', asy
   );
 });
 
+test('import results only list failed requests by default', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('fixtures-loaded')).toBeVisible();
+
+  const csvContent = ['User input,Expected values', 'Missing destination,', 'Trip to Rome,'].join('\n');
+
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('import-button').click();
+  const chooser = await fileChooserPromise;
+  await chooser.setFiles({
+    name: 'requests.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csvContent, 'utf-8'),
+  });
+
+  await expect(page.getByTestId('structured-result')).toHaveCount(1);
+  await expect(page.getByTestId('status-label')).toHaveText('failed');
+  await expect(page.getByTestId('status-label')).not.toHaveText('success');
+});
+

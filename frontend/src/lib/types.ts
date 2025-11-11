@@ -49,6 +49,7 @@ export type HolidayResultEntry = {
   result: HolidayResult;
   prompt: string;
   timestamp: string;
+  imported?: boolean;
 };
 
 export type MethodMetadata = {
