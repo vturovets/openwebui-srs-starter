@@ -20,15 +20,42 @@ def build_transport():
                     "validation": {
                         "status": "failed",
                         "errors": [{"message": "missing destination"}],
-                    }
+                    },
+                    "availableMethods": [
+                        {"id": "rules-basic", "type": "rules"},
+                        {"id": "gpt5-default", "type": "llm"},
+                    ],
+                    "defaultMethod": "rules-basic",
+                    "methodDefaults": {"temperature": 0.0, "timeout_s": 30},
                 },
             }
             return type("Resp", (), {"status_code": 200, "body": json.dumps(payload)})()
         if path.endswith("v1/fixtures") and method == "GET":
-            payload = {"airports": [], "destinations": []}
+            payload = {
+                "airports": [],
+                "destinations": [],
+                "llmMethod": "rules-basic",
+                "llmMethodAlias": "rules",
+                "availableMethods": [
+                    {"id": "rules-basic", "type": "rules"},
+                    {"id": "gpt5-default", "type": "llm"},
+                ],
+                "defaultMethod": "rules-basic",
+                "methodDefaults": {"temperature": 0.0, "timeout_s": 30},
+            }
             return type("Resp", (), {"status_code": 200, "body": json.dumps(payload)})()
         if path.endswith("v1/voice") and method == "POST":
-            payload = {"status": "success", "voice_enabled": False, "metadata": {}}
+            payload = {
+                "status": "success",
+                "voice_enabled": False,
+                "metadata": {
+                    "availableMethods": [
+                        {"id": "rules-basic", "type": "rules"},
+                        {"id": "gpt5-default", "type": "llm"},
+                    ],
+                    "defaultMethod": "rules-basic",
+                },
+            }
             return type("Resp", (), {"status_code": 200, "body": json.dumps(payload)})()
         return type("Resp", (), {"status_code": 404, "body": json.dumps({"detail": "not found"})})()
 
@@ -47,6 +74,9 @@ def test_parse_result_reports_validation_errors() -> None:
     assert isinstance(result, ParseResult)
     assert result.status == "success"
     assert result.validation_errors == ["missing destination"]
+    assert result.metadata["availableMethods"][1]["id"] == "gpt5-default"
+    assert result.metadata["defaultMethod"] == "rules-basic"
+    assert result.metadata["methodDefaults"]["timeout_s"] == 30
 
 
 def test_parse_error_raises_custom_exception() -> None:
@@ -74,6 +104,12 @@ def test_fixtures_and_voice_passthrough() -> None:
 
     fixtures = connector.fixtures()
     assert fixtures["airports"] == []
+    assert fixtures["llmMethod"] == "rules-basic"
+    assert fixtures["llmMethodAlias"] == "rules"
+    assert fixtures["defaultMethod"] == "rules-basic"
+    assert fixtures["availableMethods"][0]["id"] == "rules-basic"
+    assert fixtures["methodDefaults"] == {"temperature": 0.0, "timeout_s": 30}
 
     voice = connector.voice()
     assert voice["status"] == "success"
+    assert voice["metadata"]["availableMethods"][0]["id"] == "rules-basic"

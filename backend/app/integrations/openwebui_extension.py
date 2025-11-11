@@ -196,7 +196,15 @@ class HolidaySearchTool:
         enriched = dict(response)
         enriched["voiceEnabled"] = self.voice_enabled
         enriched["mode"] = self.interaction_mode
-        enriched["llmMethod"] = self.llm_method
+
+        backend_method = response.get("llmMethod")
+        if isinstance(backend_method, str) and backend_method:
+            enriched["llmMethod"] = backend_method
+        else:
+            enriched["llmMethod"] = self.llm_method
+
+        if "llmMethodAlias" not in enriched or not enriched.get("llmMethodAlias"):
+            enriched["llmMethodAlias"] = self.llm_method
         available_methods = response.get("availableMethods")
         if isinstance(available_methods, list):
             enriched["availableMethods"] = list(available_methods)

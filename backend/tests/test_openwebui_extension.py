@@ -31,6 +31,12 @@ def build_transport():
                             }
                         ]
                     },
+                    "availableMethods": [
+                        {"id": "rules-basic", "type": "rules"},
+                        {"id": "gpt5-default", "type": "llm"},
+                    ],
+                    "defaultMethod": "rules-basic",
+                    "methodDefaults": {"temperature": 0.0, "timeout_s": 30},
                     "recognizedEntities": {
                         "airports": ["AMS"],
                         "destinations": [],
@@ -43,12 +49,27 @@ def build_transport():
             payload = {
                 "airports": ["AMS", "LGW"],
                 "destinations": ["Italy"],
+                "llmMethod": "rules-basic",
+                "llmMethodAlias": "rules",
+                "availableMethods": [
+                    {"id": "rules-basic", "type": "rules"},
+                    {"id": "gpt5-default", "type": "llm"},
+                ],
+                "defaultMethod": "rules-basic",
+                "methodDefaults": {"temperature": 0.0, "timeout_s": 30},
             }
             return type("Resp", (), {"status_code": 200, "body": json.dumps(payload)})()
         if path.endswith("v1/voice") and method == "POST":
             payload = {
                 "status": "success",
-                "metadata": {"timings": {"totalMs": 75.0}},
+                "metadata": {
+                    "timings": {"totalMs": 75.0},
+                    "availableMethods": [
+                        {"id": "rules-basic", "type": "rules"},
+                        {"id": "gpt5-default", "type": "llm"},
+                    ],
+                    "defaultMethod": "rules-basic",
+                },
             }
             return type("Resp", (), {"status_code": 200, "body": json.dumps(payload)})()
         return type("Resp", (), {"status_code": 404, "body": json.dumps({"detail": "not found"})})()
@@ -66,6 +87,9 @@ def test_parse_wraps_metadata() -> None:
     assert payload["status"] == "failed"
     assert payload["metadata"]["mode"] == "dialog"
     assert payload["metadata"]["recognizedSummaries"]["airports"] == ["AMS"]
+    assert payload["metadata"]["availableMethods"][0]["id"] == "rules-basic"
+    assert payload["metadata"]["defaultMethod"] == "rules-basic"
+    assert payload["metadata"]["methodDefaults"]["temperature"] == 0.0
     assert payload["clarifications"][0]["parameter"] == "to"
 
 
@@ -83,9 +107,14 @@ def test_fixtures_include_runtime_flags() -> None:
     fixtures = tool.fixtures()
     assert fixtures["voiceEnabled"] is True
     assert fixtures["mode"] == "dialog"
-    assert fixtures["llmMethod"] == "rules"
-    assert fixtures["defaultMethod"] == "rules"
-    assert fixtures["availableMethods"] == []
+    assert fixtures["llmMethod"] == "rules-basic"
+    assert fixtures["llmMethodAlias"] == "rules"
+    assert fixtures["defaultMethod"] == "rules-basic"
+    assert [method["id"] for method in fixtures["availableMethods"]] == [
+        "rules-basic",
+        "gpt5-default",
+    ]
+    assert fixtures["methodDefaults"] == {"temperature": 0.0, "timeout_s": 30}
 
 
 def test_voice_passthrough_enriches_metadata() -> None:
@@ -96,6 +125,7 @@ def test_voice_passthrough_enriches_metadata() -> None:
 
     response = tool.voice({"mock": True})
     assert response["metadata"]["mode"] == "direct-parse"
+    assert response["metadata"]["availableMethods"][1]["id"] == "gpt5-default"
 
 
 def test_dialog_payload_requires_mapping() -> None:
