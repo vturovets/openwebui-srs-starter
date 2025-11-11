@@ -27,6 +27,7 @@
   type MethodOption = { id: string; label: string };
 
   let mode = 'direct-parse';
+  let dialogOverrideAllowed = false;
   let method = '';
   let methodOptions: MethodOption[] = [];
   let busy = false;
@@ -467,11 +468,16 @@
     return options;
   }
 
+  function isDialogMode(value: unknown): boolean {
+    return typeof value === 'string' && value.trim().toLowerCase() === 'dialog';
+  }
+
   onMount(async () => {
     try {
       const data = await fetchFixtures(baseUrl);
       fixtures = data;
       mode = data.mode;
+      dialogOverrideAllowed = isDialogMode(data.mode);
       methodOptions = normaliseMethodOptions(data?.availableMethods);
       method = typeof data.llmMethod === 'string' ? data.llmMethod : '';
       if (method && !methodOptions.some((option) => option.id === method)) {
@@ -483,6 +489,10 @@
       loadingFixtures = false;
     }
   });
+
+  $: if (!dialogOverrideAllowed && mode !== 'direct-parse') {
+    mode = 'direct-parse';
+  }
 
   function buildClarificationPrompt(result: HolidayResult): string {
     const clarifications = result.clarifications ?? [];
@@ -856,13 +866,15 @@
         </select>
       </label>
 
-      <label>
-        Interaction mode
-        <select bind:value={mode} data-testid="mode-select">
-          <option value="direct-parse">Direct parse</option>
-          <option value="dialog">Dialog</option>
-        </select>
-      </label>
+      {#if dialogOverrideAllowed}
+        <label>
+          Interaction mode
+          <select bind:value={mode} data-testid="mode-select">
+            <option value="direct-parse">Direct parse</option>
+            <option value="dialog">Dialog</option>
+          </select>
+        </label>
+      {/if}
 
       <label class="full-width">
         Ask for a holiday
