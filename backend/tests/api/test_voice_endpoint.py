@@ -49,9 +49,15 @@ class StubPipeline:
 
 
 class StubSTTClient:
-    def __init__(self, transcript: str = "turn voice into text", duration_ms: float = 80.0) -> None:
+    def __init__(
+        self,
+        transcript: str = "turn voice into text",
+        duration_ms: float = 80.0,
+        word_timings: list[tuple[float, float]] | None = None,
+    ) -> None:
         self.transcript = transcript
         self.duration_ms = duration_ms
+        self.word_timings = word_timings
 
     async def transcribe(self, *, content_type: str, stream):
         collected = bytearray()
@@ -62,9 +68,26 @@ class StubSTTClient:
         # Emulate provider latency by sleeping for the configured duration
         await asyncio.sleep(self.duration_ms / 1000.0)
 
+        transcript_words = self.transcript.split()
+        if self.word_timings is None:
+            total_duration_s = self.duration_ms / 1000.0
+            count = len(transcript_words)
+            if count:
+                step = total_duration_s / count
+                timings: list[tuple[float, float]] = []
+                start = 0.0
+                for _ in range(count):
+                    end = start + step
+                    timings.append((start, end))
+                    start = end
+            else:
+                timings = []
+        else:
+            timings = list(self.word_timings)
+
         words = [
-            TranscribedWord(word=part, start=index * 0.5, end=index * 0.5 + 0.4)
-            for index, part in enumerate(self.transcript.split(), start=0)
+            TranscribedWord(word=part, start=start, end=end)
+            for part, (start, end) in zip(transcript_words, timings)
         ]
         return TranscriptionResult(text=self.transcript, words=words)
 
@@ -183,7 +206,16 @@ def test_voice_endpoint_transcribes_and_logs(tmp_path):
 
         timings = response.metadata["timings"]
         assert timings["pipelineTotalMs"] == pytest.approx(150.0)
-        assert timings["sttMs"] >= 60.0
+
+        if response.words:
+            first_word = response.words[0]
+            last_word = response.words[-1]
+            word_span_ms = (last_word.end - first_word.start) * 1000
+        else:
+            word_span_ms = 0.0
+
+        minimum_expected = max(stt_client.duration_ms, word_span_ms)
+        assert timings["sttMs"] >= minimum_expected
         assert timings["totalMs"] >= timings["sttMs"] + pipeline_timings["totalMs"]
         assert timings["thresholdBreached"] == (timings["totalMs"] > settings.processing_threshold_ms)
 
@@ -194,6 +226,45 @@ def test_voice_endpoint_transcribes_and_logs(tmp_path):
         assert log_entry["Processing Time"] == f"{timings['totalMs']:.2f}"
         assert log_entry["Language Detection"][0] == "20.00"
         assert "en" in log_entry["Language Detection"][1]
+
+    asyncio.run(scenario())
+
+
+def test_voice_endpoint_uses_word_timing_guard(tmp_path):
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            voice_max_bytes=1024,
+            csv_path=tmp_path / "voice-log.csv",
+        )
+        pipeline = StubPipeline()
+        logger = StubLogger()
+        stretched_word_timings = [(0.0, 0.05), (0.05, 0.1), (0.1, 0.15)]
+        stt_client = StubSTTClient(
+            transcript="timed words example",
+            duration_ms=30.0,
+            word_timings=stretched_word_timings,
+        )
+        upload = create_upload(b"audio", content_type="audio/wav")
+
+        response = await voice_endpoint(
+            audio=upload,
+            settings=settings,
+            pipeline=pipeline,
+            logger=logger,
+            stt_client=stt_client,
+        )
+
+        assert response.words
+        first_word = response.words[0]
+        last_word = response.words[-1]
+        word_span_ms = (last_word.end - first_word.start) * 1000
+
+        timings = response.metadata["timings"]
+        assert timings["sttMs"] >= stt_client.duration_ms
+        assert timings["sttMs"] == pytest.approx(word_span_ms, abs=1e-6)
 
     asyncio.run(scenario())
 

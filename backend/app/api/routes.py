@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from time import perf_counter
+from time import perf_counter, perf_counter_ns
 from collections.abc import Mapping
 
 from datetime import datetime, timezone
@@ -832,7 +832,7 @@ async def voice_endpoint(
         finally:
             await audio.close()
 
-    stt_start = perf_counter()
+    stt_start_ns = perf_counter_ns()
     try:
         transcription: TranscriptionResult = await stt_client.transcribe(
             content_type=raw_content_type or base_content_type,
@@ -846,7 +846,21 @@ async def voice_endpoint(
     except SpeechToTextError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
-    stt_ms = (perf_counter() - stt_start) * 1000
+    elapsed_ns = perf_counter_ns() - stt_start_ns
+    # Round up to the nearest microsecond expressed in milliseconds so that we do not
+    # under-report short durations due to floating point truncation.
+    stt_ms = (elapsed_ns + 999) // 1_000
+    stt_ms /= 1000
+
+    if transcription.words:
+        starts = [item.start for item in transcription.words]
+        ends = [item.end for item in transcription.words]
+        if starts and ends:
+            min_start = min(starts)
+            max_end = max(ends)
+            if max_end >= min_start:
+                word_span_ms = (max_end - min_start) * 1000
+                stt_ms = max(stt_ms, word_span_ms)
 
     transcript_text = transcription.text.strip()
     if not transcript_text:
