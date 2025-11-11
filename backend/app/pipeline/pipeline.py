@@ -6,11 +6,10 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Dict, List, Mapping, Optional, Set
+from typing import Any, Callable, Dict, List, Mapping, Optional, Set
 
 from ..config import Settings
 from ..fixtures.repository import FixtureRepository
-from ..integrations.llm import LLMClientHandle
 from .configuration import (
     HybridMethodConfig,
     MethodConfig,
@@ -51,7 +50,7 @@ class HolidaySearchPipeline:
         *,
         settings: Settings | None = None,
         fixtures_dir: str | Path | None = None,
-        llm_registry: Mapping[str, LLMClientHandle] | None = None,
+        llm_client: Callable[[str], Mapping[str, object]] | None = None,
         methods_catalog: MethodsCatalog | None = None,
     ) -> None:
         self._settings = settings or Settings()
@@ -70,7 +69,7 @@ class HolidaySearchPipeline:
         self._llm_extractor = LLMExtractor(
             self._fixtures,
             self._configuration,
-            llm_registry=llm_registry,
+            llm_client=llm_client,
         )
 
     def _load_search_configuration(self, fixtures_root: Path) -> SearchConfiguration:
@@ -113,7 +112,7 @@ class HolidaySearchPipeline:
                 timings,
                 (lambda: self._rules_extractor.extract(utterance, language=language))
                 if runtime_kind == "rules"
-                else (lambda: self._llm_extractor.extract(utterance, method=method)),
+                else (lambda: self._llm_extractor.extract(utterance)),
             )
         except ValueError as exc:
             detail = str(exc)

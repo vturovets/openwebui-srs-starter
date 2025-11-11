@@ -6,12 +6,7 @@ from .holiday_search_connector import (
     ParseResult,
 )
 from .gemini import GeminiStructuredLLMClient
-from .llm import (
-    HolidaySearchLLMClient,
-    LLMClientHandle,
-    LLMClientRegistry,
-    StructuredLLMClient,
-)
+from .llm import HolidaySearchLLMClient, StructuredLLMClient
 from .openwebui_extension import HolidaySearchTool, HolidaySearchToolConfig
 
 __all__ = [
@@ -21,8 +16,6 @@ __all__ = [
     "StructuredLLMClient",
     "HolidaySearchLLMClient",
     "GeminiStructuredLLMClient",
-    "LLMClientHandle",
-    "LLMClientRegistry",
     "HolidaySearchTool",
     "HolidaySearchToolConfig",
 ]

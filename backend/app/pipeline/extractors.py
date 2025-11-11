@@ -8,8 +8,7 @@ from time import perf_counter
 from typing import Callable, List, Mapping, MutableMapping, Sequence
 
 from ..fixtures.repository import FixtureRepository
-from ..integrations.llm import LLMClientHandle
-from .configuration import MethodConfig, SearchConfiguration
+from .configuration import SearchConfiguration
 from .extractor_rules import ExtractionResult, RulesExtractor
 
 
@@ -44,14 +43,13 @@ class LLMExtractor:
         fixtures: FixtureRepository,
         configuration: SearchConfiguration,
         *,
-        llm_registry: Mapping[str, LLMClientHandle] | None = None,
+        llm_client: Callable[[str], Mapping[str, object]] | None = None,
     ) -> None:
         self._fixtures = fixtures
         self._configuration = configuration
-        self._llm_registry = llm_registry
+        self._llm_client = llm_client
         self._last_network_latency_ms: float | None = None
         self._last_metadata: MutableMapping[str, object] | None = None
-        self._last_handle: LLMClientHandle | None = None
 
         # Snapshot fixture metadata for quick lookup.
         self._airports_by_id = {entry["id"]: entry for entry in fixtures.list_airports()}
@@ -92,26 +90,14 @@ class LLMExtractor:
             results.append((phrase, parsed))
         return results
 
-    def extract(self, utterance: str, *, method: MethodConfig) -> ExtractionResult:
-        if self._llm_registry is None:
+    def extract(self, utterance: str) -> ExtractionResult:
+        if self._llm_client is None:
             raise ValueError("LLM extractor is not configured")
 
-        self._last_handle = None
-        handle = self._llm_registry.get(method.id)
-        if handle is None:
-            provider_hint = str(method.config.get("provider")) if method.config else ""
-            for candidate in self._llm_registry.values():
-                if isinstance(candidate, LLMClientHandle) and candidate.provider == provider_hint:
-                    handle = candidate
-                    break
-        if handle is None:
-            raise ValueError(f"LLM method '{method.id}' is not configured")
-
-        self._last_handle = handle
         self._last_network_latency_ms = None
         self._last_metadata = {}
         start = perf_counter()
-        payload = handle.client(utterance)
+        payload = self._llm_client(utterance)
         self._last_network_latency_ms = (perf_counter() - start) * 1000
         if not isinstance(payload, Mapping):
             raise ValueError("LLM extractor must return a mapping payload")
@@ -134,19 +120,6 @@ class LLMExtractor:
             value = payload.get(key)
             if value is not None and value != "":
                 metadata_payload.setdefault(key, value)
-
-        metadata_payload.setdefault("provider", handle.provider)
-        if handle.model and "model" not in metadata_payload:
-            metadata_payload["model"] = handle.model
-        metadata_payload.setdefault("methodId", handle.method_id)
-        if isinstance(handle.config, Mapping):
-            provider_config = {
-                key: value
-                for key, value in handle.config.items()
-                if key in {"provider", "api_base", "model"}
-            }
-            if provider_config:
-                metadata_payload.setdefault("config", provider_config)
 
         self._last_metadata = metadata_payload
 
@@ -203,12 +176,6 @@ class LLMExtractor:
         if self._last_metadata is None:
             return None
         return dict(self._last_metadata)
-
-    @property
-    def last_handle(self) -> LLMClientHandle | None:
-        """Return the last client handle used for extraction."""
-
-        return self._last_handle
 
 
 class HybridExtractor:

@@ -7,7 +7,6 @@ from typing import Mapping
 import pytest
 
 from backend.app.config import Settings
-from backend.app.integrations.llm import LLMClientHandle, LLMClientRegistry
 from backend.app.pipeline.pipeline import HolidaySearchPipeline
 
 
@@ -26,7 +25,6 @@ def pipeline_factory(tmp_path: Path):
         allowed_langs: list[str] | None = None,
         methods_config_path: Path | None = None,
         default_method: str | None = None,
-        llm_registry: Mapping[str, LLMClientHandle] | None = None,
     ) -> HolidaySearchPipeline:
         settings_kwargs: dict[str, object] = {
             "fixtures_dir": FIXTURES_DIR,
@@ -39,57 +37,29 @@ def pipeline_factory(tmp_path: Path):
             settings_kwargs["llm_method"] = default_method
         settings = Settings(**settings_kwargs)
 
-        catalog = settings.load_methods_catalog()
+        if responses is None:
+            def llm_client(_: str) -> Mapping[str, object]:
+                raise ValueError("LLM extractor is not configured for this pipeline instance")
+        else:
+            def llm_client(text: str) -> Mapping[str, object]:
+                try:
+                    payload = responses[text]
+                except KeyError as exc:
+                    raise ValueError(f"Unexpected LLM request for '{text}'") from exc
 
-        if llm_registry is None and responses is not None:
-            handles: dict[str, LLMClientHandle] = {}
+                delay: float | None = None
+                if isinstance(payload, tuple):
+                    payload, delay = payload
 
-            def build_stub(method) -> LLMClientHandle:
-                method_id = method.id
-                provider = str(method.config.get("provider", "openai")) if method.config else "openai"
-                model = (
-                    str(method.config.get("model"))
-                    if method.config and method.config.get("model")
-                    else None
-                )
-                config_payload = dict(method.config) if method.config else {}
+                if delay:
+                    sleep(delay)
 
-                def client(text: str) -> Mapping[str, object]:
-                    try:
-                        payload = responses[text]
-                    except KeyError as exc:
-                        raise ValueError(f"Unexpected LLM request for '{text}'") from exc
-
-                    delay: float | None = None
-                    if isinstance(payload, tuple):
-                        payload, delay = payload
-
-                    if delay:
-                        sleep(delay)
-
-                    return payload
-
-                return LLMClientHandle(
-                    method_id=method_id,
-                    provider=provider,
-                    client=client,
-                    model=model,
-                    config=config_payload,
-                )
-
-            for method in catalog.list_methods():
-                if method.kind != "llm":
-                    continue
-                handles[method.id] = build_stub(method)
-
-            llm_registry = handles
-
-        pipeline_llm_registry = llm_registry if llm_registry is not None else None
+                return payload
 
         return HolidaySearchPipeline(
             settings=settings,
             fixtures_dir=settings.fixtures_dir,
-            llm_registry=pipeline_llm_registry,
+            llm_client=llm_client,
             methods_catalog=settings.load_methods_catalog(),
         )
 
@@ -182,31 +152,6 @@ def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
     assert llm_meta.get("promptId") == "prompt-123"
     assert llm_meta.get("responseId") == "response-456"
     assert result.method_used == "gpt5-default"
-
-
-def test_pipeline_selects_llm_provider_clients(pipeline_factory) -> None:
-    llm_payloads = {
-        "Provider selection": {
-            "airports": ["AMS"],
-            "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
-            "dates": ["2025-11-25"],
-        }
-    }
-    pipeline = pipeline_factory(llm_payloads)
-
-    openai_result = pipeline.run("Provider selection", method="llm")
-    google_result = pipeline.run("Provider selection", method="gemini-1.5-pro")
-
-    openai_meta = openai_result.metadata.get("llm", {})
-    assert openai_meta.get("provider") == "openai"
-    assert openai_meta.get("methodId") == "gpt5-default"
-
-    gemini_meta = google_result.metadata.get("llm", {})
-    assert gemini_meta.get("provider") == "google"
-    assert gemini_meta.get("methodId") == "gemini-1.5-pro"
-    config_meta = gemini_meta.get("config", {})
-    assert config_meta.get("provider") == "google"
-    assert google_result.method_used == "gemini-1.5-pro"
 
 
 def test_pipeline_catalog_preserves_google_provider(monkeypatch, pipeline_factory) -> None:
@@ -347,21 +292,10 @@ def test_dependency_wiring_triggers_llm_when_configured(monkeypatch, tmp_path: P
             }
 
     dummy_client = DummyLLMClient()
-    dummy_handle = LLMClientHandle(
-        method_id="gpt5-default",
-        provider="openai",
-        client=dummy_client,
-        model="gpt-test",
-    )
-
     monkeypatch.setattr(
-        dependencies.LLMClientRegistry,
-        "from_methods_catalog",
-        classmethod(
-            lambda cls, *, settings, catalog, fixtures_dir: LLMClientRegistry({
-                "gpt5-default": dummy_handle
-            })
-        ),
+        dependencies,
+        "HolidaySearchLLMClient",
+        lambda settings, fixtures_dir: dummy_client,
     )
 
     try:
@@ -377,9 +311,6 @@ def test_dependency_wiring_triggers_llm_when_configured(monkeypatch, tmp_path: P
     assert result.metadata.get("requestedAlias") == "llm"
     assert result.method_used == "gpt5-default"
     assert calls == ["Plan a weekend escape"]
-    llm_meta = result.metadata.get("llm", {})
-    assert llm_meta.get("provider") == "openai"
-    assert llm_meta.get("methodId") == "gpt5-default"
 
 
 def test_pipeline_rules_success_with_dutch(pipeline_factory) -> None:
