@@ -84,6 +84,14 @@ class Settings(BaseSettings):
         alias="VOICE_ENABLED",
         description="Toggle voice capture support for the UI and pipelines.",
     )
+    show_failed_only: bool = Field(
+        default=True,
+        alias="SHOW_FAILED_ONLY",
+        description=(
+            "When importing request logs, limit the UI to displaying only entries "
+            "that did not succeed."
+        ),
+    )
     voice_max_bytes: int = Field(
         default=10_000_000,
         alias="VOICE_MAX_BYTES",

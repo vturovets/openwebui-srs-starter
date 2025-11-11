@@ -726,6 +726,7 @@ async def fetch_fixtures(
         "dates": dates,
         "configuration": configuration,
         "voiceEnabled": settings.voice_enabled,
+        "showFailedOnly": settings.show_failed_only,
         "mode": settings.interaction_mode,
         "llmMethod": resolved_default.id,
         "llmMethodAlias": requested_alias,
