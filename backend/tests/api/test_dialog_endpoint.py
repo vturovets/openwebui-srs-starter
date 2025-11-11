@@ -70,6 +70,7 @@ def test_dialog_clarification_flow(dialog_context):
         assert second_payload["data"]["to"]
         assert second_payload["data"]["departureDate"]
         assert second_payload["metadata"]["missingParameters"] == []
+        assert second_payload["metadata"]["status"] == "success"
         assert len(second_payload["metadata"]["transcript"]) == 3
         assert second_payload["metadata"]["timings"]["thresholdBreached"] is False
 
