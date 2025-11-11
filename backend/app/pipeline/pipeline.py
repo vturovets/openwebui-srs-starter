@@ -214,6 +214,7 @@ class HolidaySearchPipeline:
                 last_outcome = outcome
                 if outcome.status == "success":
                     metadata = dict(outcome.metadata)
+                    metadata.update({"methodId": method.id, "methodType": method.kind})
                     metadata["hybrid"] = {
                         "methodId": method.id,
                         "strategy": method.strategy,
@@ -248,6 +249,7 @@ class HolidaySearchPipeline:
                 }
                 if fallback_outcome.detail:
                     hybrid_meta["fallbackDetail"] = fallback_outcome.detail
+                metadata.update({"methodId": method.id, "methodType": method.kind})
                 metadata["hybrid"] = hybrid_meta
                 fallback_outcome.metadata = metadata
                 fallback_outcome.attempts = combined_attempts
