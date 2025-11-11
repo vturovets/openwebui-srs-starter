@@ -15,7 +15,7 @@ methods:
 
   - id: gpt5-default
     type: llm
-    enabled: true
+    enabled: false
     provider: openai
     model: gpt-5-chat-latest
     api_base: ${OPENAI_BASE:-https://api.openai.com/v1}   # env-substitution
@@ -36,7 +36,7 @@ methods:
 
   - id: hybrid-v1
     type: hybrid
-    enabled: true
+    enabled: false
     strategy: cascade              # cascade | vote | weight
     stages:
       - ref: rules-basic
@@ -45,7 +45,7 @@ methods:
 
   - id: gemini-2_5-pro
     type: llm
-    enabled: true
+    enabled: false
     provider: google
     model: gemini-2.5-pro
     api_base: ${GOOGLE_API_BASE:-https://generativelanguage.googleapis.com/v1beta}

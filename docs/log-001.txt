@@ -1,9 +1,28 @@
-nv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest backend/tests -q
-.F..F..........F.........................................F...........                                                                                                            [100%]
+================================================================================= test session starts =================================================================================
+platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
+rootdir: C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search
+configfile: pyproject.toml
+testpaths: backend/tests
+plugins: anyio-4.11.0
+collected 63 items
+
+backend\tests\api\test_cors_preflight.py .                                                                                                                                       [  1%]
+backend\tests\api\test_dialog_endpoint.py F.                                                                                                                                     [  4%]
+backend\tests\api\test_fixtures_endpoint.py .                                                                                                                                    [  6%]
+backend\tests\api\test_voice_endpoint.py F..F..                                                                                                                                  [ 15%]
+backend\tests\fixtures\test_repository.py ...                                                                                                                                    [ 20%]
+backend\tests\integrations\test_llm_client.py ....                                                                                                                               [ 26%]
+backend\tests\logging\test_csv_logger.py ....                                                                                                                                    [ 33%]
+backend\tests\pipeline\test_methods_catalog.py FF...F.                                                                                                                           [ 44%]
+backend\tests\pipeline\test_pipeline_components.py ..................                                                                                                            [ 73%]
+backend\tests\pipeline\test_pipeline_methods.py .FFFFFF...                                                                                                                       [ 88%]
+backend\tests\test_openwebui_connector.py ...                                                                                                                                    [ 93%]
+backend\tests\test_openwebui_extension.py ....                                                                                                                                   [100%]
+
 ====================================================================================== FAILURES =======================================================================================
 ___________________________________________________________________________ test_dialog_clarification_flow ____________________________________________________________________________
 
-dialog_context = {'logger': CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-223/test_dialog_clarific...i-1.5-pro', 'hybrid-v1', 'gemini-2_5-pro'), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))}
+dialog_context = {'logger': CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-227/test_dialog_clarific...onf'}, config={})}, order=('rules-basic',), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))}
 
     def test_dialog_clarification_flow(dialog_context):
         async def scenario() -> None:
@@ -139,8 +158,9 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 audio = UploadFile(filename='audio.wav', size=None, headers=Headers({'content-type': 'audio/wav'}))
 settings = Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('data/log.csv'), csv_delimiter=';...'fixtures'), methods_config_path=WindowsPath('config/methods.yaml'), processing_threshold_ms=750, methods_catalog=None)
-pipeline = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001DFD3319640>, use_cache=True, scope=None)
-logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001DFD33197A0>, use_cache=True, scope=None), stt_client = None
+pipeline = Depends(dependency=<functools._lru_cache_wrapper object at 0x0000026141E956F0>, use_cache=True, scope=None)
+logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x0000026141E95850>, use_cache=True, scope=None)
+stt_client = Depends(dependency=<functools._lru_cache_wrapper object at 0x0000026141E959B0>, use_cache=True, scope=None)
 
     @api_router.post("/voice", response_model=VoiceResponse)
     async def voice_endpoint(
@@ -153,9 +173,6 @@ logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001DFD3
         """Transcribe an audio sample and feed it through the holiday search pipeline."""
 
         total_start = perf_counter()
-
-        if isinstance(stt_client, fastapi_params.Depends):  # pragma: no cover - direct invocation safety
-            stt_client = None
 
         if not settings.voice_enabled:
             await audio.close()
@@ -174,127 +191,328 @@ logger = Depends(dependency=<functools._lru_cache_wrapper object at 0x000001DFD3
             )
 
         if stt_client is None:
->           raise HTTPException(
+            raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Speech-to-text provider is not configured",
             )
-E           fastapi.exceptions.HTTPException: 500: Speech-to-text provider is not configured
 
-backend\app\api\routes.py:750: HTTPException
-____________________________________________________________________ test_gemini_client_builds_structured_payload _____________________________________________________________________
-
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-223/test_gemini_client_builds_stru0')
-
-    def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
-        """The Gemini client should build structured requests and propagate metadata."""
-
-        captured: dict[str, object] = {}
-
-        structured_response = {
-            "airports": ["AMS", {"id": "ANR", "name": "Antwerp"}],
-            "destinations": [
-                "d7b4bb39-123d-1234-123f-1234567f",
-                {"id": "d7b4bb39-123e-1234-123d-1234567g", "name": "Greece"},
-            ],
-            "duration": "2007",
-            "flexibility": {"id": "3", "name": "+- 3 days"},
-            "dates": [
-                "2025-10-10",
-                {"phrase": "12 October 2025", "iso": "2025-10-12"},
-            ],
-        }
-
-        response_payload = {
-            "candidates": [
-                {
-                    "content": {
-                        "parts": [
-                            {
-                                "text": json.dumps(structured_response),
-                            }
-                        ],
-                    },
-                    "finishReason": "STOP",
-                }
-            ],
-            "modelVersion": "2024-05-01",
-            "usageMetadata": {"promptTokenCount": 42},
-        }
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["url"] = str(request.url)
-            captured["headers"] = dict(request.headers)
-            captured["json"] = json.loads(request.content.decode("utf-8"))
-
-            assert request.url.path == "/v1beta/models/gemini-1.5-flash:generateContent"
-            assert request.url.params["key"] == "gemini-key"
-            assert request.headers["Content-Type"] == "application/json"
-
-            return httpx.Response(
-                200,
-                json=response_payload,
-                headers={"x-request-id": "req-123", "x-trace-id": "trace-456"},
+        raw_content_type = (audio.content_type or "").lower()
+        base_content_type = raw_content_type.split(";")[0].strip() or raw_content_type
+        allowed_types = {item.lower() for item in settings.voice_allowed_content_types}
+        if base_content_type not in allowed_types:
+            await audio.close()
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Unsupported audio format",
             )
 
-        http_client = httpx.Client(
-            transport=httpx.MockTransport(handler),
-            base_url="https://generativelanguage.googleapis.com",
-        )
+        file_obj = getattr(audio, "file", None)
+        if file_obj is not None:
+            try:
+                current_pos = file_obj.tell()
+            except (OSError, AttributeError):
+                current_pos = None
+            try:
+                file_obj.seek(0, 2)
+                size = file_obj.tell()
+            except (OSError, AttributeError):
+                size = None
+            finally:
+                try:
+                    if current_pos is None:
+                        file_obj.seek(0)
+                    else:
+                        file_obj.seek(current_pos)
+                except (OSError, AttributeError):
+                    pass
+            if size is not None and size > settings.voice_max_bytes:
+                await audio.close()
+                raise HTTPException(
+                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                    detail="Audio payload exceeds maximum allowed size",
+                )
 
-        settings = _build_gemini_settings(tmp_path)
-        llm_client = GeminiStructuredLLMClient(
+        try:
+            await audio.seek(0)
+        except (AttributeError, TypeError):
+            pass
+
+        class _AudioTooLargeError(Exception):
+            """Raised when the streamed payload exceeds the configured limit."""
+
+        async def audio_stream() -> AsyncIterator[bytes]:
+            remaining = settings.voice_max_bytes
+            try:
+                while True:
+                    chunk = await audio.read(8192)
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    if remaining < 0:
+                        raise _AudioTooLargeError
+                    yield chunk
+            finally:
+                await audio.close()
+
+        stt_start = perf_counter()
+        try:
+>           transcription: TranscriptionResult = await stt_client.transcribe(
+                                                       ^^^^^^^^^^^^^^^^^^^^^
+                content_type=raw_content_type or base_content_type,
+                stream=audio_stream(),
+            )
+E           AttributeError: 'Depends' object has no attribute 'transcribe'
+
+backend\app\api\routes.py:811: AttributeError
+______________________________________________________________________ test_voice_endpoint_transcribes_and_logs _______________________________________________________________________
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-227/test_voice_endpoint_transcribe0')
+
+    def test_voice_endpoint_transcribes_and_logs(tmp_path):
+        async def scenario() -> None:
+            settings = Settings(
+                voice_enabled=True,
+                stt_engine="deepgram",
+                deepgram_api_key="dg",
+                voice_max_bytes=1024,
+                csv_path=tmp_path / "voice-log.csv",
+            )
+            pipeline_timings = {"totalMs": 150.0, "languageMs": 20.0, "extractionMs": 50.0}
+            pipeline = StubPipeline(timings=pipeline_timings)
+            logger = StubLogger()
+            stt_client = StubSTTClient(transcript="book flights to spain", duration_ms=60.0)
+            upload = create_upload(b"audio-bytes", content_type="audio/wav")
+
+            response = await voice_endpoint(
+                audio=upload,
+                settings=settings,
+                pipeline=pipeline,
+                logger=logger,
+                stt_client=stt_client,
+            )
+
+            assert isinstance(response, VoiceResponse)
+            assert response.status == "success"
+            assert response.transcript == "book flights to spain"
+            assert response.engine == "deepgram"
+            assert response.words
+            assert pipeline.invocations == ["book flights to spain"]
+
+            timings = response.metadata["timings"]
+            assert timings["pipelineTotalMs"] == pytest.approx(150.0)
+            assert timings["sttMs"] >= 60.0
+            assert timings["totalMs"] >= timings["sttMs"] + pipeline_timings["totalMs"]
+            assert timings["thresholdBreached"] == (timings["totalMs"] > settings.processing_threshold_ms)
+
+            assert logger.rows
+            log_entry = logger.rows[-1]
+            assert log_entry["Request type"] == "Voice"
+            assert "book flights" in log_entry["User input"]
+            assert log_entry["Processing Time"] == f"{timings['totalMs']:.2f}"
+            assert log_entry["Language Detection"][0] == "20.00"
+            assert "en" in log_entry["Language Detection"][1]
+
+>       asyncio.run(scenario())
+
+backend\tests\api\test_voice_endpoint.py:188:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:685: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            voice_max_bytes=1024,
+            csv_path=tmp_path / "voice-log.csv",
+        )
+        pipeline_timings = {"totalMs": 150.0, "languageMs": 20.0, "extractionMs": 50.0}
+        pipeline = StubPipeline(timings=pipeline_timings)
+        logger = StubLogger()
+        stt_client = StubSTTClient(transcript="book flights to spain", duration_ms=60.0)
+        upload = create_upload(b"audio-bytes", content_type="audio/wav")
+
+        response = await voice_endpoint(
+            audio=upload,
             settings=settings,
-            fixtures_dir=settings.fixtures_dir,
-            http_client=http_client,
+            pipeline=pipeline,
+            logger=logger,
+            stt_client=stt_client,
         )
 
->       payload = llm_client("Plan a sunny holiday")
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        assert isinstance(response, VoiceResponse)
+        assert response.status == "success"
+        assert response.transcript == "book flights to spain"
+        assert response.engine == "deepgram"
+        assert response.words
+        assert pipeline.invocations == ["book flights to spain"]
 
-backend\tests\integrations\test_llm_client.py:204:
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-backend\app\integrations\gemini.py:292: in __call__
-    response = self._client.post(
-.venv\Lib\site-packages\httpx\_client.py:1144: in post
-    return self.request(
-.venv\Lib\site-packages\httpx\_client.py:825: in request
-    return self.send(request, auth=auth, follow_redirects=follow_redirects)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.venv\Lib\site-packages\httpx\_client.py:914: in send
-    response = self._send_handling_auth(
-.venv\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
-    response = self._send_handling_redirects(
-.venv\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
-    response = self._send_single_request(request)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.venv\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
-    response = transport.handle_request(request)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.venv\Lib\site-packages\httpx\_transports\mock.py:24: in handle_request
-    response = self.handler(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+        timings = response.metadata["timings"]
+        assert timings["pipelineTotalMs"] == pytest.approx(150.0)
+>       assert timings["sttMs"] >= 60.0
+E       assert 59.51179994735867 >= 60.0
 
-request = <Request('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=gemini-key')>
+backend\tests\api\test_voice_endpoint.py:176: AssertionError
+___________________________________________________________________ test_methods_catalog_resolves_hybrid_structure ____________________________________________________________________
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured["url"] = str(request.url)
-        captured["headers"] = dict(request.headers)
-        captured["json"] = json.loads(request.content.decode("utf-8"))
+    def test_methods_catalog_resolves_hybrid_structure() -> None:
+        catalog = load_methods_catalog(METHODS_FILE)
 
->       assert request.url.path == "/v1beta/models/gemini-1.5-flash:generateContent"
-E       AssertionError: assert '/v1beta/mode...nerateContent' == '/v1beta/mode...nerateContent'
+        assert isinstance(catalog, MethodsCatalog)
+        assert catalog.default_method_id == "rules-basic"
+        hybrid = catalog.methods.get("hybrid-v1")
+>       assert isinstance(hybrid, HybridMethodConfig)
+E       assert False
+E        +  where False = isinstance(None, HybridMethodConfig)
+
+backend\tests\pipeline\test_methods_catalog.py:23: AssertionError
+______________________________________________________________________ test_methods_catalog_expands_env_defaults ______________________________________________________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026146FE75C0>
+
+    def test_methods_catalog_expands_env_defaults(monkeypatch) -> None:
+        monkeypatch.setenv("OPENAI_BASE", "https://example.test/v1")
+        catalog = load_methods_catalog(METHODS_FILE)
+
+>       llm = catalog.methods["gpt5-default"]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'gpt5-default'
+
+backend\tests\pipeline\test_methods_catalog.py:32: KeyError
+____________________________________________________________________ test_methods_catalog_lookup[LLM-gpt5-default] ____________________________________________________________________
+
+identifier = 'LLM', expected = 'gpt5-default'
+
+    @pytest.mark.parametrize(
+        "identifier,expected",
+        [
+            ("rules-basic", "rules-basic"),
+            ("rules", "rules-basic"),
+            ("LLM", "gpt5-default"),
+            (None, "rules-basic"),
+        ],
+    )
+    def test_methods_catalog_lookup(identifier, expected) -> None:
+        catalog = load_methods_catalog(METHODS_FILE)
+        alias, method = catalog.resolve(identifier)
+>       assert method.id == expected
+E       AssertionError: assert 'rules-basic' == 'gpt5-default'
 E
-E         - /v1beta/models/gemini-1.5-flash:generateContent
-E         ?                           ^^^^^
-E         + /v1beta/models/gemini-1.5-pro:generateContent
-E         ?                           ^^^
+E         - gpt5-default
+E         + rules-basic
 
-backend\tests\integrations\test_llm_client.py:182: AssertionError
+backend\tests\pipeline\test_methods_catalog.py:76: AssertionError
+________________________________________________________________________ test_pipeline_hybrid_fallback_success ________________________________________________________________________
+
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x0000026146586B60>
+
+    def test_pipeline_hybrid_fallback_success(pipeline_factory) -> None:
+        llm_payloads = {
+            "Need a getaway from Amsterdam to Spain": {
+                "airports": ["AMS"],
+                "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+                "dates": ["2025-11-25"],
+            }
+        }
+        pipeline = pipeline_factory(llm_payloads)
+
+        result = pipeline.run("Need a getaway from Amsterdam to Spain", method="hybrid")
+
+>       assert result.status == "success"
+E       AssertionError: assert 'failed' == 'success'
+E
+E         - success
+E         + failed
+
+backend\tests\pipeline\test_pipeline_methods.py:96: AssertionError
+______________________________________________________________________ test_pipeline_records_llm_network_latency ______________________________________________________________________
+
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x0000026146F84360>
+
+    def test_pipeline_records_llm_network_latency(pipeline_factory) -> None:
+        llm_payloads = {
+            "Measure latency": (
+                {
+                    "airports": ["AMS"],
+                    "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+                    "dates": ["2025-11-25"],
+                },
+                0.05,
+            )
+        }
+        pipeline = pipeline_factory(llm_payloads)
+
+        result = pipeline.run("Measure latency", method="llm")
+
+        latency_ms = result.timings.get("llmNetworkMs")
+>       assert latency_ms is not None
+E       assert None is not None
+
+backend\tests\pipeline\test_pipeline_methods.py:127: AssertionError
+________________________________________________________________________ test_pipeline_llm_metadata_propagates ________________________________________________________________________
+
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x0000026146F84860>
+
+    def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
+        llm_payloads = {
+            "Expose metadata": {
+                "airports": ["AMS"],
+                "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+                "dates": ["2025-11-25"],
+                "metadata": {
+                    "provider": "stub-llm",
+                    "promptId": "prompt-123",
+                    "responseId": "response-456",
+                },
+            }
+        }
+        pipeline = pipeline_factory(llm_payloads)
+
+        result = pipeline.run("Expose metadata", method="llm")
+
+        llm_meta = result.metadata.get("llm")
+>       assert isinstance(llm_meta, dict)
+E       assert False
+E        +  where False = isinstance(None, dict)
+
+backend\tests\pipeline\test_pipeline_methods.py:150: AssertionError
+________________________________________________________________________ test_pipeline_hybrid_fallback_failure ________________________________________________________________________
+
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x0000026146F84A40>
+
+    def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
+        llm_payloads = {
+            "Fallback still missing data": {
+                "airports": ["AMS"],
+                "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+                "dates": [],
+            }
+        }
+        pipeline = pipeline_factory(llm_payloads)
+
+        result = pipeline.run("Fallback still missing data", method="hybrid")
+
+        assert result.status == "failed"
+>       assert result.method_requested == "hybrid-v1"
+E       AssertionError: assert 'rules-basic' == 'hybrid-v1'
+E
+E         - hybrid-v1
+E         + rules-basic
+
+backend\tests\pipeline\test_pipeline_methods.py:170: AssertionError
 __________________________________________________________________ test_pipeline_hybrid_triggers_configured_fallback __________________________________________________________________
 
-pipeline_factory = <function pipeline_factory.<locals>.factory at 0x000001DFD7E2D440>
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-223/test_pipeline_hybrid_triggers_0')
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x0000026146F84FE0>
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-227/test_pipeline_hybrid_triggers_0')
 
     def test_pipeline_hybrid_triggers_configured_fallback(pipeline_factory, tmp_path: Path) -> None:
         methods_yaml = tmp_path / "methods.yaml"
@@ -353,7 +571,68 @@ E
 E         - success
 E         + failed
 
-backend\tests\pipeline\test_pipeline_methods.py:305: AssertionError
+backend\tests\pipeline\test_pipeline_methods.py:233: AssertionError
+_________________________________________________________________ test_dependency_wiring_triggers_llm_when_configured _________________________________________________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002614705F800>
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-227/test_dependency_wiring_trigger0')
+
+    def test_dependency_wiring_triggers_llm_when_configured(monkeypatch, tmp_path: Path) -> None:
+        """Ensure the pipeline obtained via dependencies honours LLM defaults."""
+
+        from backend.app import dependencies
+
+        for cache in (
+            dependencies.get_settings,
+            dependencies.get_pipeline,
+            dependencies.get_llm_client,
+            dependencies.get_methods_catalog,
+        ):
+            cache.cache_clear()  # type: ignore[attr-defined]
+
+        monkeypatch.setenv("LLM_METHOD", "llm")
+        monkeypatch.setenv("LLM_API_KEY", "integration-key")
+        monkeypatch.setenv("LLM_API_BASE", "https://mock-llm")
+        monkeypatch.setenv("LLM_MODEL", "gpt-test")
+        monkeypatch.setenv("CSV_PATH", str(tmp_path / "log.csv"))
+        monkeypatch.setenv("FIXTURES_DIR", str(FIXTURES_DIR))
+
+        calls: list[str] = []
+
+        class DummyLLMClient:
+            def __call__(self, text: str) -> Mapping[str, object]:
+                calls.append(text)
+                return {
+                    "airports": ["AMS"],
+                    "destinations": ["d7b4bb39-123d-1234-123f-1234567f"],
+                    "duration": "2007",
+                    "flexibility": "3",
+                    "dates": ["2025-10-10"],
+                }
+
+        dummy_client = DummyLLMClient()
+        monkeypatch.setattr(
+            dependencies,
+            "HolidaySearchLLMClient",
+            lambda settings, fixtures_dir: dummy_client,
+        )
+
+        try:
+            pipeline = dependencies.get_pipeline()
+            result = pipeline.run("Plan a weekend escape")
+        finally:
+            dependencies.get_pipeline.cache_clear()  # type: ignore[attr-defined]
+            dependencies.get_settings.cache_clear()  # type: ignore[attr-defined]
+            dependencies.get_llm_client.cache_clear()  # type: ignore[attr-defined]
+            dependencies.get_methods_catalog.cache_clear()  # type: ignore[attr-defined]
+
+>       assert result.method_requested == "gpt5-default"
+E       AssertionError: assert 'rules-basic' == 'gpt5-default'
+E
+E         - gpt5-default
+E         + rules-basic
+
+backend\tests\pipeline\test_pipeline_methods.py:293: AssertionError
 ================================================================================== warnings summary ===================================================================================
 backend\app\main.py:26
 backend/tests/api/test_cors_preflight.py::test_parse_endpoint_allows_preflight_request
@@ -394,7 +673,15 @@ backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voi
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =============================================================================== short test summary info ===============================================================================
 FAILED backend/tests/api/test_dialog_endpoint.py::test_dialog_clarification_flow - AssertionError: assert 'failed' == 'success'
-FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_noop_when_disabled - fastapi.exceptions.HTTPException: 500: Speech-to-text provider is not configured
-FAILED backend/tests/integrations/test_llm_client.py::test_gemini_client_builds_structured_payload - AssertionError: assert '/v1beta/mode...nerateContent' == '/v1beta/mode...nerateContent'
+FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_noop_when_disabled - AttributeError: 'Depends' object has no attribute 'transcribe'
+FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_transcribes_and_logs - assert 59.51179994735867 >= 60.0
+FAILED backend/tests/pipeline/test_methods_catalog.py::test_methods_catalog_resolves_hybrid_structure - assert False
+FAILED backend/tests/pipeline/test_methods_catalog.py::test_methods_catalog_expands_env_defaults - KeyError: 'gpt5-default'
+FAILED backend/tests/pipeline/test_methods_catalog.py::test_methods_catalog_lookup[LLM-gpt5-default] - AssertionError: assert 'rules-basic' == 'gpt5-default'
+FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_hybrid_fallback_success - AssertionError: assert 'failed' == 'success'
+FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_records_llm_network_latency - assert None is not None
+FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_llm_metadata_propagates - assert False
+FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_hybrid_fallback_failure - AssertionError: assert 'rules-basic' == 'hybrid-v1'
 FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_hybrid_triggers_configured_fallback - AssertionError: assert 'failed' == 'success'
-4 failed, 65 passed, 12 warnings in 3.96s
+FAILED backend/tests/pipeline/test_pipeline_methods.py::test_dependency_wiring_triggers_llm_when_configured - AssertionError: assert 'rules-basic' == 'gpt5-default'
+===================================================================== 12 failed, 51 passed, 12 warnings in 3.91s ======================================================================
