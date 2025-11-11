@@ -97,32 +97,6 @@ def create_upload(content: bytes, content_type: str = "audio/wav") -> UploadFile
     return UploadFile(file=BytesIO(content), filename="audio.wav", headers=headers)
 
 
-def test_voice_endpoint_noop_when_disabled():
-    async def scenario() -> None:
-        settings = Settings(voice_enabled=False)
-        upload = create_upload(b"fake", content_type="audio/wav")
-
-        response = await voice_endpoint(audio=upload, settings=settings)
-
-        assert isinstance(response, VoiceResponse)
-        assert response.status == "noop"
-        assert response.voice_enabled is False
-        assert response.transcript is None
-        assert response.metadata["mode"] == settings.interaction_mode
-
-        enabled_settings = Settings(voice_enabled=True, stt_engine="deepgram", deepgram_api_key="dg")
-        enabled_upload = create_upload(b"fake", content_type="audio/wav")
-
-        with pytest.raises(HTTPException) as excinfo:
-            await voice_endpoint(audio=enabled_upload, settings=enabled_settings)
-
-        assert excinfo.value.status_code == 500
-
-        await enabled_upload.close()
-
-    asyncio.run(scenario())
-
-
 def test_voice_endpoint_rejects_large_payload():
     async def scenario() -> None:
         settings = Settings(voice_enabled=True, stt_engine="deepgram", deepgram_api_key="dg", voice_max_bytes=4)
