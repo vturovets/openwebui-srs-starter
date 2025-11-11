@@ -15,7 +15,7 @@ methods:
 
   - id: gpt5-default
     type: llm
-    enabled: false
+    enabled: true
     provider: openai
     model: gpt-5-chat-latest
     api_base: ${OPENAI_BASE:-https://api.openai.com/v1}   # env-substitution
@@ -36,7 +36,7 @@ methods:
 
   - id: hybrid-v1
     type: hybrid
-    enabled: false
+    enabled: true
     strategy: cascade              # cascade | vote | weight
     stages:
       - ref: rules-basic
