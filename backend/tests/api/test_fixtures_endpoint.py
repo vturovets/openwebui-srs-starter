@@ -25,6 +25,7 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
 
         payload = response.json()
         assert payload["voiceEnabled"] is True
+        assert payload["showFailedOnly"] is True
         assert payload["mode"] == "dialog"
         assert payload["llmMethod"] == "rules-basic"
         assert payload["llmMethodAlias"] == "rules"

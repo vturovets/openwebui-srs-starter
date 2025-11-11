@@ -22,6 +22,7 @@
   let fixtures: Fixtures | null = null;
   let fixtureError = '';
   let loadingFixtures = true;
+  let showFailedOnly = true;
   let query = '';
   let history: HolidayResultEntry[] = [];
   type MethodOption = { id: string; label: string };
@@ -37,6 +38,7 @@
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const PERFORMANCE_P95_MIN_REQUESTS = 1000;
+  const SUCCESS_STATUSES = new Set(['success', 'ok', 'passed']);
 
   type PerformanceSummary = {
     requestCount: number;
@@ -476,6 +478,7 @@
     try {
       const data = await fetchFixtures(baseUrl);
       fixtures = data;
+      showFailedOnly = typeof data.showFailedOnly === 'boolean' ? data.showFailedOnly : true;
       mode = data.mode;
       dialogOverrideAllowed = isDialogMode(data.mode);
       methodOptions = normaliseMethodOptions(data?.availableMethods);
@@ -527,6 +530,27 @@
       prompt: buildClarificationPrompt(result),
       timestamp: new Date().toISOString(),
     };
+  }
+
+  function isFailureStatus(status: unknown): boolean {
+    if (typeof status !== 'string') {
+      return true;
+    }
+
+    const normalized = status.trim().toLowerCase();
+    if (!normalized) {
+      return true;
+    }
+
+    return !SUCCESS_STATUSES.has(normalized);
+  }
+
+  function shouldDisplayImportedEntry(entry: HolidayResultEntry): boolean {
+    if (!showFailedOnly) {
+      return true;
+    }
+
+    return isFailureStatus(entry?.result?.status);
   }
 
   function addEntry(entry: HolidayResultEntry) {
@@ -663,7 +687,9 @@
       ) {
         usageDetected = true;
       }
-      addEntry(entry);
+      if (shouldDisplayImportedEntry(entry)) {
+        addEntry(entry);
+      }
     };
 
     try {
