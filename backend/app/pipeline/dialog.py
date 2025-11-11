@@ -228,27 +228,31 @@ class DialogOrchestrator:
         prompt: ClarificationPrompt | None = None
         error_message: str | None = None
 
-        if result.status == "error":
-            session.status = "failed"
-            error_message = result.error
-        else:
-            normalized = result.normalized
-            if normalized is not None:
-                self._merge_normalized(session, normalized)
+        normalized = result.normalized
+        if normalized is not None:
+            self._merge_normalized(session, normalized)
 
-            aggregate_error = self._revalidate(session)
-            if aggregate_error is None:
-                session.status = "completed"
-                session.missing_parameters.clear()
+        aggregate_error = self._revalidate(session)
+        if aggregate_error is None:
+            session.status = "completed"
+            session.missing_parameters.clear()
+            session.error = None
+        else:
+            combined_error = aggregate_error or result.error or ""
+            prompt = (
+                self._select_prompt(combined_error, session.validation)
+                if combined_error
+                else None
+            )
+            if prompt is not None:
+                session.status = "pending"
+                session.append_system_prompt(prompt)
+                error_message = prompt.reason
             else:
-                prompt = self._select_prompt(aggregate_error, session.validation)
-                if prompt is not None:
-                    session.status = "pending"
-                    session.append_system_prompt(prompt)
-                    error_message = prompt.reason
-                else:
-                    session.status = "failed"
-                    error_message = aggregate_error
+                session.status = "failed"
+                error_message = combined_error or result.error or None
+
+        session.error = error_message
 
         metadata = self._build_metadata(session, effective_mode)
         data_payload: Dict[str, object] = {}

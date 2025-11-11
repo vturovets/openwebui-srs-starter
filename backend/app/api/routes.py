@@ -557,6 +557,8 @@ async def dialog_turn(
     metadata["timings"] = timings
     metadata.setdefault("mode", payload.mode or settings.interaction_mode)
     metadata["rawStatus"] = outcome.raw_status
+    metadata["status"] = outcome.status
+    metadata["missingParameters"] = list(outcome.missing_parameters)
 
     prompt_payload = outcome.prompt.to_dict() if outcome.prompt else None
 
