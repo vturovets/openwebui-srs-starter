@@ -73,18 +73,11 @@ keys out of source control.
 ## Voice and speech-to-text setup
 Voice features require multiple settings to be in place:
 
-1. Set `VOICE_ENABLED=true` to allow audio uploads. 【F:backend/app/config.py†L66-L99】
-2. Choose an STT engine by setting `STT_ENGINE`.
-   - `deepgram` streams audio to the hosted Deepgram API and requires `DEEPGRAM_API_KEY`.
-   - `faster-whisper` (or `whisper`) runs the open-source Whisper model locally with the
-     help of the optional `faster-whisper` Python package. Additional tunables such as
-     `WHISPER_MODEL_SIZE`, `WHISPER_COMPUTE_TYPE`, and `WHISPER_DOWNLOAD_ROOT` allow the
-     deployment to control model quality, precision, and cache location.
-3. Provide the engine-specific credentials (only Deepgram currently requires an API key).
-   The dependency layer will raise an error at startup if mandatory settings are missing.
-   【F:backend/app/dependencies.py†L69-L119】
-
-Install the Whisper dependency via `pip install .[stt]` when enabling the local engine.
+1. Set `VOICE_ENABLED=true` to allow audio uploads. 【F:backend/app/config.py†L66-L87】
+2. Choose an STT engine by setting `STT_ENGINE`. At present only `deepgram` is wired in.
+3. Provide the engine-specific credentials (`DEEPGRAM_API_KEY` for Deepgram). The
+   dependency layer will raise an error at startup if the key is missing when Deepgram is
+   selected. 【F:backend/app/dependencies.py†L69-L102】
 
 The API validates incoming audio against the configured MIME-type allowlist and payload
 size limit, returning HTTP 415/413 when requests fall outside those bounds. Adjust

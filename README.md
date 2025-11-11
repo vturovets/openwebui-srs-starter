@@ -74,14 +74,8 @@ serving traffic. Key options mirror the SRS:
 | `LLM_API_KEY` | _(unset)_ | Credential passed to the structured LLM client when `LLM_METHOD=llm` or `hybrid`. |
 | `LLM_MODEL` | `gpt-3.5-turbo` | Model identifier requested from the LLM provider. |
 | `LLM_TIMEOUT` | `30` | Client-side timeout (seconds) for outbound LLM requests. |
-| `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled (e.g., `deepgram`, `faster-whisper`). |
+| `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled (e.g., `deepgram`). |
 | `DEEPGRAM_API_KEY` | _(unset)_ | API key for Deepgram when `STT_ENGINE=deepgram`. |
-| `WHISPER_MODEL_SIZE` | `base` | faster-whisper model identifier to download when `STT_ENGINE=faster-whisper` or `whisper`. |
-| `WHISPER_DEVICE` | _(unset)_ | Optional device override for faster-whisper (e.g., `cpu`, `cuda`). |
-| `WHISPER_COMPUTE_TYPE` | `int8` | Precision hint forwarded to faster-whisper (e.g., `int8`, `float16`, `int8_float16`). |
-| `WHISPER_DOWNLOAD_ROOT` | _(unset)_ | Directory used to cache Whisper model weights locally. |
-| `WHISPER_BEAM_SIZE` | `5` | Beam size used during Whisper decoding. |
-| `WHISPER_VAD_FILTER` | `true` | Toggles faster-whisper's voice activity detection filter. |
 | `VOICE_ENABLED` | `false` | Toggle indicating whether voice input is active in the UI. |
 | `VOICE_MAX_BYTES` | `10000000` | Maximum audio payload size accepted by `/v1/voice` in bytes. |
 | `VOICE_ALLOWED_CONTENT_TYPES` | see code | Comma-separated list of MIME types accepted by `/v1/voice` (defaults cover WAV, MP3, OGG, WebM, and FLAC). |
@@ -204,15 +198,9 @@ these resources so pipeline stages can remain deterministic.
 ### Voice capture
 
 When `VOICE_ENABLED=true`, the API exposes `/v1/voice` and wires in an optional
-speech-to-text client via `get_stt_client`. Hosted setups can continue using
+speech-to-text client via `get_stt_client`. The default implementation is
 [`DeepgramSpeechToTextClient`](backend/app/integrations/stt.py), which streams
-audio to Deepgram’s REST API and returns word-level timings for the UI. To keep
-voice transcription completely free-of-charge, set `STT_ENGINE=faster-whisper`
-to activate [`FasterWhisperSpeechToTextClient`](backend/app/integrations/stt.py),
-which runs the open-source Whisper model locally via the `faster-whisper`
-library. Install the optional dependency with `pip install .[stt]` (or add
-`faster-whisper` directly to your environment) before enabling the Whisper
-engine.
+audio to Deepgram’s REST API and returns word-level timings for the UI.
 
 ## Frontend quick start
 
