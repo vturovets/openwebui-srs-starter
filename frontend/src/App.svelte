@@ -34,6 +34,9 @@
   let downloadAnchor: HTMLAnchorElement | null = null;
   let downloadUrl: string | null = null;
   let importInput: HTMLInputElement | null = null;
+  let importInProgress = false;
+  let showImportFailuresOnly = false;
+  let visibleHistory: HolidayResultEntry[] = [];
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const PERFORMANCE_P95_MIN_REQUESTS = 1000;
@@ -58,6 +61,16 @@
 
   let importPerformanceSummary: PerformanceSummary | null = null;
   let importUsageSummary: UsageSummary | null = null;
+
+  function isFailureEntry(entry: HolidayResultEntry): boolean {
+    const status = entry?.result?.status;
+    if (typeof status !== 'string') {
+      return true;
+    }
+    return status.trim().toLowerCase() !== 'success';
+  }
+
+  $: visibleHistory = showImportFailuresOnly ? history.filter(isFailureEntry) : history;
 
   function toFiniteNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -637,6 +650,8 @@
     }
 
     const [file] = target.files;
+    importInProgress = true;
+    showImportFailuresOnly = false;
     busy = true;
     const totalValues: number[] = [];
     let totalSum = 0;
@@ -723,6 +738,7 @@
       }
     } finally {
       busy = false;
+      importInProgress = false;
       target.value = '';
       if (processedCount > 0) {
         importPerformanceSummary = calculatePerformanceSummary({
@@ -811,6 +827,7 @@
     history = [];
     importPerformanceSummary = null;
     importUsageSummary = null;
+    showImportFailuresOnly = false;
 
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
@@ -1003,10 +1020,25 @@
     {/if}
 
     <section class="results" aria-live="polite">
+      {#if importInProgress || history.length || showImportFailuresOnly}
+        <div class="import-filter">
+          <label class="import-filter-toggle">
+            <input
+              type="checkbox"
+              bind:checked={showImportFailuresOnly}
+              data-testid="import-failures-toggle"
+            />
+            Show only failed requests
+          </label>
+        </div>
+      {/if}
+
       {#if !history.length}
         <p data-testid="empty-state">Run a parse to see structured output.</p>
+      {:else if showImportFailuresOnly && !visibleHistory.length}
+        <p class="filter-empty" data-testid="import-filter-empty">No failed requests found.</p>
       {:else}
-        {#each history as entry (entry.id)}
+        {#each visibleHistory as entry (entry.id)}
           <StructuredResult {entry} />
         {/each}
       {/if}
@@ -1234,6 +1266,29 @@
     flex-direction: column;
     gap: 1rem;
     padding-top: 0.25rem;
+  }
+
+  .import-filter {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+  }
+
+  .import-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+
+  .import-filter-toggle input {
+    accent-color: #38bdf8;
+  }
+
+  .filter-empty {
+    text-align: center;
+    color: #94a3b8;
   }
 
   .error {
