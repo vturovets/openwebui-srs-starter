@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import AsyncIterator, Callable, Iterable, Iterator, Mapping
+from typing import Callable, Iterator, Mapping
 
 from .config import Settings
 from .pipeline.configuration import MethodsCatalog
-
 from .integrations.stt import (
     DeepgramSpeechToTextClient,
     FasterWhisperSpeechToTextClient,
     SpeechToTextClient,
-    SpeechToTextError,
-    TranscriptionResult,
 )
 from .integrations.llm import HolidaySearchLLMClient
 from .logging.csv_logger import CSVLogger
@@ -128,39 +125,14 @@ def get_stt_client() -> SpeechToTextClient | None:
         return DeepgramSpeechToTextClient(api_key=settings.deepgram_api_key)
 
     if engine in {"whisper", "faster-whisper"}:
-
-        class _LazyFasterWhisperClient:
-            """Defer Whisper model loading until the first transcription call."""
-
-            def __init__(self) -> None:
-                self._client: FasterWhisperSpeechToTextClient | None = None
-
-            async def transcribe(
-                self,
-                *,
-                content_type: str,
-                stream: AsyncIterator[bytes] | Iterable[bytes],
-            ) -> TranscriptionResult:
-                if self._client is None:
-                    try:
-                        self._client = FasterWhisperSpeechToTextClient(
-                            model_size=settings.whisper_model_size,
-                            device=settings.whisper_device,
-                            compute_type=settings.whisper_compute_type,
-                            download_root=settings.whisper_download_root,
-                            beam_size=settings.whisper_beam_size,
-                            vad_filter=settings.whisper_vad_filter,
-                        )
-                    except SpeechToTextError:
-                        # Surface provider errors through the endpoint handler.
-                        raise
-
-                return await self._client.transcribe(
-                    content_type=content_type,
-                    stream=stream,
-                )
-
-        return _LazyFasterWhisperClient()
+        return FasterWhisperSpeechToTextClient(
+            model_size=settings.whisper_model_size,
+            device=settings.whisper_device,
+            compute_type=settings.whisper_compute_type,
+            download_root=settings.whisper_download_root,
+            beam_size=settings.whisper_beam_size,
+            vad_filter=settings.whisper_vad_filter,
+        )
 
     raise RuntimeError(f"Unsupported STT engine '{settings.stt_engine}' configured")
 
