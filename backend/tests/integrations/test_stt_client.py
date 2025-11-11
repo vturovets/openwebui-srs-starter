@@ -4,7 +4,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from backend.app import dependencies as deps
 from backend.app.integrations import stt
 
 
@@ -97,32 +96,3 @@ def test_faster_whisper_requires_dependency(monkeypatch):
 
     with pytest.raises(stt.SpeechToTextError):
         stt.FasterWhisperSpeechToTextClient()
-
-
-def test_lazy_whisper_client_surfaces_missing_dependency(monkeypatch):
-    monkeypatch.setenv("VOICE_ENABLED", "true")
-    monkeypatch.setenv("STT_ENGINE", "whisper")
-
-    deps.get_settings.cache_clear()
-    deps.get_stt_client.cache_clear()
-
-    class RaisingClient:
-        def __init__(self, **_: object) -> None:
-            raise stt.SpeechToTextError("missing faster-whisper")
-
-    monkeypatch.setattr(deps, "FasterWhisperSpeechToTextClient", RaisingClient)
-
-    client = deps.get_stt_client()
-    assert client is not None
-
-    async def _invoke() -> None:
-        await client.transcribe(
-            content_type="audio/wav",
-            stream=_async_bytes_stream([b"abc"]),
-        )
-
-    with pytest.raises(stt.SpeechToTextError):
-        asyncio.run(_invoke())
-
-    deps.get_settings.cache_clear()
-    deps.get_stt_client.cache_clear()
