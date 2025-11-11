@@ -45,32 +45,10 @@ class LLMExtractor:
         configuration: SearchConfiguration,
         *,
         llm_registry: Mapping[str, LLMClientHandle] | None = None,
-        llm_client: Callable[[str], Mapping[str, object]] | LLMClientHandle | None = None,
-        default_method_id: str | None = None,
     ) -> None:
         self._fixtures = fixtures
         self._configuration = configuration
-        self._llm_registry: dict[str, LLMClientHandle] | None = None
-        if llm_registry is not None:
-            self._llm_registry = dict(llm_registry)
-
-        self._default_handle: LLMClientHandle | None = None
-        if llm_client is not None:
-            if isinstance(llm_client, LLMClientHandle):
-                handle = llm_client
-            else:
-                method_id = default_method_id or "default-llm"
-                handle = LLMClientHandle(
-                    method_id=method_id,
-                    provider="custom",
-                    client=llm_client,
-                )
-            self._default_handle = handle
-            if self._llm_registry is None:
-                self._llm_registry = {handle.method_id: handle}
-            else:
-                self._llm_registry.setdefault(handle.method_id, handle)
-
+        self._llm_registry = llm_registry
         self._last_network_latency_ms: float | None = None
         self._last_metadata: MutableMapping[str, object] | None = None
         self._last_handle: LLMClientHandle | None = None
@@ -114,35 +92,20 @@ class LLMExtractor:
             results.append((phrase, parsed))
         return results
 
-    def extract(self, utterance: str, *, method: MethodConfig | None = None) -> ExtractionResult:
-        if self._llm_registry is None and self._default_handle is None:
+    def extract(self, utterance: str, *, method: MethodConfig) -> ExtractionResult:
+        if self._llm_registry is None:
             raise ValueError("LLM extractor is not configured")
 
         self._last_handle = None
-        handle: LLMClientHandle | None = None
-        method_identifier: str | None = None
-
-        if method is not None and self._llm_registry is not None:
-            method_identifier = method.id
-            handle = self._llm_registry.get(method.id)
-            if handle is None:
-                provider_hint = str(method.config.get("provider")) if method.config else ""
-                for candidate in self._llm_registry.values():
-                    if candidate.provider == provider_hint and provider_hint:
-                        handle = candidate
-                        break
-
-        if handle is None and self._llm_registry is not None and len(self._llm_registry) == 1:
-            handle = next(iter(self._llm_registry.values()))
-            method_identifier = handle.method_id
-
+        handle = self._llm_registry.get(method.id)
         if handle is None:
-            handle = self._default_handle
-
+            provider_hint = str(method.config.get("provider")) if method.config else ""
+            for candidate in self._llm_registry.values():
+                if isinstance(candidate, LLMClientHandle) and candidate.provider == provider_hint:
+                    handle = candidate
+                    break
         if handle is None:
-            if method_identifier:
-                raise ValueError(f"LLM method '{method_identifier}' is not configured")
-            raise ValueError("LLM extractor is not configured")
+            raise ValueError(f"LLM method '{method.id}' is not configured")
 
         self._last_handle = handle
         self._last_network_latency_ms = None
