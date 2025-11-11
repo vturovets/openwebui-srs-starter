@@ -35,7 +35,26 @@
   let downloadUrl: string | null = null;
   let importInput: HTMLInputElement | null = null;
   let importInProgress = false;
-  let showImportFailuresOnly = false;
+  function resolveBoolean(value: unknown, fallback: boolean): boolean {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) {
+        return true;
+      }
+      if (['false', '0', 'no', 'n', 'off'].includes(normalized)) {
+        return false;
+      }
+    }
+    return fallback;
+  }
+
+  const SHOW_ONLY_FAILED = resolveBoolean(
+    metaEnv?.SHOW_ONLY_FAILED ?? metaEnv?.VITE_SHOW_ONLY_FAILED,
+    true
+  );
   let visibleHistory: HolidayResultEntry[] = [];
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
@@ -70,7 +89,9 @@
     return status.trim().toLowerCase() !== 'success';
   }
 
-  $: visibleHistory = showImportFailuresOnly ? history.filter(isFailureEntry) : history;
+  $: visibleHistory = SHOW_ONLY_FAILED
+    ? history.filter((entry) => !entry.imported || isFailureEntry(entry))
+    : history;
 
   function toFiniteNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -529,8 +550,10 @@
   function createEntry(
     source: 'text' | 'voice',
     result: HolidayResult,
-    input: string
+    input: string,
+    options: { imported?: boolean } = {}
   ): HolidayResultEntry {
+    const { imported = false } = options;
     const resolvedInput = input || result.transcript || '';
     return {
       id: generateId(),
@@ -539,6 +562,7 @@
       result,
       prompt: buildClarificationPrompt(result),
       timestamp: new Date().toISOString(),
+      imported,
     };
   }
 
@@ -651,7 +675,6 @@
 
     const [file] = target.files;
     importInProgress = true;
-    showImportFailuresOnly = false;
     busy = true;
     const totalValues: number[] = [];
     let totalSum = 0;
@@ -700,7 +723,7 @@
             method: method || undefined,
           });
 
-          let entry = createEntry('text', payload, userInput);
+          let entry = createEntry('text', payload, userInput, { imported: true });
 
           if (expectedValues.length) {
             const actualRows = getExtractedValueRows(entry);
@@ -733,7 +756,7 @@
             metadata: { message },
             clarifications: [],
           };
-          recordImportedEntry(createEntry('text', failureResult, userInput));
+          recordImportedEntry(createEntry('text', failureResult, userInput, { imported: true }));
         }
       }
     } finally {
@@ -1035,7 +1058,7 @@
 
       {#if !history.length}
         <p data-testid="empty-state">Run a parse to see structured output.</p>
-      {:else if showImportFailuresOnly && !visibleHistory.length}
+      {:else if SHOW_ONLY_FAILED && !visibleHistory.length}
         <p class="filter-empty" data-testid="import-filter-empty">No failed requests found.</p>
       {:else}
         {#each visibleHistory as entry (entry.id)}
@@ -1266,24 +1289,6 @@
     flex-direction: column;
     gap: 1rem;
     padding-top: 0.25rem;
-  }
-
-  .import-filter {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 0.5rem;
-  }
-
-  .import-filter-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: #94a3b8;
-  }
-
-  .import-filter-toggle input {
-    accent-color: #38bdf8;
   }
 
   .filter-empty {
