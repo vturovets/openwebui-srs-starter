@@ -7,11 +7,7 @@ from typing import Callable, Iterator, Mapping
 
 from .config import Settings
 from .pipeline.configuration import MethodsCatalog
-from .integrations.stt import (
-    DeepgramSpeechToTextClient,
-    FasterWhisperSpeechToTextClient,
-    SpeechToTextClient,
-)
+from .integrations.stt import DeepgramSpeechToTextClient, SpeechToTextClient
 from .integrations.llm import HolidaySearchLLMClient
 from .logging.csv_logger import CSVLogger
 
@@ -123,16 +119,6 @@ def get_stt_client() -> SpeechToTextClient | None:
         if not settings.deepgram_api_key:
             raise RuntimeError("DEEPGRAM_API_KEY must be configured when using the Deepgram STT engine")
         return DeepgramSpeechToTextClient(api_key=settings.deepgram_api_key)
-
-    if engine in {"whisper", "faster-whisper"}:
-        return FasterWhisperSpeechToTextClient(
-            model_size=settings.whisper_model_size,
-            device=settings.whisper_device,
-            compute_type=settings.whisper_compute_type,
-            download_root=settings.whisper_download_root,
-            beam_size=settings.whisper_beam_size,
-            vad_filter=settings.whisper_vad_filter,
-        )
 
     raise RuntimeError(f"Unsupported STT engine '{settings.stt_engine}' configured")
 
