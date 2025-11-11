@@ -1023,7 +1023,15 @@
     data-testid="import-input"
     tabindex="-1"
   />
-  <a bind:this={downloadAnchor} class="visually-hidden" aria-hidden="true" tabindex="-1"></a>
+  <a
+    bind:this={downloadAnchor}
+    class="visually-hidden"
+    aria-hidden="true"
+    tabindex="-1"
+    href={downloadUrl ?? '#'}
+  >
+    Download CSV
+  </a>
 </main>
 
 <style>
