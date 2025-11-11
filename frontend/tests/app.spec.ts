@@ -144,7 +144,7 @@ test('voice upload routes through parse flow and updates status indicators', asy
   );
 });
 
-test('import results only list failed requests by default', async ({ page }) => {
+test('import toggle filters to failed requests', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('fixtures-loaded')).toBeVisible();
 
@@ -159,8 +159,16 @@ test('import results only list failed requests by default', async ({ page }) => 
     buffer: Buffer.from(csvContent, 'utf-8'),
   });
 
+  await expect(page.getByTestId('structured-result')).toHaveCount(2);
+
+  const toggle = page.getByTestId('import-failures-toggle');
+  await expect(toggle).toBeVisible();
+
+  await toggle.check();
   await expect(page.getByTestId('structured-result')).toHaveCount(1);
   await expect(page.getByTestId('status-label')).toHaveText('failed');
-  await expect(page.getByTestId('status-label')).not.toHaveText('success');
+
+  await toggle.uncheck();
+  await expect(page.getByTestId('structured-result')).toHaveCount(2);
 });
 
