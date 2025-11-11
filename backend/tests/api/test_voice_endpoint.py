@@ -87,6 +87,16 @@ def test_voice_endpoint_noop_when_disabled():
         assert response.transcript is None
         assert response.metadata["mode"] == settings.interaction_mode
 
+        enabled_settings = Settings(voice_enabled=True, stt_engine="deepgram", deepgram_api_key="dg")
+        enabled_upload = create_upload(b"fake", content_type="audio/wav")
+
+        with pytest.raises(HTTPException) as excinfo:
+            await voice_endpoint(audio=enabled_upload, settings=enabled_settings)
+
+        assert excinfo.value.status_code == 500
+
+        await enabled_upload.close()
+
     asyncio.run(scenario())
 
 

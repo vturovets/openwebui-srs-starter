@@ -8,9 +8,10 @@ from time import perf_counter
 from collections.abc import Mapping
 
 from datetime import datetime, timezone
-from typing import AsyncIterator
+from typing import AsyncIterator, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.params import Depends as DependsMarker
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import Settings
@@ -31,6 +32,24 @@ from ..integrations.stt import (
 )
 
 api_router = APIRouter(prefix="/v1", tags=["v1"])
+
+
+_DEPENDENCY_RESOLVERS = {
+    get_pipeline: get_pipeline,
+    get_csv_logger: get_csv_logger,
+    get_stt_client: get_stt_client,
+}
+
+
+def _resolve_dependency(value: object) -> object:
+    """Resolve FastAPI dependency markers when invoking endpoints directly."""
+
+    if isinstance(value, DependsMarker):
+        dependency = getattr(value, "dependency", None)
+        resolver = _DEPENDENCY_RESOLVERS.get(dependency)
+        if resolver is not None:
+            return resolver()
+    return value
 
 
 def _utc_timestamp() -> str:
@@ -725,6 +744,11 @@ async def voice_endpoint(
     stt_client: SpeechToTextClient | None = Depends(get_stt_client),
 ) -> VoiceResponse:
     """Transcribe an audio sample and feed it through the holiday search pipeline."""
+
+    pipeline = cast(HolidaySearchPipeline, _resolve_dependency(pipeline))
+    logger = cast(CSVLogger, _resolve_dependency(logger))
+    resolved_stt_client = _resolve_dependency(stt_client)
+    stt_client = cast(SpeechToTextClient | None, resolved_stt_client)
 
     total_start = perf_counter()
 
