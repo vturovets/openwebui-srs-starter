@@ -16,9 +16,9 @@ retaining comparable output for experiments.
 ```
 .
 ├── backend/
-│   ├── app/                    # FastAPI application, pipeline stages, integrations
+│   ├── app/                    # FastAPI application, API routes, pipeline stages, integrations
 │   ├── openai.yaml             # Docker Compose example pairing the backend with OpenWebUI
-│   └── tests/                  # Pytest coverage for fixtures, pipeline, and API
+│   └── tests/                  # Pytest coverage for API contracts, pipeline flows, and fixtures
 ├── config/                     # Method catalogue and supporting YAML
 ├── docs/                       # SRS, SDD, and integration reference material
 ├── fixtures/                   # Airports, destinations, durations, and configuration JSON
@@ -82,6 +82,7 @@ serving traffic. Key options mirror the SRS:
 | `FIXTURES_DIR` | `fixtures` | Directory containing the JSON fixture files. |
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
+| `SHOW_FAILED_ONLY` | `true` | When importing CSV logs into the UI, hide successful runs unless explicitly requested. |
 
 Create a `.env` file to override defaults, for example:
 
@@ -121,7 +122,12 @@ secrets out of version control.
 
 ### Method catalog
 
-Structured extraction strategies are described in [`config/methods.yaml`](config/methods.yaml). The loader merges the `defaults` block with each enabled method, applies environment-variable substitutions (for example `${OPENAI_BASE}`), and resolves hybrid definitions into concrete stage sequences before caching the result in [`Settings`](backend/app/config.py). Each entry is surfaced through the `/v1/fixtures` endpoint so clients can list available options and defaults.
+Structured extraction strategies are described in [`config/methods.yaml`](config/methods.yaml). The loader merges the `defaults` block with each enabled method, applies environment-variable substitutions (for example `${OPENAI_BASE}`), and resolves hybrid definitions into concrete stage sequences before caching the result in [`Settings`](backend/app/config.py). Each entry is surfaced through the `/v1/fixtures` endpoint, and the pipeline metadata always includes:
+
+- `availableMethods` – ordered list of enabled methods with labels, provider metadata, and runtime params.
+- `defaultMethod` / `methodDefaults` – resolved defaults shared across methods (time-outs, temperatures, etc.).
+- `catalogSize` – count of enabled strategies, useful for UI summaries.
+- `requestedAlias` – caller-supplied alias that mapped to the resolved pipeline method.
 
 - **Rules/LLM entries** – declare provider metadata, tunable parameters, and optional `api_key_env` indirection to avoid storing secrets in the catalog.
 - **Hybrid entries** – reference existing methods via `stages` and optionally specify a `fallback` that runs when upstream stages fail.
@@ -177,15 +183,18 @@ The high-level flow is:
    [`fixtures/`](fixtures) and raises `ValidationError` when remediation is
    required.
 5. **Timing and metadata** – the pipeline records per-stage timings,
-   requested/used method, and any validation errors so the API can report
-   detailed diagnostics.
+   requested/used method, recognized entities, missing/invalid fields, and any
+   validation errors so the API can report detailed diagnostics.
 
 The dialog experience is layered on top via
 [`DialogOrchestrator`](backend/app/pipeline/dialog.py), which inspects
 validation failures and returns clarification prompts or session context. CSV
 instrumentation is handled by [`CSVLogger`](backend/app/logging/csv_logger.py),
 which writes a stable schema defined in
-[`backend/app/dependencies.py`](backend/app/dependencies.py).
+[`backend/app/dependencies.py`](backend/app/dependencies.py). The exported log
+intentionally contains two **Language Detection** columns: the first stores the
+timing budget, while the second records the textual summary (language code plus
+confidence).
 
 ### Fixtures
 
@@ -193,14 +202,19 @@ Fixture JSON files in [`fixtures/`](fixtures) and
 [`backend/app/fixtures`](backend/app/fixtures) act as the canonical source of
 truth for airports, destinations, durations, and configuration defaults. The
 [`FixtureRepository`](backend/app/fixtures/repository.py) exposes typed access to
-these resources so pipeline stages can remain deterministic.
+these resources so pipeline stages can remain deterministic. The
+`/v1/fixtures` response also reflects runtime toggles such as
+`voiceEnabled` and `showFailedOnly`, mirroring the current [`Settings`](backend/app/config.py).
 
 ### Voice capture
 
 When `VOICE_ENABLED=true`, the API exposes `/v1/voice` and wires in an optional
 speech-to-text client via `get_stt_client`. The default implementation is
 [`DeepgramSpeechToTextClient`](backend/app/integrations/stt.py), which streams
-audio to Deepgram’s REST API and returns word-level timings for the UI.
+audio to Deepgram’s REST API and returns word-level timings for the UI. The
+`VoiceResponse` payload reports the transcription status, selected engine, word
+timings, and the downstream pipeline metadata so voice and text flows stay
+aligned.
 
 ## Frontend quick start
 
@@ -234,7 +248,7 @@ and Playwright suites live under [`frontend/tests`](frontend/tests).
 | `GET /health` | Returns `{ "status": "ok" }` plus the active interaction mode for readiness checks. |
 | `POST /v1/parse` | Parses a natural-language utterance and responds with structured holiday parameters, validation metadata, and timing metrics. |
 | `POST /v1/dialog` | Maintains clarification sessions, returning prompts and accumulating transcript context when `INTERACTION_MODE=dialog`. |
-| `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, and configuration defaults so clients can pre-populate UI controls. |
+| `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, configuration defaults, enabled methods, and UI hints such as `voiceEnabled`/`showFailedOnly`. |
 | `POST /v1/voice` | Streams uploaded audio to the configured STT engine, returns the transcript with timing data, and forwards the utterance into the holiday search pipeline. |
 
 ### Sample `/v1/parse` request
@@ -245,7 +259,6 @@ Content-Type: application/json
 
 {
   "text": "Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
-  "mode": "dialog",
   "method": "rules"
 }
 ```
@@ -259,39 +272,93 @@ Content-Type: application/json
     "language": "en",
     "from": ["AMS"],
     "to": ["d7b4bb39-123c-1234-b123-1234567i:COUNTRY"],
-    "departureDate": ["2025-10-07", "2025-10-13"],
+    "departureDate": ["2026-10-10", "2026-10-16"],
     "durationId": "2007",
     "party": {"adults": 2, "nonAdults": 0},
     "rooms": null
   },
   "metadata": {
-    "mode": "dialog",
-    "method": "rules",
+    "methodId": "rules-basic",
+    "methodType": "rules",
+    "requestedAlias": "rules",
+    "mode": "direct-parse",
+    "method": "rules-basic",
+    "requestedMethod": "rules-basic",
     "timings": {
-      "languageMs": 1.2,
-      "extractionMs": 4.8,
-      "normalizationMs": 0.9,
-      "validationMs": 0.4,
-      "totalMs": 18.6,
-      "thresholdBreached": false
+      "languageMs": 896.89,
+      "extractionMs": 3648.19,
+      "normalizationMs": 0.22,
+      "validationMs": 0.12,
+      "totalMs": 4545.61,
+      "thresholdBreached": true
     },
-    "validation": {
-      "status": "passed",
-      "errors": []
-    },
+    "validation": {"status": "passed", "errors": []},
+    "transcript": [
+      {"role": "user", "text": "Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights"}
+    ],
     "recognized": {
       "airports": [{"id": "AMS", "name": "Amsterdam", "available": true}],
       "destinations": [{"id": "d7b4bb39-123c-1234-b123-1234567i", "name": "Italy", "type": "COUNTRY", "available": true}],
       "duration": {"id": "2007", "name": "7 nights", "isDefault": true},
-      "flexibility": {"id": "3", "name": "+- 3 days", "isDefault": true},
-      "dates": [
-        {"phrase": "10 October 2025", "iso": "2025-10-10T00:00:00"}
-      ]
+      "flexibility": null,
+      "dates": [{"phrase": "on 10", "iso": "2026-10-13T00:00:00"}]
     },
-    "language": {
-      "code": "en",
-      "confidence": 0.78
-    }
+    "recognizedEntities": {
+      "airports": ["AMS"],
+      "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+      "dates": ["2026-10-13T00:00:00"],
+      "duration": "2007",
+      "flexibility": null
+    },
+    "missingFields": [],
+    "invalidFields": [],
+    "language": {"code": "en", "confidence": 0.9999951336379177},
+    "attempts": [
+      {"method": "rules-basic", "type": "rules", "status": "success"}
+    ],
+    "llm": {},
+    "availableMethods": [
+      {
+        "id": "rules-basic",
+        "type": "rules",
+        "label": "rules-basic",
+        "params": {
+          "timeout_s": 30,
+          "temperature": 0.0,
+          "dictionary_filename": "data/dictionary.csv",
+          "configuration_filename": "configs/rules.conf"
+        }
+      },
+      {
+        "id": "gpt5-default",
+        "type": "llm",
+        "label": "gpt5-default",
+        "params": {
+          "timeout_s": 30,
+          "temperature": 0.1,
+          "max_tokens": 512
+        },
+        "provider": "openai",
+        "model": "gpt-5-chat-latest",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env": "OPENAI_API_KEY"
+      },
+      {
+        "id": "hybrid-v1",
+        "type": "hybrid",
+        "label": "hybrid-v1",
+        "params": {
+          "timeout_s": 30,
+          "temperature": 0.0
+        },
+        "strategy": "cascade",
+        "stages": ["rules-basic", "gpt5-default"],
+        "fallback": "gpt5-default"
+      }
+    ],
+    "defaultMethod": "rules-basic",
+    "methodDefaults": {"timeout_s": 30, "temperature": 0.0},
+    "catalogSize": 3
   }
 }
 ```
