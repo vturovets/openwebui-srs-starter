@@ -850,6 +850,7 @@
     history = [];
     importPerformanceSummary = null;
     importUsageSummary = null;
+    showImportFailuresOnly = false;
 
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
@@ -1042,6 +1043,19 @@
     {/if}
 
     <section class="results" aria-live="polite">
+      {#if importInProgress || history.length || showImportFailuresOnly}
+        <div class="import-filter">
+          <label class="import-filter-toggle">
+            <input
+              type="checkbox"
+              bind:checked={showImportFailuresOnly}
+              data-testid="import-failures-toggle"
+            />
+            Show only failed requests
+          </label>
+        </div>
+      {/if}
+
       {#if !history.length}
         <p data-testid="empty-state">Run a parse to see structured output.</p>
       {:else if SHOW_ONLY_FAILED && !visibleHistory.length}
