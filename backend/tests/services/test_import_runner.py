@@ -8,6 +8,8 @@ import time
 from types import SimpleNamespace
 from typing import Iterable
 
+import pytest
+
 from backend.app.api.routes import ParseRequest
 from backend.app.config import Settings
 import backend.app.services.import_runner as import_runner
@@ -122,6 +124,7 @@ def test_run_import_processes_all_payloads_and_invokes_callback():
     assert captured_summary is summary
     assert len(logger.entries) == len(requests)
     assert "p95" in summary.latency_percentiles
+    assert summary.total_processing_ms >= 0.0
     assert isinstance(summary.cpu_samples, list)
     assert isinstance(summary.memory_samples, list)
     assert isinstance(summary.guardrail_actions, list)
@@ -149,6 +152,7 @@ def test_run_import_honours_concurrency_cap():
     assert summary.metrics.peak_concurrency <= 3
     assert summary.metrics.total_requests == len(requests)
     assert isinstance(summary.guardrail_actions, list)
+    assert summary.total_processing_ms >= 0.0
 
 
 def test_run_import_aggregates_large_batch_metrics():
@@ -193,6 +197,12 @@ def test_run_import_aggregates_large_batch_metrics():
     assert summary.metrics.success_count == successes
     assert summary.metrics.failed_count == failures
     assert summary.metrics.error_count == errors
+    expected_processing = (
+        successes * latencies["success"]
+        + failures * latencies["failed"]
+        + errors * latencies["error"]
+    )
+    assert summary.total_processing_ms == pytest.approx(expected_processing)
 
     histogram = summary.metrics.latency_histogram
     expected = {

@@ -141,6 +141,7 @@ class ImportSummary:
     started_at: datetime
     finished_at: datetime
     duration_ms: float
+    total_processing_ms: float
     latency_percentiles: Mapping[str, float | None]
     cpu_samples: list[float]
     memory_samples: list[float]
@@ -316,6 +317,7 @@ class ImportJobRunner:
                 started_at=started_at,
                 finished_at=finished_at,
                 duration_ms=duration_ms,
+                total_processing_ms=float(sum(metrics_state["durations"])),
                 latency_percentiles=latency_percentiles,
                 cpu_samples=list(monitor.cpu_samples),
                 memory_samples=list(monitor.memory_samples),

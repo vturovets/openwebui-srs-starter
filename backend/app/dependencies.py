@@ -9,7 +9,11 @@ from .config import Settings
 from .pipeline.configuration import MethodsCatalog
 from .integrations.stt import DeepgramSpeechToTextClient, SpeechToTextClient
 from .integrations.llm import HolidaySearchLLMClient
-from .logging.csv_logger import CSVLogger
+from .logging import (
+    CSVLogger,
+    ImportSummaryLogger,
+    IMPORT_SUMMARY_LOG_FIELDS,
+)
 
 
 # NOTE: "Language Detection" is intentionally duplicated. The first column captures the
@@ -98,6 +102,21 @@ def get_csv_logger() -> CSVLogger:
 
 
 @lru_cache
+def get_import_summary_logger() -> ImportSummaryLogger | None:
+    """Provide a CSV logger that stores one row per import job."""
+
+    settings = get_settings()
+    if settings.import_summary_path is None:
+        return None
+
+    return ImportSummaryLogger(
+        path=settings.import_summary_path,
+        fieldnames=IMPORT_SUMMARY_LOG_FIELDS,
+        delimiter=settings.import_summary_delimiter,
+    )
+
+
+@lru_cache
 def get_dialog_orchestrator() -> DialogOrchestrator:
     """Provide a dialog orchestrator wired to the shared pipeline."""
 
@@ -131,6 +150,8 @@ __all__ = [
     "get_pipeline",
     "get_llm_client",
     "get_csv_logger",
+    "get_import_summary_logger",
     "get_dialog_orchestrator",
     "get_stt_client",
+    "IMPORT_SUMMARY_LOG_FIELDS",
 ]

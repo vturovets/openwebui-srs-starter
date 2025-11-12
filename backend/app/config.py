@@ -44,6 +44,18 @@ class Settings(BaseSettings):
         alias="CSV_DELIMITER",
         description="Single-character delimiter used for the CSV audit log.",
     )
+    import_summary_path: Path | None = Field(
+        default=Path("data/import_summary.csv"),
+        alias="IMPORT_SUMMARY_PATH",
+        description=(
+            "Filesystem path for aggregated import job summaries. Set to an empty string to disable logging."
+        ),
+    )
+    import_summary_delimiter: str = Field(
+        default=",",
+        alias="IMPORT_SUMMARY_DELIMITER",
+        description="Single-character delimiter used for the import summary CSV sink.",
+    )
     llm_method: Optional[str] = Field(
         default=None,
         alias="LLM_METHOD",
@@ -462,11 +474,43 @@ class Settings(BaseSettings):
             raise ValueError("LLM_TIMEOUT must be greater than zero seconds")
         return timeout
 
+    @field_validator("import_summary_path", mode="before")
+    @classmethod
+    def _validate_import_summary_path(cls, value: object) -> Path | None:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, "", "null", "None"):
+            return None
+        if isinstance(value, Path):
+            return value
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return None
+            return Path(cleaned)
+        raise TypeError("IMPORT_SUMMARY_PATH must be a filesystem path or empty to disable logging")
+
+    @field_validator("import_summary_delimiter", mode="before")
+    @classmethod
+    def _validate_import_summary_delimiter(cls, value: object) -> str:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return ","
+        if not isinstance(value, str):
+            raise TypeError("IMPORT_SUMMARY_DELIMITER must be a string")
+        cleaned = value.strip()
+        if len(cleaned) != 1:
+            raise ValueError("IMPORT_SUMMARY_DELIMITER must be a single character")
+        return cleaned
+
     def ensure_directories(self) -> None:
         """Create required directories for runtime artifacts if missing."""
 
         self.csv_path.parent.mkdir(parents=True, exist_ok=True)
         self.fixtures_dir.mkdir(parents=True, exist_ok=True)
+        if self.import_summary_path is not None:
+            self.import_summary_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 __all__ = ["Settings"]
