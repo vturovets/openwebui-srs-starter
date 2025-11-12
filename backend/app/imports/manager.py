@@ -104,12 +104,7 @@ class ImportManager:
     ) -> None:
         self._pipeline = pipeline
         self._settings = settings
-        self._max_concurrency = max(
-            1, int(max_concurrency or settings.import_max_concurrency)
-        )
-        self._queue_limit = settings.import_queue_limit
-        self._batch_size = settings.import_batch_size
-        self._max_pending_jobs = settings.import_max_pending_jobs
+        self._max_concurrency = max(1, int(max_concurrency or 4))
         self._summary_ttl = max(summary_ttl_seconds, 60.0)
         self._executor = ThreadPoolExecutor(max_workers=self._max_concurrency)
         self._semaphore = asyncio.Semaphore(self._max_concurrency)
@@ -147,10 +142,6 @@ class ImportManager:
         materialised = [dict(row) for row in rows]
         if not materialised:
             raise ValueError("Import request must include at least one row")
-        if len(materialised) > self._batch_size:
-            raise ValueError(
-                f"Import request exceeds maximum batch size of {self._batch_size} rows"
-            )
 
         job_id = self._generate_job_id()
         snapshot = ImportStatusSnapshot(
@@ -204,17 +195,6 @@ class ImportManager:
 
     async def _register_job(self, job_id: str, snapshot: ImportStatusSnapshot) -> None:
         async with self._lock:
-            active_jobs = len(self._jobs)
-            if active_jobs >= self._queue_limit:
-                raise RuntimeError(
-                    "Import queue is full; please wait for existing jobs to finish"
-                )
-            if self._max_pending_jobs is not None:
-                pending_jobs = sum(1 for job in self._jobs.values() if job.status == "pending")
-                if pending_jobs >= self._max_pending_jobs:
-                    raise RuntimeError(
-                        "Too many import jobs are pending; please retry once some have started"
-                    )
             self._jobs[job_id] = snapshot
         await self._evict_expired()
 
