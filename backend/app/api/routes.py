@@ -8,7 +8,7 @@ from time import perf_counter, perf_counter_ns
 from collections.abc import Mapping
 
 from datetime import datetime, timezone
-from typing import AsyncIterator, cast
+from typing import AsyncIterator, Iterable, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.params import Depends as DependsMarker
@@ -25,6 +25,7 @@ from ..dependencies import (
 from ..logging.csv_logger import CSVLogger
 from ..pipeline.dialog import DialogOrchestrator
 from ..pipeline.pipeline import HolidaySearchPipeline
+from ..services import GuardrailOverloadError, ImportJobRunner, ImportSummary
 from ..integrations.stt import (
     SpeechToTextClient,
     SpeechToTextError,
@@ -58,6 +59,20 @@ def _utc_timestamp() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
+class BatchParseItem(BaseModel):
+    """Discrete parse request for use within import batches."""
+
+    text: str = Field(..., description="Utterance to parse for this batch item.")
+    mode: str | None = Field(
+        default=None,
+        description="Optional interaction mode override supplied by the UI.",
+    )
+    method: str | None = Field(
+        default=None,
+        description="Optional method identifier to attribute downstream processing.",
+    )
+
+
 class ParseRequest(BaseModel):
     """Payload required to invoke the NLP pipeline."""
 
@@ -70,6 +85,19 @@ class ParseRequest(BaseModel):
         default=None,
         description="Optional method identifier to attribute downstream processing.",
     )
+    batch: list[BatchParseItem] | str | None = Field(
+        default=None,
+        description=(
+            "Optional batch payload when running bulk imports. Accepts a list of "
+            "ParseRequest-compatible items or a storage key reference."
+        ),
+    )
+    import_mode: bool = Field(
+        default=False,
+        description="Flag indicating whether the request should trigger import execution.",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class VoiceWordTiming(BaseModel):
@@ -98,6 +126,56 @@ class ParseResponse(BaseModel):
     status: str
     data: dict[str, object]
     metadata: dict[str, object]
+
+
+class PercentileSummary(BaseModel):
+    """Latency percentile metrics for import execution."""
+
+    p50: float | None = Field(default=None, description="Median request latency (ms).")
+    p90: float | None = Field(default=None, description="90th percentile latency (ms).")
+    p95: float | None = Field(default=None, description="95th percentile latency (ms).")
+    p99: float | None = Field(default=None, description="99th percentile latency (ms).")
+
+
+class ResourceFootprint(BaseModel):
+    """Resource utilisation samples captured during import execution."""
+
+    cpu: list[float] = Field(
+        default_factory=list,
+        description="CPU utilisation percentage samples captured while processing the batch.",
+    )
+    memory_mb: list[float] = Field(
+        default_factory=list,
+        alias="memoryMb",
+        description="Memory usage samples (MB) captured while processing the batch.",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class GuardrailActionSummary(BaseModel):
+    """Summary of guardrail interventions invoked during import execution."""
+
+    type: str = Field(..., description="Identifier for the guardrail action (e.g. 'cpu').")
+    count: int = Field(..., description="Number of times the guardrail action was applied.")
+
+
+class ImportSummaryResponse(BaseModel):
+    """Structured response returned when parse requests are imported in bulk."""
+
+    status: str
+    totals: dict[str, int]
+    percentiles: PercentileSummary
+    histogram: dict[str, int]
+    started_at: datetime = Field(alias="startedAt")
+    finished_at: datetime = Field(alias="finishedAt")
+    duration_ms: float = Field(alias="durationMs")
+    resource_footprint: ResourceFootprint = Field(alias="resourceFootprint")
+    guardrail_actions: list[GuardrailActionSummary] = Field(
+        default_factory=list, alias="guardrailActions"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ClarificationPayload(BaseModel):
@@ -520,19 +598,106 @@ def _format_pipeline_response(
     }
 
     return status, data_payload, metadata, log_entry, error_detail
-@api_router.post("/parse", response_model=ParseResponse)
+def _prepare_import_requests(payload: ParseRequest) -> Iterable[ParseRequest]:
+    if isinstance(payload.batch, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Batch storage references are not supported in this environment.",
+        )
+    if not payload.batch:
+        raise HTTPException(
+            status_code=400,
+            detail="Import mode requires a non-empty batch payload.",
+        )
+
+    for item in payload.batch:
+        yield ParseRequest(text=item.text, mode=item.mode, method=item.method)
+
+
+def _summarise_import(
+    summary: ImportSummary, *, logger: CSVLogger | None, mode: str | None
+) -> ImportSummaryResponse:
+    totals = {
+        "requests": summary.metrics.total_requests,
+        "success": summary.metrics.success_count,
+        "failed": summary.metrics.failed_count,
+        "error": summary.metrics.error_count,
+    }
+    percentiles = PercentileSummary(**summary.latency_percentiles)
+    guardrail_actions = [
+        GuardrailActionSummary(type=action.type, count=action.count)
+        for action in summary.guardrail_actions
+    ]
+    overall_status = "success"
+    if summary.metrics.error_count:
+        overall_status = "error"
+    elif summary.metrics.failed_count:
+        overall_status = "partial"
+    response = ImportSummaryResponse(
+        status=overall_status,
+        totals=totals,
+        percentiles=percentiles,
+        histogram=summary.metrics.latency_histogram,
+        startedAt=summary.started_at,
+        finishedAt=summary.finished_at,
+        durationMs=summary.duration_ms,
+        resourceFootprint=ResourceFootprint(cpu=summary.cpu_samples, memoryMb=summary.memory_samples),
+        guardrailActions=guardrail_actions,
+    )
+
+    if logger is not None:
+        logger.log(
+            {
+                "Timestamp (UTC)": _utc_timestamp(),
+                "User input": "",
+                "Request type": "Import",
+                "Method": "",
+                "Interaction Mode": mode or "import",
+                "Pipeline Status": overall_status.capitalize(),
+                "Language Detection": ["", ""],
+                "Processing Time": f"{summary.duration_ms:.2f}",
+                "Extraction": "",
+                "Mapping": "",
+                "Validation": "",
+                "Transcription": "",
+                "Network Latency": "",
+                "Output": response.model_dump(mode="json", by_alias=True),
+            }
+        )
+
+    return response
+
+
+@api_router.post("/parse", response_model=ParseResponse | ImportSummaryResponse)
 async def parse_text(
     payload: ParseRequest,
     settings: Settings = Depends(get_settings),
     pipeline: HolidaySearchPipeline = Depends(get_pipeline),
     logger: CSVLogger = Depends(get_csv_logger),
-) -> ParseResponse:
+) -> ParseResponse | ImportSummaryResponse:
     """Run the NLP pipeline and expose timings plus validation metadata."""
+
+    if payload.import_mode:
+        runner = ImportJobRunner(pipeline=pipeline, settings=settings, logger=None)
+        try:
+            summary = await runner.run_import(_prepare_import_requests(payload))
+        except GuardrailOverloadError as exc:  # pragma: no cover - defensive
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=str(exc),
+            ) from exc
+        return _summarise_import(summary, logger=logger, mode=payload.mode)
 
     result = pipeline.run(payload.text, method=payload.method)
 
     transcript_log = [{"role": "user", "text": payload.text}]
-    status, data_payload, metadata, log_entry, error_detail = _format_pipeline_response(
+    (
+        pipeline_status,
+        data_payload,
+        metadata,
+        log_entry,
+        error_detail,
+    ) = _format_pipeline_response(
         result=result,
         settings=settings,
         mode=payload.mode,
@@ -543,10 +708,10 @@ async def parse_text(
 
     logger.log(log_entry)
 
-    if status == "error" and error_detail:
+    if pipeline_status == "error" and error_detail:
         raise HTTPException(status_code=400, detail=error_detail)
 
-    return ParseResponse(status=status, data=data_payload, metadata=metadata)
+    return ParseResponse(status=pipeline_status, data=data_payload, metadata=metadata)
 
 
 @api_router.post("/dialog", response_model=DialogResponse)

@@ -120,6 +120,10 @@ def test_run_import_processes_all_payloads_and_invokes_callback():
     assert summary.metrics.error_count == 0
     assert captured_summary is summary
     assert len(logger.entries) == len(requests)
+    assert "p95" in summary.latency_percentiles
+    assert isinstance(summary.cpu_samples, list)
+    assert isinstance(summary.memory_samples, list)
+    assert isinstance(summary.guardrail_actions, list)
 
 
 def test_run_import_honours_concurrency_cap():
@@ -138,6 +142,7 @@ def test_run_import_honours_concurrency_cap():
     assert pipeline.peak <= 3
     assert summary.metrics.peak_concurrency <= 3
     assert summary.metrics.total_requests == len(requests)
+    assert isinstance(summary.guardrail_actions, list)
 
 
 def test_run_import_aggregates_large_batch_metrics():
@@ -194,6 +199,8 @@ def test_run_import_aggregates_large_batch_metrics():
     for label, count in expected.items():
         assert histogram[label] == count
 
+    assert summary.latency_percentiles["p99"] >= max(latencies.values())
+
 
 def test_configure_import_runtime_respects_limits():
     settings = Settings(
@@ -241,15 +248,17 @@ def test_runtime_controls_wait_for_capacity(monkeypatch):
 
     monkeypatch.setattr(import_runner.asyncio, "sleep", _fake_sleep)
 
-    async def _invoke() -> list[float]:
+    async def _invoke() -> tuple[list[float], dict[str, int]]:
         runtime = configure_import_runtime(settings, concurrency_override=1)
         await runtime.wait_for_capacity()
-        return sleeps
+        return sleeps, runtime.guardrail_actions
 
-    recorded = _run(_invoke())
+    recorded_sleeps, guardrail_actions = _run(_invoke())
 
-    assert recorded
-    assert recorded[0] == settings.import_pause_seconds
+    assert recorded_sleeps
+    assert recorded_sleeps[0] == settings.import_pause_seconds
+    assert guardrail_actions["throttle"] >= 1
+    assert guardrail_actions["cpu"] >= 1
 
 
 def _bucket_label(lower: float, upper: float | None) -> str:

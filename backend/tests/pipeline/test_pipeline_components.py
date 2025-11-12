@@ -15,13 +15,19 @@ import asyncio
 from backend.app.config import Settings
 from backend.app.dependencies import CSV_LOG_FIELDS
 from backend.app.logging.csv_logger import CSVLogger
-from backend.app.api.routes import ParseRequest, parse_text
+from backend.app.api.routes import (
+    ImportSummaryResponse,
+    ParseRequest,
+    parse_text,
+)
 from backend.app.pipeline.extractor_rules import ExtractionResult
 from backend.app.pipeline import language as language_module
 from backend.app.pipeline.language import LanguageDetector
 from backend.app.pipeline.normalizer import Normalizer
 from backend.app.pipeline.pipeline import HolidaySearchPipeline, SearchConfiguration
 from backend.app.pipeline.validator import ValidationError
+from fastapi import HTTPException
+from backend.app.services import import_runner
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -299,6 +305,70 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
     assert log_entry[index_for("Processing Time")] == f"{timings.get('totalMs', 0.0):.2f}"
     output_payload = json.loads(log_entry[index_for("Output")])
     assert output_payload["status"] == "success"
+
+
+def test_parse_endpoint_import_mode_returns_summary(app_dependencies) -> None:
+    settings, pipeline, logger = app_dependencies
+    batch_payload = [
+        {
+            "text": "Book a family trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
+            "mode": "dialog",
+            "method": "sut",
+        },
+        {
+            "text": "Find holidays from Ostend to Spain in October",
+            "mode": "direct-parse",
+        },
+    ]
+    payload = ParseRequest(text="", import_mode=True, batch=batch_payload)
+
+    response = _call_parse(payload, settings, pipeline, logger)
+
+    assert isinstance(response, ImportSummaryResponse)
+    assert response.status in {"success", "partial"}
+    assert response.totals["requests"] == len(batch_payload)
+    assert response.percentiles.p50 is not None
+    assert response.duration_ms >= 0.0
+    assert isinstance(response.resource_footprint.cpu, list)
+    assert isinstance(response.resource_footprint.memory_mb, list)
+
+    with settings.csv_path.open("r", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        rows = list(reader)
+
+    assert len(rows) == 1
+    summary_row = rows[0]
+    assert summary_row["Request type"] == "Import"
+    assert summary_row["Pipeline Status"] == response.status.capitalize()
+    assert "totals" in summary_row["Output"]
+
+
+def test_parse_endpoint_import_guardrail_rejection(app_dependencies, monkeypatch) -> None:
+    settings, pipeline, logger = app_dependencies
+    settings.import_cpu_threshold = 0.0
+    settings.import_pause_seconds = 0.0
+    settings.import_memory_threshold_mb = None
+    payload = ParseRequest(
+        text="",
+        import_mode=True,
+        batch=[{"text": "Book a trip from Amsterdam", "mode": "dialog"}],
+    )
+
+    monkeypatch.setattr(import_runner, "_read_cpu_percent", lambda: 100.0)
+
+    original_configure = import_runner.configure_import_runtime
+
+    def _configure_override(*args, **kwargs):
+        runtime = original_configure(*args, **kwargs)
+        object.__setattr__(runtime, "_max_guardrail_attempts", 1)
+        return runtime
+
+    monkeypatch.setattr(import_runner, "configure_import_runtime", _configure_override)
+
+    with pytest.raises(HTTPException) as exc:
+        _call_parse(payload, settings, pipeline, logger)
+
+    assert exc.value.status_code == 429
 
 
 def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
