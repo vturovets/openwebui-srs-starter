@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
@@ -20,6 +21,9 @@ try:  # pragma: no cover - exercised in integration scenarios
     from faster_whisper import WhisperModel
 except ModuleNotFoundError:  # pragma: no cover - handled at runtime if missing
     WhisperModel = None  # type: ignore[assignment]
+
+
+logger = logging.getLogger(__name__)
 
 class SpeechToTextError(RuntimeError):
     """Raised when a speech-to-text provider returns an error."""
@@ -163,8 +167,8 @@ class FasterWhisperSpeechToTextClient:
             )
 
         download_root = str(cache_dir) if cache_dir is not None else None
-        self._model = WhisperModel(
-            model_size_or_path=model,
+        self._model = self._initialise_model(
+            model=model,
             device=device,
             compute_type=compute_type,
             download_root=download_root,
@@ -225,6 +229,65 @@ class FasterWhisperSpeechToTextClient:
         finally:
             buffer.close()
         return TranscriptionResult(text=transcript_text, words=words)
+
+    def _initialise_model(
+        self,
+        *,
+        model: str,
+        device: str,
+        compute_type: str,
+        download_root: str | None,
+    ) -> WhisperModel:
+        try:
+            return WhisperModel(
+                model_size_or_path=model,
+                device=device,
+                compute_type=compute_type,
+                download_root=download_root,
+            )
+        except Exception as exc:  # pragma: no cover - depends on optional dependency
+            fallback = self._cpu_fallback(device=device, compute_type=compute_type, exc=exc)
+            if fallback is None:
+                raise
+            fallback_device, fallback_compute_type = fallback
+            logger.warning(
+                "Failed to load faster-whisper on device '%s' (%s); falling back to CPU",
+                device,
+                exc,
+            )
+            return WhisperModel(
+                model_size_or_path=model,
+                device=fallback_device,
+                compute_type=fallback_compute_type,
+                download_root=download_root,
+            )
+
+    def _cpu_fallback(
+        self,
+        *,
+        device: str,
+        compute_type: str,
+        exc: Exception,
+    ) -> tuple[str, str] | None:
+        if device.strip().lower() == "cpu":
+            return None
+
+        message = str(exc).lower()
+        trigger_tokens = ("cudnn", "cublas", "cuda")
+        if not any(token in message for token in trigger_tokens):
+            return None
+
+        fallback_compute_type = self._cpu_compute_type(compute_type)
+        return "cpu", fallback_compute_type
+
+    @staticmethod
+    def _cpu_compute_type(configured: str) -> str:
+        normalized = configured.strip().lower()
+        if normalized in {"", "default", "auto"}:
+            return "int8"
+        if "float16" in normalized or "fp16" in normalized:
+            return "int8"
+        return configured
 
     def _suffix_from_content_type(self, content_type: str) -> str:
         normalized = content_type.split(";", 1)[0].strip().lower()
