@@ -29,6 +29,8 @@ class _RecordingModel:
         compute_type: str,
         download_root: str | None = None,
     ) -> None:
+        self.device = device
+        self.compute_type = compute_type
         self.calls: list[tuple[str, int, bool]] = []
 
     def transcribe(self, path: str, *, beam_size: int, word_timestamps: bool):
@@ -184,5 +186,29 @@ def test_faster_whisper_falls_back_to_cpu(monkeypatch, caplog) -> None:
         assert any(
             "falling back to cpu" in record.getMessage().lower() for record in caplog.records
         )
+
+    asyncio.run(scenario())
+
+
+def test_auto_device_prefers_cpu_when_cuda_missing(monkeypatch) -> None:
+    async def scenario() -> None:
+        class _CpuOnlyCTranslate2:
+            @staticmethod
+            def get_supported_devices():
+                return ["cpu"]
+
+        monkeypatch.setattr(stt, "ctranslate2", _CpuOnlyCTranslate2, raising=False)
+        monkeypatch.setattr(stt, "WhisperModel", _RecordingModel)
+
+        client = stt.FasterWhisperSpeechToTextClient(
+            model="tiny",
+            device="auto",
+            compute_type="float16",
+            cache_dir=None,
+            voice_max_bytes=32,
+        )
+
+        assert client._model.device == "cpu"  # type: ignore[attr-defined]
+        assert client._model.compute_type == "int8"  # type: ignore[attr-defined]
 
     asyncio.run(scenario())

@@ -22,6 +22,11 @@ try:  # pragma: no cover - exercised in integration scenarios
 except ModuleNotFoundError:  # pragma: no cover - handled at runtime if missing
     WhisperModel = None  # type: ignore[assignment]
 
+try:  # pragma: no cover - exercised in integration scenarios
+    import ctranslate2
+except ModuleNotFoundError:  # pragma: no cover - handled at runtime if missing
+    ctranslate2 = None  # type: ignore[assignment]
+
 
 logger = logging.getLogger(__name__)
 
@@ -167,10 +172,21 @@ class FasterWhisperSpeechToTextClient:
             )
 
         download_root = str(cache_dir) if cache_dir is not None else None
-        self._model = self._initialise_model(
-            model=model,
+        resolved_device, resolved_compute_type = self._resolve_device_and_compute_type(
             device=device,
             compute_type=compute_type,
+        )
+        if resolved_device != device or resolved_compute_type != compute_type:
+            logger.info(
+                "faster-whisper initialising with device '%s' and compute type '%s'",
+                resolved_device,
+                resolved_compute_type,
+            )
+
+        self._model = self._initialise_model(
+            model=model,
+            device=resolved_device,
+            compute_type=resolved_compute_type,
             download_root=download_root,
         )
         self._voice_max_bytes = max(int(voice_max_bytes), 0)
@@ -261,6 +277,38 @@ class FasterWhisperSpeechToTextClient:
                 compute_type=fallback_compute_type,
                 download_root=download_root,
             )
+
+    def _resolve_device_and_compute_type(
+        self, *, device: str, compute_type: str
+    ) -> tuple[str, str]:
+        normalized_device = device.strip().lower()
+        if not normalized_device or normalized_device == "auto":
+            preferred = self._preferred_auto_device()
+            if preferred == "cpu":
+                return "cpu", self._cpu_compute_type(compute_type)
+            return preferred, compute_type
+
+        return device, compute_type
+
+    def _preferred_auto_device(self) -> str:
+        ct2 = ctranslate2
+        if ct2 is None:
+            return "cpu"
+
+        getter = getattr(ct2, "get_supported_devices", None)
+        if getter is None:
+            return "cpu"
+
+        try:  # pragma: no cover - depends on optional dependency
+            supported = getter()
+        except Exception:
+            return "cpu"
+
+        normalized = {str(item).strip().lower() for item in supported or []}
+        if "cuda" in normalized:
+            return "cuda"
+
+        return "cpu"
 
     def _cpu_fallback(
         self,
