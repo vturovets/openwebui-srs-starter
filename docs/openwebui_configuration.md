@@ -21,6 +21,10 @@ below. 【F:backend/app/config.py†L18-L158】
 | `llm_timeout` | `LLM_TIMEOUT` | `30.0` | HTTP client timeout (seconds) enforced for LLM calls. |
 | `stt_engine` | `STT_ENGINE` | `None` | Speech-to-text provider identifier. Currently `deepgram` is supported. |
 | `deepgram_api_key` | `DEEPGRAM_API_KEY` | `None` | API key required when `STT_ENGINE=deepgram`. |
+| `fallback_whisper_model` | `FALLBACK_WHISPER_MODEL` | `"small.en"` | Model identifier passed to `faster_whisper.WhisperModel` when falling back to local transcription. |
+| `fallback_whisper_device` | `FALLBACK_WHISPER_DEVICE` | `"auto"` | Device hint forwarded to the fallback whisper model (`auto`, `cpu`, `cuda`, etc.). |
+| `fallback_whisper_compute_type` | `FALLBACK_WHISPER_COMPUTE_TYPE` | `"default"` | Compute type supplied to the fallback whisper model (`default`, `int8`, `int8_float16`, ...). |
+| `fallback_whisper_cache_dir` | `FALLBACK_WHISPER_CACHE_DIR` | `None` | Optional path where fallback whisper models are cached on disk. |
 | `voice_enabled` | `VOICE_ENABLED` | `False` | Enables the `/v1/voice` endpoint and STT integration when true. |
 | `voice_max_bytes` | `VOICE_MAX_BYTES` | `10000000` | Maximum upload size (in bytes) accepted by the voice endpoint. |
 | `voice_allowed_content_types` | `VOICE_ALLOWED_CONTENT_TYPES` | `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/webm`, `video/webm`, `audio/flac` | Whitelisted MIME types for audio uploads. |
@@ -75,9 +79,11 @@ Voice features require multiple settings to be in place:
 
 1. Set `VOICE_ENABLED=true` to allow audio uploads. 【F:backend/app/config.py†L66-L87】
 2. Choose an STT engine by setting `STT_ENGINE`. At present only `deepgram` is wired in.
-3. Provide the engine-specific credentials (`DEEPGRAM_API_KEY` for Deepgram). The
-   dependency layer will raise an error at startup if the key is missing when Deepgram is
-   selected. 【F:backend/app/dependencies.py†L69-L102】
+3. Provide the engine-specific credentials (`DEEPGRAM_API_KEY` for Deepgram). When the key
+   is not supplied but `STT_ENGINE=deepgram`, the backend falls back to a local
+   `faster-whisper` model that honours `FALLBACK_WHISPER_MODEL`,
+   `FALLBACK_WHISPER_DEVICE`, `FALLBACK_WHISPER_COMPUTE_TYPE`, and
+   `FALLBACK_WHISPER_CACHE_DIR`. 【F:backend/app/config.py†L69-L116】
 
 The API validates incoming audio against the configured MIME-type allowlist and payload
 size limit, returning HTTP 415/413 when requests fall outside those bounds. Adjust
