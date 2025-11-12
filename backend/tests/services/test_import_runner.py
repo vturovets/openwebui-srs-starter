@@ -17,6 +17,7 @@ from backend.app.services.import_runner import (
     ImportSummary,
     configure_import_runtime,
 )
+from backend.app.telemetry import resource_monitor
 
 
 class _DummyLogger:
@@ -124,6 +125,11 @@ def test_run_import_processes_all_payloads_and_invokes_callback():
     assert isinstance(summary.cpu_samples, list)
     assert isinstance(summary.memory_samples, list)
     assert isinstance(summary.guardrail_actions, list)
+    assert summary.throttleCount >= 0
+    if summary.peakCpu is not None:
+        assert summary.peakCpu >= 0.0
+    if summary.peakMemoryMb is not None:
+        assert summary.peakMemoryMb >= 0.0
 
 
 def test_run_import_honours_concurrency_cap():
@@ -231,14 +237,6 @@ def test_runtime_controls_wait_for_capacity(monkeypatch):
         import_pause_seconds=0.01,
     )
 
-    cpu_readings = iter([50.0, 5.0])
-
-    def _fake_cpu() -> float:
-        return next(cpu_readings, 5.0)
-
-    monkeypatch.setattr(import_runner, "_read_cpu_percent", _fake_cpu, raising=False)
-    monkeypatch.setattr(import_runner, "_read_memory_usage_mb", lambda: 0.0, raising=False)
-
     sleeps: list[float] = []
     original_sleep = import_runner.asyncio.sleep
 
@@ -248,9 +246,24 @@ def test_runtime_controls_wait_for_capacity(monkeypatch):
 
     monkeypatch.setattr(import_runner.asyncio, "sleep", _fake_sleep)
 
+    class _Sampler:
+        def __init__(self) -> None:
+            self._values = iter([(50.0, 0.0), (5.0, 0.0)])
+            self._last = (5.0, 0.0)
+
+        def __call__(self) -> tuple[float, float]:
+            return next(self._values, self._last)
+
     async def _invoke() -> tuple[list[float], dict[str, int]]:
         runtime = configure_import_runtime(settings, concurrency_override=1)
-        await runtime.wait_for_capacity()
+        monitor = resource_monitor.ResourceMonitor(
+            interval=0.001,
+            cpu_threshold=runtime.cpu_threshold,
+            memory_threshold_mb=runtime.memory_threshold_mb,
+            sampler=_Sampler(),
+        )
+        async with monitor:
+            await runtime.wait_for_capacity(monitor)
         return sleeps, runtime.guardrail_actions
 
     recorded_sleeps, guardrail_actions = _run(_invoke())
@@ -259,6 +272,45 @@ def test_runtime_controls_wait_for_capacity(monkeypatch):
     assert recorded_sleeps[0] == settings.import_pause_seconds
     assert guardrail_actions["throttle"] >= 1
     assert guardrail_actions["cpu"] >= 1
+
+
+def test_run_import_records_resource_peaks_and_throttling(monkeypatch):
+    settings = Settings(
+        import_cpu_threshold=60.0,
+        import_memory_threshold_mb=50,
+        import_pause_seconds=0.001,
+    )
+
+    samples = [
+        (75.0, 40.0),
+        (95.0, 80.0),
+        (30.0, 20.0),
+    ]
+
+    class _Sampler:
+        def __init__(self) -> None:
+            self._values = iter(samples)
+            self._last = samples[-1]
+
+        def __call__(self) -> tuple[float, float]:
+            value = next(self._values, self._last)
+            return value
+
+    monkeypatch.setattr(resource_monitor, "ProcessSampler", lambda: _Sampler())
+
+    pipeline = _RecordingPipeline(statuses=["success"], latency_ms=50.0)
+    runner = ImportJobRunner(
+        pipeline=pipeline,
+        settings=settings,
+        logger=None,
+        concurrency_limit=1,
+    )
+
+    summary = _run(runner.run_import(_make_requests(3)))
+
+    assert summary.throttleCount >= 1
+    assert summary.peakCpu is not None and summary.peakCpu >= 95.0
+    assert summary.peakMemoryMb is not None and summary.peakMemoryMb >= 80.0
 
 
 def _bucket_label(lower: float, upper: float | None) -> str:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import math
-import os
 from collections.abc import AsyncIterable, Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -14,6 +13,7 @@ from typing import Any, Mapping, Sequence
 from ..config import Settings
 from ..logging.csv_logger import CSVLogger
 from ..pipeline.pipeline import HolidaySearchPipeline
+from ..telemetry.resource_monitor import ResourceMonitor
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -53,49 +53,6 @@ def _calculate_percentiles(values: Sequence[float]) -> dict[str, float | None]:
         "p99": _calculate_percentile(sorted_values, 0.99),
     }
     return percentiles
-
-
-def _read_cpu_percent() -> float | None:
-    """Estimate CPU utilisation percentage using the 1-minute load average."""
-
-    try:
-        load_1, _load_5, _load_15 = os.getloadavg()
-    except (AttributeError, OSError):
-        return None
-    cpu_count = os.cpu_count() or 1
-    if cpu_count <= 0:
-        cpu_count = 1
-    utilisation = (load_1 / cpu_count) * 100.0
-    return max(utilisation, 0.0)
-
-
-def _read_memory_usage_mb() -> float | None:
-    """Approximate RAM usage by parsing ``/proc/meminfo`` when available."""
-
-    meminfo_path = "/proc/meminfo"
-    try:
-        with open(meminfo_path, "r", encoding="utf-8") as handle:
-            lines = handle.readlines()
-    except (FileNotFoundError, OSError):
-        return None
-
-    total_kb = available_kb = None
-    for line in lines:
-        if line.startswith("MemTotal:"):
-            parts = line.split()
-            if len(parts) >= 2:
-                total_kb = float(parts[1])
-        elif line.startswith("MemAvailable:"):
-            parts = line.split()
-            if len(parts) >= 2:
-                available_kb = float(parts[1])
-        if total_kb is not None and available_kb is not None:
-            break
-
-    if total_kb is None or available_kb is None:
-        return None
-    used_kb = max(total_kb - available_kb, 0.0)
-    return used_kb / 1024.0
 
 
 def _now_utc() -> datetime:
@@ -188,6 +145,9 @@ class ImportSummary:
     cpu_samples: list[float]
     memory_samples: list[float]
     guardrail_actions: list["GuardrailAction"]
+    peakCpu: float | None = None
+    peakMemoryMb: float | None = None
+    throttleCount: int = 0
 
 
 @dataclass(slots=True)
@@ -240,8 +200,6 @@ class ImportJobRunner:
             "durations": [],
         }
 
-        resource_samples = {"cpu": [], "memory": []}
-
         current_concurrency = 0
 
         async def _record_metrics(status: str, total_ms: float) -> None:
@@ -262,17 +220,6 @@ class ImportJobRunner:
                 metrics_state["latency_histogram"][bucket] += 1
                 metrics_state["durations"].append(total_ms)
 
-        async def _record_resources() -> None:
-            cpu_percent = _read_cpu_percent()
-            memory_usage = _read_memory_usage_mb()
-            if cpu_percent is None and memory_usage is None:
-                return
-            async with metrics_lock:
-                if cpu_percent is not None:
-                    resource_samples["cpu"].append(cpu_percent)
-                if memory_usage is not None:
-                    resource_samples["memory"].append(memory_usage)
-
         async def _process_payload(payload: ParseRequest) -> None:
             nonlocal current_concurrency
             async with semaphore:
@@ -282,7 +229,6 @@ class ImportJobRunner:
                         metrics_state["peak_concurrency"], current_concurrency
                     )
                 try:
-                    await _record_resources()
                     result = await asyncio.to_thread(
                         self._pipeline.run,
                         payload.text,
@@ -327,44 +273,57 @@ class ImportJobRunner:
                 for item in payloads:
                     yield item
 
-        started_at = _now_utc()
-        start_time = perf_counter()
-        async for request in _iterate():
-            await runtime_controls.wait_for_capacity()
-            tasks.append(asyncio.create_task(_process_payload(request)))
-            if len(tasks) >= runtime_controls.batch_size:
+        sample_interval = max(0.01, float(self._settings.import_pause_seconds or 0.0))
+
+        async with ResourceMonitor(
+            interval=sample_interval,
+            cpu_threshold=runtime_controls.cpu_threshold,
+            memory_threshold_mb=runtime_controls.memory_threshold_mb,
+        ) as monitor:
+            started_at = _now_utc()
+            start_time = perf_counter()
+            last_counter: int | None = None
+            async for request in _iterate():
+                last_counter = await runtime_controls.wait_for_capacity(
+                    monitor, last_counter=last_counter
+                )
+                tasks.append(asyncio.create_task(_process_payload(request)))
+                if len(tasks) >= runtime_controls.batch_size:
+                    await asyncio.gather(*tasks)
+                    tasks.clear()
+
+            if tasks:
                 await asyncio.gather(*tasks)
-                tasks.clear()
 
-        if tasks:
-            await asyncio.gather(*tasks)
+            finished_at = _now_utc()
+            duration_ms = (perf_counter() - start_time) * 1000
 
-        finished_at = _now_utc()
-        duration_ms = (perf_counter() - start_time) * 1000
+            latency_percentiles = _calculate_percentiles(metrics_state["durations"])
+            guardrail_actions = [
+                GuardrailAction(type=key, count=value)
+                for key, value in sorted(runtime_controls.guardrail_actions.items())
+            ]
 
-        latency_percentiles = _calculate_percentiles(metrics_state["durations"])
-        guardrail_actions = [
-            GuardrailAction(type=key, count=value)
-            for key, value in sorted(runtime_controls.guardrail_actions.items())
-        ]
-
-        summary = ImportSummary(
-            metrics=JobMetrics(
-                total_requests=metrics_state["total_requests"],
-                success_count=metrics_state["success_count"],
-                failed_count=metrics_state["failed_count"],
-                error_count=metrics_state["error_count"],
-                latency_histogram=dict(metrics_state["latency_histogram"]),
-                peak_concurrency=metrics_state["peak_concurrency"],
-            ),
-            started_at=started_at,
-            finished_at=finished_at,
-            duration_ms=duration_ms,
-            latency_percentiles=latency_percentiles,
-            cpu_samples=list(resource_samples["cpu"]),
-            memory_samples=list(resource_samples["memory"]),
-            guardrail_actions=guardrail_actions,
-        )
+            summary = ImportSummary(
+                metrics=JobMetrics(
+                    total_requests=metrics_state["total_requests"],
+                    success_count=metrics_state["success_count"],
+                    failed_count=metrics_state["failed_count"],
+                    error_count=metrics_state["error_count"],
+                    latency_histogram=dict(metrics_state["latency_histogram"]),
+                    peak_concurrency=metrics_state["peak_concurrency"],
+                ),
+                started_at=started_at,
+                finished_at=finished_at,
+                duration_ms=duration_ms,
+                latency_percentiles=latency_percentiles,
+                cpu_samples=list(monitor.cpu_samples),
+                memory_samples=list(monitor.memory_samples),
+                guardrail_actions=guardrail_actions,
+                peakCpu=monitor.peakCpu,
+                peakMemoryMb=monitor.peakMemoryMb,
+                throttleCount=monitor.throttleCount,
+            )
 
         if summary_callback is not None:
             maybe_coro = summary_callback(summary)
@@ -386,38 +345,41 @@ class ImportRuntimeControls:
 
     _max_guardrail_attempts: int = 50
 
-    async def wait_for_capacity(self) -> None:
-        """Sleep when system load exceeds configured thresholds."""
+    async def wait_for_capacity(
+        self,
+        monitor: ResourceMonitor | None,
+        *,
+        last_counter: int | None = None,
+    ) -> int | None:
+        """Pause execution until resource utilisation is within guardrails."""
 
         if self.cpu_threshold is None and self.memory_threshold_mb is None:
-            return
+            return last_counter
+        if monitor is None:
+            return last_counter
 
         attempts = 0
+        counter = last_counter
         while True:
-            throttle = False
-            reasons: list[str] = []
-            if self.cpu_threshold is not None:
-                cpu_percent = _read_cpu_percent()
-                if cpu_percent is not None and cpu_percent >= self.cpu_threshold:
-                    throttle = True
-                    reasons.append("cpu")
-            if self.memory_threshold_mb is not None:
-                memory_mb = _read_memory_usage_mb()
-                if memory_mb is not None and memory_mb >= self.memory_threshold_mb:
-                    throttle = True
-                    reasons.append("memory")
-            if throttle:
-                attempts += 1
-                self.guardrail_actions["throttle"] = self.guardrail_actions.get("throttle", 0) + 1
-                for reason in reasons:
-                    self.guardrail_actions[reason] = self.guardrail_actions.get(reason, 0) + 1
-                if attempts >= self._max_guardrail_attempts:
-                    raise GuardrailOverloadError(
-                        "System load remains above configured guardrail thresholds"
-                    )
-                await asyncio.sleep(self.pause_seconds)
-                continue
-            break
+            counter = await monitor.wait_for_sample(counter)
+            throttle, reasons = monitor.check_thresholds(
+                cpu_threshold=self.cpu_threshold,
+                memory_threshold_mb=self.memory_threshold_mb,
+            )
+            if not throttle:
+                return counter
+
+            attempts += 1
+            monitor.record_throttle(reasons)
+            self.guardrail_actions["throttle"] = self.guardrail_actions.get("throttle", 0) + 1
+            for reason in reasons:
+                self.guardrail_actions[reason] = self.guardrail_actions.get(reason, 0) + 1
+
+            if attempts >= self._max_guardrail_attempts:
+                raise GuardrailOverloadError(
+                    "System load remains above configured guardrail thresholds"
+                )
+            await asyncio.sleep(self.pause_seconds)
 
 
 def configure_import_runtime(
