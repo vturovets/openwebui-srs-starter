@@ -92,6 +92,13 @@ class Settings(BaseSettings):
             "that did not succeed."
         ),
     )
+    import_worker_concurrency: int = Field(
+        default=8,
+        alias="IMPORT_WORKER_CONCURRENCY",
+        description=(
+            "Maximum number of concurrent tasks when running bulk import jobs."
+        ),
+    )
     import_p95_threshold_ms: int = Field(
         default=1000,
         alias="IMPORT_P95_THRESHOLD_MS",
@@ -212,6 +219,21 @@ class Settings(BaseSettings):
         raise TypeError(
             "VOICE_ALLOWED_CONTENT_TYPES must be provided as a comma-separated string or list",
         )
+
+    @field_validator("import_worker_concurrency", mode="before")
+    @classmethod
+    def _validate_import_worker_concurrency(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 8
+        try:
+            concurrency = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_WORKER_CONCURRENCY must be a positive integer") from exc
+        if concurrency < 1:
+            raise ValueError("IMPORT_WORKER_CONCURRENCY must be at least 1")
+        return concurrency
 
     @field_validator("import_p95_threshold_ms", mode="before")
     @classmethod
