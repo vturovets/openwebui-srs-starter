@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import Field, ValidationInfo, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_core import PydanticUndefined
 
@@ -114,37 +114,6 @@ class Settings(BaseSettings):
         description=(
             "Significance level expressed as a percentile (0-1) when evaluating "
             "imported performance data."
-        ),
-    )
-    import_max_concurrency: int = Field(
-        default=4,
-        alias="IMPORT_MAX_CONCURRENCY",
-        description=(
-            "Maximum number of concurrent pipeline executions permitted during "
-            "CSV imports."
-        ),
-    )
-    import_queue_limit: int = Field(
-        default=32,
-        alias="IMPORT_QUEUE_LIMIT",
-        description=(
-            "Maximum number of active import jobs allowed before new submissions "
-            "are rejected."
-        ),
-    )
-    import_batch_size: int = Field(
-        default=64,
-        alias="IMPORT_BATCH_SIZE",
-        description=(
-            "Maximum number of rows accepted per import job to avoid excessive "
-            "resource consumption."
-        ),
-    )
-    import_max_pending_jobs: Optional[int] = Field(
-        default=None,
-        alias="IMPORT_MAX_PENDING_JOBS",
-        description=(
-            "Optional cap on simultaneously pending import jobs awaiting execution."
         ),
     )
     voice_max_bytes: int = Field(
@@ -288,48 +257,6 @@ class Settings(BaseSettings):
         if not 0 < significance < 1:
             raise ValueError("IMPORT_P95_SIGNIFICANCE must be greater than 0 and less than 1")
         return significance
-
-    @field_validator(
-        "import_max_concurrency",
-        "import_queue_limit",
-        "import_batch_size",
-        mode="before",
-    )
-    @classmethod
-    def _validate_positive_integer(
-        cls, value: object, info: ValidationInfo
-    ) -> int:  # type: ignore[override]
-        if value is PydanticUndefined:
-            return value  # type: ignore[return-value]
-        if value in (None, ""):
-            field = cls.model_fields[info.field_name]
-            return int(field.default)  # type: ignore[arg-type]
-        try:
-            coerced = int(value)
-        except (TypeError, ValueError) as exc:
-            field = cls.model_fields[info.field_name]
-            alias = field.alias or info.field_name
-            raise TypeError(f"{alias} must be a positive integer") from exc
-        if coerced <= 0:
-            field = cls.model_fields[info.field_name]
-            alias = field.alias or info.field_name
-            raise ValueError(f"{alias} must be greater than zero")
-        return coerced
-
-    @field_validator("import_max_pending_jobs", mode="before")
-    @classmethod
-    def _validate_optional_positive_integer(cls, value: object) -> Optional[int]:
-        if value is PydanticUndefined:
-            return value  # type: ignore[return-value]
-        if value in (None, ""):
-            return None
-        try:
-            coerced = int(value)
-        except (TypeError, ValueError) as exc:
-            raise TypeError("IMPORT_MAX_PENDING_JOBS must be a positive integer when provided") from exc
-        if coerced <= 0:
-            raise ValueError("IMPORT_MAX_PENDING_JOBS must be greater than zero when provided")
-        return coerced
 
     @field_validator("csv_delimiter", mode="before")
     @classmethod
