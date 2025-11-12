@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import re
 from time import perf_counter, perf_counter_ns
 from collections.abc import Mapping
@@ -864,6 +865,15 @@ async def voice_endpoint(
 
     raw_content_type = (audio.content_type or "").lower()
     base_content_type = raw_content_type.split(";")[0].strip() or raw_content_type
+
+    if not base_content_type or base_content_type == "application/octet-stream":
+        guessed_type, _ = mimetypes.guess_type(audio.filename or "")
+        guessed_type = (guessed_type or "").lower()
+        if guessed_type:
+            base_content_type = guessed_type.split(";")[0].strip() or guessed_type
+            if not raw_content_type or raw_content_type == "application/octet-stream":
+                raw_content_type = guessed_type
+
     allowed_types = {item.lower() for item in settings.voice_allowed_content_types}
     if base_content_type not in allowed_types:
         await audio.close()

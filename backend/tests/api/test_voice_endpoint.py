@@ -58,8 +58,10 @@ class StubSTTClient:
         self.transcript = transcript
         self.duration_ms = duration_ms
         self.word_timings = word_timings
+        self.seen_content_types: list[str] = []
 
     async def transcribe(self, *, content_type: str, stream):
+        self.seen_content_types.append(content_type)
         collected = bytearray()
 
         async for chunk in stream:
@@ -92,9 +94,14 @@ class StubSTTClient:
         return TranscriptionResult(text=self.transcript, words=words)
 
 
-def create_upload(content: bytes, content_type: str = "audio/wav") -> UploadFile:
-    headers = Headers({"content-type": content_type})
-    return UploadFile(file=BytesIO(content), filename="audio.wav", headers=headers)
+def create_upload(
+    content: bytes,
+    *,
+    content_type: str | None = "audio/wav",
+    filename: str = "audio.wav",
+) -> UploadFile:
+    headers = Headers({"content-type": content_type}) if content_type is not None else Headers()
+    return UploadFile(file=BytesIO(content), filename=filename, headers=headers)
 
 
 def test_voice_endpoint_rejects_large_payload():
@@ -293,5 +300,64 @@ def test_voice_endpoint_accepts_video_webm_content_type(tmp_path):
 
         assert response.status == "success"
         assert response.engine == "deepgram"
+
+    asyncio.run(scenario())
+
+
+def test_voice_endpoint_accepts_octet_stream_with_filename_hint(tmp_path):
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            csv_path=tmp_path / "voice-log.csv",
+        )
+        pipeline = StubPipeline()
+        logger = StubLogger()
+        stt_client = StubSTTClient()
+        upload = create_upload(
+            b"audio-bytes",
+            content_type="application/octet-stream",
+            filename="recording.webm",
+        )
+
+        response = await voice_endpoint(
+            audio=upload,
+            settings=settings,
+            pipeline=pipeline,
+            logger=logger,
+            stt_client=stt_client,
+        )
+
+        assert response.status == "success"
+        assert stt_client.seen_content_types[-1] == "video/webm"
+
+    asyncio.run(scenario())
+
+
+def test_voice_endpoint_rejects_generic_octet_stream_without_hint():
+    async def scenario() -> None:
+        settings = Settings(voice_enabled=True, stt_engine="deepgram", deepgram_api_key="dg")
+        upload = create_upload(
+            b"audio-bytes",
+            content_type="application/octet-stream",
+            filename="recording",
+        )
+
+        pipeline = StubPipeline()
+        logger = StubLogger()
+        stt_client = StubSTTClient()
+
+        with pytest.raises(HTTPException) as excinfo:
+            await voice_endpoint(
+                audio=upload,
+                settings=settings,
+                pipeline=pipeline,
+                logger=logger,
+                stt_client=stt_client,
+            )
+
+        assert excinfo.value.status_code == 415
+        assert "Unsupported audio format" in str(excinfo.value)
 
     asyncio.run(scenario())
