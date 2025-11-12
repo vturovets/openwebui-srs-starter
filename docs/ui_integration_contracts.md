@@ -75,7 +75,9 @@ and feeds the transcript through the same pipeline as `/v1/parse`. 【F:backend/
 **Response payload**
 - `status`: `noop` when voice is disabled, or the pipeline status when enabled.
 - `voice_enabled`: Boolean indicating whether STT processing was performed.
-- `engine`: Identifier of the STT engine that produced the transcript.
+- `engine`: Identifier of the STT engine that produced the transcript. When
+  Deepgram credentials are absent the dependency layer swaps in the
+  `faster-whisper` fallback, and the field reflects that choice.
 - `transcript`: Trimmed text result from the STT provider.
 - `words`: Optional word-level timing entries when supplied by the provider.
 - `data` and `metadata`: Same structure as `/v1/parse`, with additional `sttMs` and

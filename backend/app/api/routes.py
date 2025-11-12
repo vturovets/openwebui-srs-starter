@@ -854,6 +854,9 @@ async def voice_endpoint(
         )
 
     if stt_client is None:
+        # ``get_stt_client`` already swaps in the local faster-whisper fallback when
+        # Deepgram credentials are absent, so reaching this branch means no speech
+        # engine could be initialised at all.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Speech-to-text provider is not configured",
