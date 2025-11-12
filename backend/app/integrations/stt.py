@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import tempfile
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator, Iterable, Protocol
@@ -176,8 +178,6 @@ class FasterWhisperSpeechToTextClient:
         content_type: str,
         stream: AsyncIterator[bytes] | Iterable[bytes],
     ) -> TranscriptionResult:
-        _ = content_type  # ``faster-whisper`` performs its own format detection.
-
         buffer = io.BytesIO()
         remaining = self._voice_max_bytes
 
@@ -206,26 +206,55 @@ class FasterWhisperSpeechToTextClient:
         else:
             _consume_sync(stream)
 
-        audio_bytes = buffer.getvalue()
-        if not audio_bytes:
+        size = buffer.tell()
+        if size <= 0:
             raise SpeechToTextError("Audio stream was empty")
+
+        buffer.seek(0)
+        audio_bytes = buffer.read()
+        suffix = self._suffix_from_content_type(content_type)
 
         try:
             transcript_text, words = await anyio.to_thread.run_sync(
                 self._run_transcription,
                 audio_bytes,
+                suffix,
             )
         except Exception as exc:  # pragma: no cover - depends on optional dependency
             raise SpeechToTextError("Failed to transcribe audio using faster-whisper") from exc
+        finally:
+            buffer.close()
         return TranscriptionResult(text=transcript_text, words=words)
 
-    def _run_transcription(self, audio_bytes: bytes) -> tuple[str, list[TranscribedWord]]:
-        audio_stream = io.BytesIO(audio_bytes)
-        segments, _info = self._model.transcribe(  # type: ignore[operator]
-            audio_stream,
-            beam_size=self._beam_size,
-            word_timestamps=True,
-        )
+    def _suffix_from_content_type(self, content_type: str) -> str:
+        normalized = content_type.split(";", 1)[0].strip().lower()
+        return {
+            "audio/wav": ".wav",
+            "audio/x-wav": ".wav",
+            "audio/mpeg": ".mp3",
+            "audio/mp3": ".mp3",
+            "audio/ogg": ".ogg",
+            "audio/webm": ".webm",
+            "video/webm": ".webm",
+            "audio/flac": ".flac",
+        }.get(normalized, ".tmp")
+
+    def _run_transcription(self, audio_bytes: bytes, suffix: str) -> tuple[str, list[TranscribedWord]]:
+        tmp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp.write(audio_bytes)
+                tmp_path = Path(tmp.name)
+
+            segments, _info = self._model.transcribe(  # type: ignore[operator]
+                str(tmp_path),
+                beam_size=self._beam_size,
+                word_timestamps=True,
+            )
+        finally:
+            if tmp_path is not None:
+                with suppress(Exception):
+                    tmp_path.unlink(missing_ok=True)
 
         transcript_parts: list[str] = []
         words: list[TranscribedWord] = []

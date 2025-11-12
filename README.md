@@ -96,6 +96,11 @@ serving traffic. Key options mirror the SRS:
 | `IMPORT_MEMORY_THRESHOLD_MB` | `4096` | Pause scheduling when estimated RAM usage exceeds this many megabytes. |
 | `IMPORT_PAUSE_SECONDS` | `0.1` | Duration to sleep before re-checking system load while throttling import execution. |
 
+> **Note:** When `STT_ENGINE=deepgram` but the `DEEPGRAM_API_KEY` is omitted, the
+> backend falls back to a local `faster-whisper` model. Install it with `pip
+> install faster-whisper` and ensure `ffmpeg` is on your `PATH` so uploaded audio
+> can be decoded. 【F:backend/app/dependencies.py†L133-L168】【F:backend/app/integrations/stt.py†L131-L240】
+
 Create a `.env` file to override defaults, for example:
 
 ```
