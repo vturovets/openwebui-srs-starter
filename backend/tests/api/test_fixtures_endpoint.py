@@ -12,6 +12,9 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
     monkeypatch.setenv("VOICE_ENABLED", "true")
     monkeypatch.setenv("INTERACTION_MODE", "dialog")
     monkeypatch.setenv("LLM_METHOD", "rules")
+    monkeypatch.setenv("IMPORT_P95_THRESHOLD_MS", "2500")
+    monkeypatch.setenv("IMPORT_P95_SAMPLE_SIZE", "1500")
+    monkeypatch.setenv("IMPORT_P95_SIGNIFICANCE", "0.9")
 
     for cache in (get_settings, get_pipeline, get_llm_client, get_methods_catalog):
         cache.cache_clear()
@@ -32,6 +35,12 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
         assert isinstance(payload["availableMethods"], list)
         assert payload["defaultMethod"] == "rules-basic"
         assert isinstance(payload["methodDefaults"], dict)
+        performance_targets = payload["performanceTargets"]
+        assert performance_targets == {
+            "importP95ThresholdMs": 2500,
+            "importP95SampleSize": 1500,
+            "importP95Significance": 0.9,
+        }
     finally:
         get_settings.cache_clear()
         get_pipeline.cache_clear()

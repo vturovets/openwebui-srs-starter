@@ -92,6 +92,30 @@ class Settings(BaseSettings):
             "that did not succeed."
         ),
     )
+    import_p95_threshold_ms: int = Field(
+        default=1000,
+        alias="IMPORT_P95_THRESHOLD_MS",
+        description=(
+            "Maximum acceptable P95 response time, in milliseconds, for imported "
+            "log performance summaries."
+        ),
+    )
+    import_p95_sample_size: int = Field(
+        default=1000,
+        alias="IMPORT_P95_SAMPLE_SIZE",
+        description=(
+            "Minimum number of import records required before calculating the P95 "
+            "response time."
+        ),
+    )
+    import_p95_significance: float = Field(
+        default=0.95,
+        alias="IMPORT_P95_SIGNIFICANCE",
+        description=(
+            "Significance level expressed as a percentile (0-1) when evaluating "
+            "imported performance data."
+        ),
+    )
     voice_max_bytes: int = Field(
         default=10_000_000,
         alias="VOICE_MAX_BYTES",
@@ -188,6 +212,51 @@ class Settings(BaseSettings):
         raise TypeError(
             "VOICE_ALLOWED_CONTENT_TYPES must be provided as a comma-separated string or list",
         )
+
+    @field_validator("import_p95_threshold_ms", mode="before")
+    @classmethod
+    def _validate_import_p95_threshold(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 1000
+        try:
+            threshold = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_P95_THRESHOLD_MS must be a positive integer") from exc
+        if threshold <= 0:
+            raise ValueError("IMPORT_P95_THRESHOLD_MS must be greater than zero")
+        return threshold
+
+    @field_validator("import_p95_sample_size", mode="before")
+    @classmethod
+    def _validate_import_p95_sample_size(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 1000
+        try:
+            sample_size = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_P95_SAMPLE_SIZE must be a positive integer") from exc
+        if sample_size <= 0:
+            raise ValueError("IMPORT_P95_SAMPLE_SIZE must be greater than zero")
+        return sample_size
+
+    @field_validator("import_p95_significance", mode="before")
+    @classmethod
+    def _validate_import_p95_significance(cls, value: object) -> float:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 0.95
+        try:
+            significance = float(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_P95_SIGNIFICANCE must be a numeric value between 0 and 1") from exc
+        if not 0 < significance < 1:
+            raise ValueError("IMPORT_P95_SIGNIFICANCE must be greater than 0 and less than 1")
+        return significance
 
     @field_validator("csv_delimiter", mode="before")
     @classmethod

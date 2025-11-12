@@ -83,6 +83,9 @@ serving traffic. Key options mirror the SRS:
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 | `SHOW_FAILED_ONLY` | `true` | When importing CSV logs into the UI, hide successful runs unless explicitly requested. |
+| `IMPORT_P95_THRESHOLD_MS` | `1000` | Target P95 latency (ms) used when flagging slow imported runs in the performance summary. |
+| `IMPORT_P95_SAMPLE_SIZE` | `1000` | Minimum number of imported rows required before computing a P95 value. |
+| `IMPORT_P95_SIGNIFICANCE` | `0.95` | Percentile (0–1) applied when calculating the imported response-time P95 metric. |
 
 Create a `.env` file to override defaults, for example:
 
@@ -98,6 +101,9 @@ LLM_MODEL=gpt-4o
 # Optional when routing through a proxy/self-hosted gateway
 # LLM_API_BASE=https://your-proxy.example.com/v1
 PROCESSING_THRESHOLD_MS=750
+IMPORT_P95_THRESHOLD_MS=1250
+IMPORT_P95_SAMPLE_SIZE=2000
+IMPORT_P95_SIGNIFICANCE=0.9
 ```
 
 When deploying with Docker Compose, mirror the same environment variables in the
