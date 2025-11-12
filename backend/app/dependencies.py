@@ -10,6 +10,7 @@ from .pipeline.configuration import MethodsCatalog
 from .integrations.stt import DeepgramSpeechToTextClient, SpeechToTextClient
 from .integrations.llm import HolidaySearchLLMClient
 from .logging.csv_logger import CSVLogger
+from .imports.manager import ImportManager
 
 
 # NOTE: "Language Detection" is intentionally duplicated. The first column captures the
@@ -74,6 +75,15 @@ def get_pipeline() -> HolidaySearchPipeline:
 
 
 @lru_cache
+def get_import_manager() -> ImportManager:
+    """Provide a shared import manager wired to the shared pipeline."""
+
+    settings = get_settings()
+    pipeline = get_pipeline()
+    return ImportManager(pipeline=pipeline, settings=settings)
+
+
+@lru_cache
 def get_llm_client() -> Callable[[str], Mapping[str, object]] | None:
     """Instantiate the configured LLM client when credentials are provided."""
 
@@ -129,6 +139,7 @@ __all__ = [
     "settings_dependency",
     "get_methods_catalog",
     "get_pipeline",
+    "get_import_manager",
     "get_llm_client",
     "get_csv_logger",
     "get_dialog_orchestrator",
