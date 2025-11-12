@@ -7,23 +7,40 @@ frontend, and supporting fixtures so teams can benchmark NLP strategies end-to-e
 
 The backend accepts natural-language holiday requests, derives structured
 parameters through a transparent pipeline, and records every transaction to a CSV
-audit trail. Dialogue flows, voice transcription, and pluggable LLM strategies are
-implemented as explicit modules so alternative approaches can be swapped in while
-retaining comparable output for experiments.
+audit trail. Dialogue flows, voice transcription, import guardrails, and pluggable
+LLM strategies are implemented as explicit modules so alternative approaches can
+be swapped in while retaining comparable output for experiments.
+
+### Highlights
+
+- **Deterministic NLP pipeline** – [`backend/app/pipeline`](backend/app/pipeline)
+  wires together language detection, rule/LLM extraction, data normalisation, and
+  validation. Every stage is observable for benchmarking and experimentation.
+- **Bulk import runner with guardrails** – [`backend/app/services/import_runner.py`](backend/app/services/import_runner.py)
+  powers CSV/backlog ingestion with retry, concurrency, and resource controls that
+  mirror the production expectations described in [`docs/imports.md`](docs/imports.md).
+- **Resource-aware telemetry** – [`backend/app/telemetry/resource_monitor.py`](backend/app/telemetry/resource_monitor.py)
+  samples CPU and memory usage so long-running imports can throttle themselves
+  before overwhelming shared environments.
+- **CSV-backed observability** – [`backend/app/logging/csv_logger.py`](backend/app/logging/csv_logger.py)
+  emits a stable schema that the frontend can replay for A/B comparisons and
+  regressions analysis.
+- **Frontend parity** – [`frontend/`](frontend) reproduces the OpenWebUI flow with
+  component tests (Vitest) and Playwright E2E coverage for interactive journeys.
 
 ## Project structure
 
 ```
 .
 ├── backend/
-│   ├── app/                    # FastAPI application, API routes, pipeline stages, integrations
+│   ├── app/                    # FastAPI application, API routes, pipeline stages, services, integrations
 │   ├── openai.yaml             # Docker Compose example pairing the backend with OpenWebUI
 │   └── tests/                  # Pytest coverage for API contracts, pipeline flows, and fixtures
 ├── config/                     # Method catalogue and supporting YAML
 ├── docs/                       # SRS, SDD, and integration reference material
 ├── fixtures/                   # Airports, destinations, durations, and configuration JSON
 ├── frontend/                   # Svelte SPA that consumes the backend contract
-├── scripts/                    # Helper scripts (e.g. PowerShell launcher for Windows)
+├── scripts/                    # Helper scripts (PowerShell launcher, bulk import CLI)
 ├── Makefile                    # Convenience targets for linting and tests
 └── pyproject.toml              # Backend dependency metadata
 ```
@@ -156,6 +173,30 @@ Structured extraction strategies are described in [`config/methods.yaml`](config
 - **Hybrid entries** – reference existing methods via `stages` and optionally specify a `fallback` that runs when upstream stages fail.
 
 Update `METHODS_CONFIG_PATH` to point at an alternate YAML file if you need to swap in different evaluation strategies per environment.
+
+## Bulk import operations
+
+High-volume backlogs can be processed with the [`ImportJobRunner`](backend/app/services/import_runner.py). It batches
+`/v1/parse` requests, automatically retries transient failures, and applies
+guardrails to keep resource usage stable. Configuration is exposed through
+environment variables such as `IMPORT_WORKER_CONCURRENCY`,
+`IMPORT_BATCH_SIZE`, `IMPORT_RETRY_ATTEMPTS`, and the CPU/memory thresholds used
+by the telemetry sampler. Consult [`docs/imports.md`](docs/imports.md) for
+operational guidance and tuning tips.
+
+The repository includes [`scripts/run_import.py`](scripts/run_import.py) for
+running imports from the command line. Pass a JSONL file (or storage key
+handled by your deployment) and the script will stream summaries to stdout while
+persisting the CSV audit trail.
+
+## Telemetry & guardrails
+
+Import runs sample host resources via the
+[`ResourceMonitor`](backend/app/telemetry/resource_monitor.py). When CPU or
+memory utilisation exceeds configured thresholds, scheduling pauses until the
+host recovers. Guardrail actions, retry counts, and latency percentiles are
+reported in the [`ImportSummary`](backend/app/services/import_runner.py) data
+model so the UI (or CLI) can surface performance regressions.
 
 ## Running the backend
 
