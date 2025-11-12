@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
@@ -20,6 +21,14 @@ try:  # pragma: no cover - exercised in integration scenarios
     from faster_whisper import WhisperModel
 except ModuleNotFoundError:  # pragma: no cover - handled at runtime if missing
     WhisperModel = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - exercised in integration scenarios
+    import ctranslate2
+except ModuleNotFoundError:  # pragma: no cover - handled at runtime if missing
+    ctranslate2 = None  # type: ignore[assignment]
+
+
+logger = logging.getLogger(__name__)
 
 class SpeechToTextError(RuntimeError):
     """Raised when a speech-to-text provider returns an error."""
@@ -163,10 +172,21 @@ class FasterWhisperSpeechToTextClient:
             )
 
         download_root = str(cache_dir) if cache_dir is not None else None
-        self._model = WhisperModel(
-            model_size_or_path=model,
+        resolved_device, resolved_compute_type = self._resolve_device_and_compute_type(
             device=device,
             compute_type=compute_type,
+        )
+        if resolved_device != device or resolved_compute_type != compute_type:
+            logger.info(
+                "faster-whisper initialising with device '%s' and compute type '%s'",
+                resolved_device,
+                resolved_compute_type,
+            )
+
+        self._model = self._initialise_model(
+            model=model,
+            device=resolved_device,
+            compute_type=resolved_compute_type,
             download_root=download_root,
         )
         self._voice_max_bytes = max(int(voice_max_bytes), 0)
@@ -225,6 +245,97 @@ class FasterWhisperSpeechToTextClient:
         finally:
             buffer.close()
         return TranscriptionResult(text=transcript_text, words=words)
+
+    def _initialise_model(
+        self,
+        *,
+        model: str,
+        device: str,
+        compute_type: str,
+        download_root: str | None,
+    ) -> WhisperModel:
+        try:
+            return WhisperModel(
+                model_size_or_path=model,
+                device=device,
+                compute_type=compute_type,
+                download_root=download_root,
+            )
+        except Exception as exc:  # pragma: no cover - depends on optional dependency
+            fallback = self._cpu_fallback(device=device, compute_type=compute_type, exc=exc)
+            if fallback is None:
+                raise
+            fallback_device, fallback_compute_type = fallback
+            logger.warning(
+                "Failed to load faster-whisper on device '%s' (%s); falling back to CPU",
+                device,
+                exc,
+            )
+            return WhisperModel(
+                model_size_or_path=model,
+                device=fallback_device,
+                compute_type=fallback_compute_type,
+                download_root=download_root,
+            )
+
+    def _resolve_device_and_compute_type(
+        self, *, device: str, compute_type: str
+    ) -> tuple[str, str]:
+        normalized_device = device.strip().lower()
+        if not normalized_device or normalized_device == "auto":
+            preferred = self._preferred_auto_device()
+            if preferred == "cpu":
+                return "cpu", self._cpu_compute_type(compute_type)
+            return preferred, compute_type
+
+        return device, compute_type
+
+    def _preferred_auto_device(self) -> str:
+        ct2 = ctranslate2
+        if ct2 is None:
+            return "cpu"
+
+        getter = getattr(ct2, "get_supported_devices", None)
+        if getter is None:
+            return "cpu"
+
+        try:  # pragma: no cover - depends on optional dependency
+            supported = getter()
+        except Exception:
+            return "cpu"
+
+        normalized = {str(item).strip().lower() for item in supported or []}
+        if "cuda" in normalized:
+            return "cuda"
+
+        return "cpu"
+
+    def _cpu_fallback(
+        self,
+        *,
+        device: str,
+        compute_type: str,
+        exc: Exception,
+    ) -> tuple[str, str] | None:
+        if device.strip().lower() == "cpu":
+            return None
+
+        message = str(exc).lower()
+        trigger_tokens = ("cudnn", "cublas", "cuda")
+        if not any(token in message for token in trigger_tokens):
+            return None
+
+        fallback_compute_type = self._cpu_compute_type(compute_type)
+        return "cpu", fallback_compute_type
+
+    @staticmethod
+    def _cpu_compute_type(configured: str) -> str:
+        normalized = configured.strip().lower()
+        if normalized in {"", "default", "auto"}:
+            return "int8"
+        if "float16" in normalized or "fp16" in normalized:
+            return "int8"
+        return configured
 
     def _suffix_from_content_type(self, content_type: str) -> str:
         normalized = content_type.split(";", 1)[0].strip().lower()

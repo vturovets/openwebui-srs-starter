@@ -29,6 +29,8 @@ class _RecordingModel:
         compute_type: str,
         download_root: str | None = None,
     ) -> None:
+        self.device = device
+        self.compute_type = compute_type
         self.calls: list[tuple[str, int, bool]] = []
 
     def transcribe(self, path: str, *, beam_size: int, word_timestamps: bool):
@@ -134,5 +136,79 @@ def test_faster_whisper_enforces_voice_limit(monkeypatch) -> None:
             await client.transcribe(content_type="audio/wav", stream=stream())
 
         assert invoked is False
+
+    asyncio.run(scenario())
+
+
+def test_faster_whisper_falls_back_to_cpu(monkeypatch, caplog) -> None:
+    async def scenario() -> None:
+        attempts: list[tuple[str, str]] = []
+
+        class _FallbackModel(_RecordingModel):
+            def __init__(
+                self,
+                model_size_or_path: str,
+                device: str,
+                compute_type: str,
+                download_root: str | None = None,
+            ) -> None:
+                attempts.append((device, compute_type))
+                if device != "cpu":
+                    raise RuntimeError("Could not locate cudnn_ops64_9.dll")
+                super().__init__(
+                    model_size_or_path=model_size_or_path,
+                    device=device,
+                    compute_type=compute_type,
+                    download_root=download_root,
+                )
+
+        monkeypatch.setattr(stt, "WhisperModel", _FallbackModel)
+
+        with caplog.at_level("WARNING"):
+            client = stt.FasterWhisperSpeechToTextClient(
+                model="tiny",
+                device="cuda",
+                compute_type="default",
+                cache_dir=None,
+                voice_max_bytes=32,
+            )
+
+        async def stream() -> AsyncIterator[bytes]:
+            yield b"audio"
+
+        result = await client.transcribe(
+            content_type="audio/wav",
+            stream=stream(),
+        )
+
+        assert result.text == "hello world"
+        assert attempts == [("cuda", "default"), ("cpu", "int8")]
+        assert any(
+            "falling back to cpu" in record.getMessage().lower() for record in caplog.records
+        )
+
+    asyncio.run(scenario())
+
+
+def test_auto_device_prefers_cpu_when_cuda_missing(monkeypatch) -> None:
+    async def scenario() -> None:
+        class _CpuOnlyCTranslate2:
+            @staticmethod
+            def get_supported_devices():
+                return ["cpu"]
+
+        monkeypatch.setattr(stt, "ctranslate2", _CpuOnlyCTranslate2, raising=False)
+        monkeypatch.setattr(stt, "WhisperModel", _RecordingModel)
+
+        client = stt.FasterWhisperSpeechToTextClient(
+            model="tiny",
+            device="auto",
+            compute_type="float16",
+            cache_dir=None,
+            voice_max_bytes=32,
+        )
+
+        assert client._model.device == "cpu"  # type: ignore[attr-defined]
+        assert client._model.compute_type == "int8"  # type: ignore[attr-defined]
 
     asyncio.run(scenario())
