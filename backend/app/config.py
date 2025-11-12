@@ -146,6 +146,20 @@ class Settings(BaseSettings):
             "Sleep interval applied while waiting for system resources to recover during import throttling."
         ),
     )
+    import_retry_attempts: int = Field(
+        default=3,
+        alias="IMPORT_RETRY_ATTEMPTS",
+        description=(
+            "Maximum number of attempts made for transient pipeline errors before marking a request as failed."
+        ),
+    )
+    import_retry_backoff_seconds: float = Field(
+        default=0.25,
+        alias="IMPORT_RETRY_BACKOFF_SECONDS",
+        description=(
+            "Initial delay, in seconds, for exponential backoff between retries of transient pipeline errors."
+        ),
+    )
     import_p95_threshold_ms: int = Field(
         default=1000,
         alias="IMPORT_P95_THRESHOLD_MS",

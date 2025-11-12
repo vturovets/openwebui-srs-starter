@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import math
+from builtins import anext
+from collections import deque
 from collections.abc import AsyncIterable, Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -123,6 +125,8 @@ class JobMetrics:
     error_count: int
     latency_histogram: LatencyHistogram = field(default_factory=_initial_histogram)
     peak_concurrency: int = 0
+    retry_count: int = 0
+    permanent_failures: int = 0
 
     @property
     def status_counts(self) -> Mapping[str, int]:
@@ -131,6 +135,14 @@ class JobMetrics:
             "failed": self.failed_count,
             "error": self.error_count,
         }
+
+    @property
+    def retryCount(self) -> int:
+        return self.retry_count
+
+    @property
+    def permanentFailures(self) -> int:
+        return self.permanent_failures
 
 
 @dataclass(slots=True)
@@ -149,6 +161,14 @@ class ImportSummary:
     peakCpu: float | None = None
     peakMemoryMb: float | None = None
     throttleCount: int = 0
+
+    @property
+    def retryCount(self) -> int:
+        return self.metrics.retry_count
+
+    @property
+    def permanentFailures(self) -> int:
+        return self.metrics.permanent_failures
 
 
 @dataclass(slots=True)
@@ -199,6 +219,8 @@ class ImportJobRunner:
             "latency_histogram": _initial_histogram(),
             "peak_concurrency": 0,
             "durations": [],
+            "retry_count": 0,
+            "permanent_failures": 0,
         }
 
         current_concurrency = 0
@@ -230,41 +252,75 @@ class ImportJobRunner:
                         metrics_state["peak_concurrency"], current_concurrency
                     )
                 try:
-                    result = await asyncio.to_thread(
-                        self._pipeline.run,
-                        payload.text,
-                        method=payload.method,
-                    )
-                    transcript_log = [{"role": "user", "text": payload.text}]
-                    (
-                        status,
-                        _data_payload,
-                        metadata,
-                        log_entry,
-                        error_detail,
-                    ) = api_routes._format_pipeline_response(
-                        result=result,
-                        settings=self._settings,
-                        mode=payload.mode,
-                        input_text=payload.text,
-                        stt_source_override=None,
-                        transcript_log=transcript_log,
-                    )
-                    if self._logger is not None:
-                        await asyncio.to_thread(self._logger.log, log_entry)
-                    timings = _ensure_timings(metadata)
-                    total_ms = _coerce_total_ms(timings)
-                    await _record_metrics(status, total_ms)
-                    if status == "error" and error_detail:
-                        # Pipeline errors are captured in the aggregate metrics
-                        return
-                except Exception:
-                    await _record_metrics("error", 0.0)
+                    max_attempts = max(1, int(self._settings.import_retry_attempts))
+                    backoff_base = max(0.0, float(self._settings.import_retry_backoff_seconds))
+                except Exception:  # pragma: no cover - defensive conversion
+                    max_attempts = 1
+                    backoff_base = 0.0
+
+                attempt = 0
+                try:
+                    while True:
+                        attempt += 1
+                        status = "error"
+                        metadata: Mapping[str, Any] | None = None
+                        log_entry: Mapping[str, Any] | None = None
+                        error_detail: str | None = None
+                        total_ms = 0.0
+                        try:
+                            result = await asyncio.to_thread(
+                                self._pipeline.run,
+                                payload.text,
+                                method=payload.method,
+                            )
+                            transcript_log = [{"role": "user", "text": payload.text}]
+                            (
+                                status,
+                                _data_payload,
+                                metadata,
+                                log_entry,
+                                error_detail,
+                            ) = api_routes._format_pipeline_response(
+                                result=result,
+                                settings=self._settings,
+                                mode=payload.mode,
+                                input_text=payload.text,
+                                stt_source_override=None,
+                                transcript_log=transcript_log,
+                            )
+                            timings = _ensure_timings(metadata)
+                            total_ms = _coerce_total_ms(timings)
+                        except Exception:
+                            metadata = None
+                            log_entry = None
+                            error_detail = "exception"
+
+                        is_transient = status == "error"
+                        should_retry = is_transient and attempt < max_attempts
+                        if should_retry:
+                            metrics_state["retry_count"] += 1
+                            sleep_for = backoff_base * (2 ** (attempt - 1))
+                            if sleep_for > 0:
+                                await asyncio.sleep(sleep_for)
+                            continue
+
+                        final_status = status if status in {"success", "failed"} else "error"
+                        if is_transient and final_status == "error":
+                            metrics_state["permanent_failures"] += 1
+
+                        if self._logger is not None and log_entry is not None:
+                            await asyncio.to_thread(self._logger.log, log_entry)
+
+                        await _record_metrics(final_status, total_ms)
+                        if final_status == "error" and error_detail:
+                            return
+                        break
                 finally:
                     async with concurrency_lock:
                         current_concurrency -= 1
 
         tasks: list[asyncio.Task[None]] = []
+        pending_requests: deque[ParseRequest] = deque()
 
         async def _iterate() -> AsyncIterable[ParseRequest]:
             if isinstance(payloads, AsyncIterable):
@@ -284,14 +340,29 @@ class ImportJobRunner:
             started_at = _now_utc()
             start_time = perf_counter()
             last_counter: int | None = None
-            async for request in _iterate():
-                last_counter = await runtime_controls.wait_for_capacity(
-                    monitor, last_counter=last_counter
-                )
-                tasks.append(asyncio.create_task(_process_payload(request)))
-                if len(tasks) >= runtime_controls.batch_size:
-                    await asyncio.gather(*tasks)
-                    tasks.clear()
+            iterator = _iterate().__aiter__()
+            producer_exhausted = False
+
+            while not producer_exhausted or pending_requests:
+                if not producer_exhausted:
+                    try:
+                        request = await anext(iterator)
+                        pending_requests.append(request)
+                    except StopAsyncIteration:
+                        producer_exhausted = True
+
+                while pending_requests:
+                    last_counter = await runtime_controls.wait_for_capacity(
+                        monitor, last_counter=last_counter
+                    )
+                    request = pending_requests.popleft()
+                    tasks.append(asyncio.create_task(_process_payload(request)))
+                    if len(tasks) >= runtime_controls.batch_size:
+                        await asyncio.gather(*tasks)
+                        tasks.clear()
+
+                if producer_exhausted and not pending_requests:
+                    break
 
             if tasks:
                 await asyncio.gather(*tasks)
@@ -313,6 +384,8 @@ class ImportJobRunner:
                     error_count=metrics_state["error_count"],
                     latency_histogram=dict(metrics_state["latency_histogram"]),
                     peak_concurrency=metrics_state["peak_concurrency"],
+                    retry_count=metrics_state["retry_count"],
+                    permanent_failures=metrics_state["permanent_failures"],
                 ),
                 started_at=started_at,
                 finished_at=finished_at,
@@ -345,8 +418,6 @@ class ImportRuntimeControls:
     memory_threshold_mb: float | None
     guardrail_actions: dict[str, int] = field(default_factory=dict)
 
-    _max_guardrail_attempts: int = 50
-
     async def wait_for_capacity(
         self,
         monitor: ResourceMonitor | None,
@@ -360,28 +431,31 @@ class ImportRuntimeControls:
         if monitor is None:
             return last_counter
 
-        attempts = 0
         counter = last_counter
-        while True:
+        if counter is None:
             counter = await monitor.wait_for_sample(counter)
+
+        while True:
             throttle, reasons = monitor.check_thresholds(
                 cpu_threshold=self.cpu_threshold,
                 memory_threshold_mb=self.memory_threshold_mb,
             )
             if not throttle:
+                try:
+                    counter = await asyncio.wait_for(
+                        monitor.wait_for_sample(counter), timeout=0
+                    )
+                except asyncio.TimeoutError:
+                    pass
                 return counter
 
-            attempts += 1
             monitor.record_throttle(reasons)
             self.guardrail_actions["throttle"] = self.guardrail_actions.get("throttle", 0) + 1
             for reason in reasons:
                 self.guardrail_actions[reason] = self.guardrail_actions.get(reason, 0) + 1
 
-            if attempts >= self._max_guardrail_attempts:
-                raise GuardrailOverloadError(
-                    "System load remains above configured guardrail thresholds"
-                )
             await asyncio.sleep(self.pause_seconds)
+            counter = await monitor.wait_for_sample(counter)
 
 
 def configure_import_runtime(
