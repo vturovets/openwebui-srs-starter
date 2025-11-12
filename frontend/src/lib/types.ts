@@ -1,5 +1,3 @@
-import type { PerformanceInference, ThresholdAssessment } from './performance';
-
 export const CSV_LOG_FIELDS = [
   'User input',
   'Extracted values',
@@ -42,62 +40,6 @@ export type VoiceResponse = HolidayResult & {
   voice_enabled?: boolean;
   engine: string | null;
   words: VoiceWordTiming[];
-};
-
-export type UsageMetricKey = 'tokensIn' | 'tokensOut' | 'apiCalls' | 'cpuMs' | 'ramMbSeconds';
-
-export type UsageSummary = Partial<Record<UsageMetricKey, number>>;
-
-export type PerformanceSummary = {
-  requestCount: number;
-  meanResponseMs: number;
-  p95ResponseMs: number | null;
-  accuracy: number;
-  thresholdMs: number;
-  thresholdBreached: boolean;
-  sampleSize: number;
-  significance: number;
-  inference: PerformanceInference | null;
-  assessment: ThresholdAssessment | null;
-  standardErrorMs: number | null;
-  significantBreach: boolean | null;
-  zScore: number | null;
-};
-
-export type ImportJobLifecycleStatus =
-  | 'pending'
-  | 'queued'
-  | 'processing'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
-
-export type ImportJobProgress = {
-  processed: number;
-  total: number | null;
-};
-
-export type ImportJobValidationError = {
-  row?: number | null;
-  message: string;
-};
-
-export type ImportJobSubmissionResponse = {
-  id: string;
-  status: ImportJobLifecycleStatus;
-  message?: string;
-};
-
-export type ImportJobStatusResponse = {
-  id: string;
-  status: ImportJobLifecycleStatus;
-  message?: string;
-  errorCode?: string;
-  queuePosition?: number | null;
-  progress?: ImportJobProgress | null;
-  performanceSummary?: PerformanceSummary | null;
-  usageSummary?: UsageSummary | null;
-  validationErrors?: ImportJobValidationError[];
 };
 
 export type HolidayResultEntry = {
