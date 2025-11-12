@@ -200,6 +200,65 @@ _INVALID_KEYWORDS = (
 )
 
 
+def _sniff_audio_content_type(prefix: bytes) -> str | None:
+    """Return a MIME type guess based on well-known audio container signatures."""
+
+    if len(prefix) >= 12 and prefix.startswith(b"RIFF") and prefix[8:12] == b"WAVE":
+        return "audio/wav"
+    if prefix.startswith(b"OggS"):
+        return "audio/ogg"
+    if prefix.startswith(b"fLaC"):
+        return "audio/flac"
+    if prefix.startswith(b"\x1A\x45\xDF\xA3"):
+        # Matroska container, used for both audio/webm and video/webm. The UI microphone
+        # recorder yields WebM blobs, so prefer the more permissive video/webm type which
+        # is already whitelisted.
+        return "video/webm"
+    if prefix.startswith(b"ID3"):
+        return "audio/mpeg"
+    if len(prefix) >= 2 and prefix[0] == 0xFF and prefix[1] & 0xE0 == 0xE0:
+        # MP3 frame sync header.
+        return "audio/mpeg"
+    return None
+
+
+async def _resolve_missing_audio_content_type(
+    audio: UploadFile, raw_content_type: str, base_content_type: str
+) -> tuple[str, str, bytes]:
+    """Augment missing content type metadata by guessing from file hints."""
+
+    guessed_type, _ = mimetypes.guess_type(audio.filename or "")
+    guessed_type = (guessed_type or "").lower()
+    if guessed_type:
+        base_type = guessed_type.split(";")[0].strip() or guessed_type
+        if not raw_content_type or raw_content_type == "application/octet-stream":
+            raw_content_type = guessed_type
+        return raw_content_type, base_type, b""
+
+    sniff_leading_bytes = b""
+    try:
+        await audio.seek(0)
+    except (AttributeError, TypeError, OSError):
+        # Some upload implementations may not support seeking; ignore and attempt to read
+        # from the current position which should be at the start for brand new uploads.
+        pass
+
+    sniff_bytes = await audio.read(32)
+    detected_type = _sniff_audio_content_type(sniff_bytes)
+
+    try:
+        await audio.seek(0)
+    except (AttributeError, TypeError, OSError):
+        sniff_leading_bytes = sniff_bytes
+
+    if detected_type:
+        base_content_type = detected_type.split(";")[0].strip() or detected_type
+        if not raw_content_type or raw_content_type == "application/octet-stream":
+            raw_content_type = detected_type
+
+    return raw_content_type, base_content_type, sniff_leading_bytes
+
+
 def _fields_from_message(message: str) -> set[str]:
     lowered = message.lower()
     fields = {field for pattern, field in _FIELD_PATTERNS if pattern.search(lowered)}
@@ -866,13 +925,13 @@ async def voice_endpoint(
     raw_content_type = (audio.content_type or "").lower()
     base_content_type = raw_content_type.split(";")[0].strip() or raw_content_type
 
+    sniff_leading_bytes = b""
     if not base_content_type or base_content_type == "application/octet-stream":
-        guessed_type, _ = mimetypes.guess_type(audio.filename or "")
-        guessed_type = (guessed_type or "").lower()
-        if guessed_type:
-            base_content_type = guessed_type.split(";")[0].strip() or guessed_type
-            if not raw_content_type or raw_content_type == "application/octet-stream":
-                raw_content_type = guessed_type
+        (
+            raw_content_type,
+            base_content_type,
+            sniff_leading_bytes,
+        ) = await _resolve_missing_audio_content_type(audio, raw_content_type, base_content_type)
 
     allowed_types = {item.lower() for item in settings.voice_allowed_content_types}
     if base_content_type not in allowed_types:
@@ -910,7 +969,7 @@ async def voice_endpoint(
 
     try:
         await audio.seek(0)
-    except (AttributeError, TypeError):
+    except (AttributeError, TypeError, OSError):
         pass
 
     class _AudioTooLargeError(Exception):
@@ -918,7 +977,14 @@ async def voice_endpoint(
 
     async def audio_stream() -> AsyncIterator[bytes]:
         remaining = settings.voice_max_bytes
+        pending = sniff_leading_bytes
         try:
+            if pending:
+                remaining -= len(pending)
+                if remaining < 0:
+                    raise _AudioTooLargeError
+                yield pending
+                pending = b""
             while True:
                 chunk = await audio.read(8192)
                 if not chunk:

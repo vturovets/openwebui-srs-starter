@@ -59,6 +59,7 @@ class StubSTTClient:
         self.duration_ms = duration_ms
         self.word_timings = word_timings
         self.seen_content_types: list[str] = []
+        self.payloads: list[bytes] = []
 
     async def transcribe(self, *, content_type: str, stream):
         self.seen_content_types.append(content_type)
@@ -69,6 +70,8 @@ class StubSTTClient:
 
         # Emulate provider latency by sleeping for the configured duration
         await asyncio.sleep(self.duration_ms / 1000.0)
+
+        self.payloads.append(bytes(collected))
 
         transcript_words = self.transcript.split()
         if self.word_timings is None:
@@ -335,6 +338,38 @@ def test_voice_endpoint_accepts_octet_stream_with_filename_hint(tmp_path):
     asyncio.run(scenario())
 
 
+def test_voice_endpoint_sniffs_octet_stream_without_filename(tmp_path):
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            csv_path=tmp_path / "voice-log.csv",
+        )
+        pipeline = StubPipeline()
+        logger = StubLogger()
+        stt_client = StubSTTClient()
+        audio_bytes = b"\x1A\x45\xDF\xA3" + b"\x00" * 64
+        upload = create_upload(
+            audio_bytes,
+            content_type="application/octet-stream",
+            filename="blob",
+        )
+
+        response = await voice_endpoint(
+            audio=upload,
+            settings=settings,
+            pipeline=pipeline,
+            logger=logger,
+            stt_client=stt_client,
+        )
+
+        assert response.status == "success"
+        assert stt_client.seen_content_types[-1] == "video/webm"
+
+    asyncio.run(scenario())
+
+
 def test_voice_endpoint_rejects_generic_octet_stream_without_hint():
     async def scenario() -> None:
         settings = Settings(voice_enabled=True, stt_engine="deepgram", deepgram_api_key="dg")
@@ -359,5 +394,38 @@ def test_voice_endpoint_rejects_generic_octet_stream_without_hint():
 
         assert excinfo.value.status_code == 415
         assert "Unsupported audio format" in str(excinfo.value)
+
+    asyncio.run(scenario())
+
+
+def test_voice_endpoint_handles_streams_without_seek(tmp_path):
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            csv_path=tmp_path / "voice-log.csv",
+        )
+        pipeline = StubPipeline()
+        logger = StubLogger()
+        stt_client = StubSTTClient()
+        audio_bytes = b"RIFF" + b"\x00" * 4 + b"WAVEfmt "
+        upload = create_upload(audio_bytes, content_type=None, filename="recording")
+
+        async def failing_seek(offset: int, whence: int = 0) -> None:
+            raise OSError("seek unsupported")
+
+        upload.seek = failing_seek  # type: ignore[assignment]
+
+        response = await voice_endpoint(
+            audio=upload,
+            settings=settings,
+            pipeline=pipeline,
+            logger=logger,
+            stt_client=stt_client,
+        )
+
+        assert response.status == "success"
+        assert stt_client.payloads[-1] == audio_bytes
 
     asyncio.run(scenario())
