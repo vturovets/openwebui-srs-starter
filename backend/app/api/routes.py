@@ -21,6 +21,7 @@ from ..dependencies import (
     get_stt_client,
     get_pipeline,
     get_settings,
+    get_import_manager,
 )
 from ..logging.csv_logger import CSVLogger
 from ..pipeline.dialog import DialogOrchestrator
@@ -30,6 +31,7 @@ from ..integrations.stt import (
     SpeechToTextError,
     TranscriptionResult,
 )
+from ..imports.manager import ImportManager, ImportStatusSnapshot
 
 api_router = APIRouter(prefix="/v1", tags=["v1"])
 
@@ -38,6 +40,7 @@ _DEPENDENCY_RESOLVERS = {
     get_pipeline: get_pipeline,
     get_csv_logger: get_csv_logger,
     get_stt_client: get_stt_client,
+    get_import_manager: get_import_manager,
 }
 
 
@@ -139,6 +142,87 @@ class DialogResponse(BaseModel):
     metadata: dict[str, object]
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class ImportJobAccepted(BaseModel):
+    """Response returned when an import job is queued."""
+
+    job_id: str = Field(..., alias="jobId")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ImportStatusResponse(BaseModel):
+    """Status payload exposed for import job polling."""
+
+    job_id: str = Field(..., alias="jobId")
+    status: str
+    submitted_at: datetime = Field(..., alias="submittedAt")
+    completed_at: datetime | None = Field(default=None, alias="completedAt")
+    total_rows: int = Field(..., alias="totalRows")
+    processed_rows: int = Field(..., alias="processedRows")
+    success_count: int = Field(..., alias="successCount")
+    mismatch_count: int = Field(..., alias="mismatchCount")
+    error_count: int = Field(..., alias="errorCount")
+    timings: dict[str, float] = Field(default_factory=dict)
+    usage_footprint: dict[str, float] = Field(default_factory=dict, alias="usageFootprint")
+    message: str | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+def _snapshot_to_response(snapshot: ImportStatusSnapshot) -> ImportStatusResponse:
+    return ImportStatusResponse(
+        job_id=snapshot.job_id,
+        status=snapshot.status,
+        submitted_at=snapshot.submitted_at,
+        completed_at=snapshot.completed_at,
+        total_rows=snapshot.total_rows,
+        processed_rows=snapshot.processed_rows,
+        success_count=snapshot.success_count,
+        mismatch_count=snapshot.mismatch_count,
+        error_count=snapshot.error_count,
+        timings=dict(snapshot.timings),
+        usage_footprint=dict(snapshot.usage_footprint),
+        message=snapshot.message,
+    )
+
+
+@api_router.post("/imports", response_model=ImportJobAccepted, status_code=status.HTTP_202_ACCEPTED)
+async def submit_import_job(
+    upload: UploadFile = File(...),
+    manager: ImportManager = Depends(get_import_manager),
+) -> ImportJobAccepted:
+    """Accept a CSV payload and queue it for import processing."""
+
+    manager = cast(ImportManager, _resolve_dependency(manager))
+    content = await upload.read()
+    await upload.close()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded CSV file is empty")
+
+    try:
+        job_id = await manager.submit_csv(content, filename=upload.filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return ImportJobAccepted(job_id=job_id)
+
+
+@api_router.get("/imports/{job_id}", response_model=ImportStatusResponse)
+async def get_import_status(
+    job_id: str,
+    manager: ImportManager = Depends(get_import_manager),
+) -> ImportStatusResponse:
+    """Return the current status or final summary for the specified job."""
+
+    manager = cast(ImportManager, _resolve_dependency(manager))
+    try:
+        snapshot = await manager.get_status(job_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return _snapshot_to_response(snapshot)
 
 
 _FIELD_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
