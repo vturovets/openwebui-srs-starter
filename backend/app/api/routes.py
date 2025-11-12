@@ -733,6 +733,11 @@ async def fetch_fixtures(
         "availableMethods": methods_catalog.to_metadata(),
         "defaultMethod": methods_catalog.default_method_id,
         "methodDefaults": dict(methods_catalog.defaults),
+        "performanceTargets": {
+            "importP95ThresholdMs": settings.import_p95_threshold_ms,
+            "importP95SampleSize": settings.import_p95_sample_size,
+            "importP95Significance": settings.import_p95_significance,
+        },
     }
 
 
