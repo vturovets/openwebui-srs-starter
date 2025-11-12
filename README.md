@@ -86,10 +86,6 @@ serving traffic. Key options mirror the SRS:
 | `IMPORT_P95_THRESHOLD_MS` | `1000` | Target P95 latency (ms) used when flagging slow imported runs in the performance summary. |
 | `IMPORT_P95_SAMPLE_SIZE` | `1000` | Minimum number of imported rows required before computing a P95 value. |
 | `IMPORT_P95_SIGNIFICANCE` | `0.95` | Percentile (0–1) applied when calculating the imported response-time P95 metric. |
-| `IMPORT_MAX_CONCURRENCY` | `4` | Upper bound on concurrent pipeline executions while processing CSV imports. |
-| `IMPORT_QUEUE_LIMIT` | `32` | Maximum number of active import jobs allowed before rejecting new uploads. |
-| `IMPORT_BATCH_SIZE` | `64` | Hard cap on the number of rows accepted in a single import payload. |
-| `IMPORT_MAX_PENDING_JOBS` | _(unset)_ | Optional limit on queued-but-not-started import jobs awaiting worker capacity. |
 
 Create a `.env` file to override defaults, for example:
 

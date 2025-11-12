@@ -26,11 +26,6 @@ below. 【F:backend/app/config.py†L18-L158】
 | `voice_allowed_content_types` | `VOICE_ALLOWED_CONTENT_TYPES` | `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/webm`, `video/webm`, `audio/flac` | Whitelisted MIME types for audio uploads. |
 | `fixtures_dir` | `FIXTURES_DIR` | `fixtures` | Directory containing JSON fixtures used by the pipeline. |
 | `processing_threshold_ms` | `PROCESSING_THRESHOLD_MS` | `1000` | SLA threshold used to flag slow pipeline executions in metadata. |
-| `show_failed_only` | `SHOW_FAILED_ONLY` | `True` | Restricts the import dashboard to failed rows unless toggled off. |
-| `import_max_concurrency` | `IMPORT_MAX_CONCURRENCY` | `4` | Upper bound on concurrent pipeline executions while processing CSV imports. |
-| `import_queue_limit` | `IMPORT_QUEUE_LIMIT` | `32` | Maximum number of active import jobs permitted before new submissions are rejected. |
-| `import_batch_size` | `IMPORT_BATCH_SIZE` | `64` | Maximum number of rows accepted per import job to avoid runaway memory use. |
-| `import_max_pending_jobs` | `IMPORT_MAX_PENDING_JOBS` | `None` | Optional cap on queued-but-not-started jobs; unset defaults to a rolling window. |
 
 Numeric and list-type values accept either JSON-style arrays or comma-separated strings.
 Helper validators normalise the data, so `ALLOWED_LANGS=en,fr` and
@@ -42,63 +37,6 @@ post-processing. 【F:backend/app/config.py†L37-L57】【F:backend/app/logging
 
 Calling `Settings.ensure_directories()` ensures both the CSV directory and fixtures
 directory exist before serving traffic. 【F:backend/app/config.py†L146-L158】
-
-## Import workflow and guardrails
-
-The import dashboard allows analysts to upload CSV extracts of historical runs so the
-pipeline can reprocess them in the background and surface mismatches directly in the UI.
-Requests are enqueued by `ImportManager`, which enforces concurrency, queue, and batch
-limits derived from the environment variables above. 【F:backend/app/imports/manager.py†L70-L119】
-
-1. `/v1/imports` accepts a CSV file, materialises it into dictionaries, and validates that
-   at least one row is present and that the batch size is within the configured limit.
-   【F:backend/app/api/routes.py†L188-L216】
-2. A background task is scheduled per import job. The manager uses a shared
-   `ThreadPoolExecutor` and semaphore to ensure no more than
-   `IMPORT_MAX_CONCURRENCY` rows are processed concurrently. 【F:backend/app/imports/manager.py†L87-L119】
-3. Clients poll `/v1/imports/{jobId}` to retrieve live status updates until the job enters a
-   terminal state (`completed`, `failed`, or `cancelled`). Poll responses include running
-   counts of successes, mismatches, errors, and timing breakdowns. 【F:backend/app/api/routes.py†L218-L263】
-4. Completed job summaries remain cached for an hour (configurable via the manager
-   constructor) so operators can refresh dashboards without replaying work.
-
-Environment guardrails are enforced early: exceeding the queue limit produces an HTTP
-429, and oversized uploads return HTTP 400 with a descriptive message. Operators should
-monitor these responses when adjusting throughput in staging. 【F:backend/app/imports/manager.py†L120-L185】
-
-### Scaling guardrails for high-volume imports
-
-For bulk backfills (1,000+ rows per session) consider the following adjustments:
-
-- Raise `IMPORT_P95_SAMPLE_SIZE` to at least match the anticipated batch size so the
-  percentile calculation reflects the larger dataset. For example, a 1,500-row import
-  should set `IMPORT_P95_SAMPLE_SIZE=1500` to avoid premature reporting.
-- Increase `IMPORT_P95_THRESHOLD_MS` gradually (e.g., 1,500–2,000 ms) when the pipeline
-  includes LLM calls or external APIs that introduce additional latency. This prevents the
-  dashboard from flagging every row as an anomaly while you profile performance.
-- Scale `IMPORT_MAX_CONCURRENCY` based on available CPU cores. Doubling the default to 8
-  roughly halves total wall-clock time for CPU-bound workloads, but ensure the FastAPI
-  worker pool and database (if any) can sustain the parallelism. `IMPORT_QUEUE_LIMIT`
-  should also be increased proportionally so the UI does not reject new jobs while
-  previous batches complete.
-- When multiple teams share the environment, set `IMPORT_MAX_PENDING_JOBS` to a finite
-  value (for example 6) to prevent unbounded queue growth while still allowing short
-  bursts of submissions.
-
-Always stage these changes first and observe CPU, memory, and downstream service error
-rates before rolling to production. The manager surfaces per-stage timings and
-`usageFootprint` metrics in its status payloads, providing immediate feedback on whether
-the new guardrails balance throughput against resource usage. 【F:backend/app/imports/manager.py†L37-L68】【F:backend/app/api/routes.py†L231-L263】
-
-### Deployment and lifecycle notes
-
-Deployments that adopt FastAPI's lifespan context must ensure the import manager and its
-thread pool are created during application startup and torn down during shutdown to avoid
-orphaned workers. The current starter still wires dependencies through `@app.on_event`
-hooks, so migrating to lifespan requires moving the cache-clearing logic and any eager
-calls to `get_import_manager()` into the lifespan block. This keeps the background import
-infrastructure aligned with the app lifecycle and avoids stale settings after reloads.
-【F:backend/app/main.py†L16-L44】【F:backend/app/dependencies.py†L70-L111】
 
 ## Enabling the LLM extraction path
 
