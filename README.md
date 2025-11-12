@@ -34,6 +34,7 @@ retaining comparable output for experiments.
 
 - Python 3.10 or newer
 - `pip` for installing dependencies
+- `ffmpeg` available on `PATH` (required by the local faster-whisper fallback)
 - (Optional) `make` for shortcut commands defined in the root `Makefile`
 
 ### Installation
@@ -99,7 +100,9 @@ serving traffic. Key options mirror the SRS:
 > **Note:** When `STT_ENGINE=deepgram` but the `DEEPGRAM_API_KEY` is omitted, the
 > backend falls back to a local `faster-whisper` model. Install it with `pip
 > install faster-whisper` and ensure `ffmpeg` is on your `PATH` so uploaded audio
-> can be decoded. 【F:backend/app/dependencies.py†L133-L168】【F:backend/app/integrations/stt.py†L131-L240】
+> can be decoded. Tune the local runtime using `FALLBACK_WHISPER_MODEL`,
+> `FALLBACK_WHISPER_DEVICE`, `FALLBACK_WHISPER_COMPUTE_TYPE`, and
+> `FALLBACK_WHISPER_CACHE_DIR`. 【F:backend/app/dependencies.py†L133-L168】【F:backend/app/integrations/stt.py†L131-L240】
 
 Create a `.env` file to override defaults, for example:
 
@@ -237,7 +240,10 @@ timings, and the downstream pipeline metadata so voice and text flows stay
 aligned. If `STT_ENGINE=deepgram` but `DEEPGRAM_API_KEY` is not provided, the
 service automatically falls back to a local `faster-whisper` instance configured
 via `FALLBACK_WHISPER_MODEL`, `FALLBACK_WHISPER_DEVICE`,
-`FALLBACK_WHISPER_COMPUTE_TYPE`, and `FALLBACK_WHISPER_CACHE_DIR`. 【F:backend/app/config.py†L84-L120】
+`FALLBACK_WHISPER_COMPUTE_TYPE`, and `FALLBACK_WHISPER_CACHE_DIR`. Install
+`ffmpeg` alongside `faster-whisper` so the local decoder can open common audio
+formats; the `engine` field in the response will surface `faster-whisper` when
+this path is active. 【F:backend/app/config.py†L84-L120】【F:backend/app/integrations/stt.py†L131-L240】
 
 ## Frontend quick start
 

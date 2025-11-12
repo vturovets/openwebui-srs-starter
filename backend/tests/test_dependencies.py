@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from backend.app import dependencies
 
@@ -12,6 +13,7 @@ def _clear_dependency_caches() -> None:
         dependencies.get_dialog_orchestrator,
         dependencies.get_pipeline,
         dependencies.get_llm_client,
+        dependencies.get_stt_client,
         dependencies.get_csv_logger,
         dependencies.get_methods_catalog,
         dependencies.get_settings,
@@ -51,5 +53,43 @@ def test_dependency_settings_propagate_default_targets(monkeypatch, tmp_path) ->
 
         logger = dependencies.get_csv_logger()
         assert logger.delimiter == settings.csv_delimiter
+    finally:
+        _clear_dependency_caches()
+
+
+def test_get_stt_client_uses_fallback_when_deepgram_key_missing(monkeypatch, tmp_path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    monkeypatch.setenv("VOICE_ENABLED", "true")
+    monkeypatch.setenv("STT_ENGINE", "deepgram")
+    monkeypatch.setenv("FIXTURES_DIR", str(repo_root / "fixtures"))
+    monkeypatch.setenv("CSV_PATH", str(tmp_path / "logs" / "voice.csv"))
+    monkeypatch.setenv("VOICE_MAX_BYTES", "4096")
+    monkeypatch.setenv("FALLBACK_WHISPER_MODEL", "medium.en")
+    monkeypatch.setenv("FALLBACK_WHISPER_DEVICE", "cuda")
+    monkeypatch.setenv("FALLBACK_WHISPER_COMPUTE_TYPE", "int8_float16")
+    monkeypatch.setenv("FALLBACK_WHISPER_CACHE_DIR", str(tmp_path / "models"))
+    monkeypatch.delenv("DEEPGRAM_API_KEY", raising=False)
+
+    created: list[dict[str, object]] = []
+
+    def _stub_fallback_client(**kwargs):
+        created.append(kwargs)
+        return SimpleNamespace(**kwargs)
+
+    monkeypatch.setattr(dependencies, "FasterWhisperSpeechToTextClient", _stub_fallback_client)
+
+    _clear_dependency_caches()
+
+    try:
+        client = dependencies.get_stt_client()
+        assert client is not None
+        assert created, "fallback client should be instantiated"
+        params = created[-1]
+        assert params["model"] == "medium.en"
+        assert params["device"] == "cuda"
+        assert params["compute_type"] == "int8_float16"
+        assert params["voice_max_bytes"] == 4096
+        assert Path(params["cache_dir"]) == tmp_path / "models"
     finally:
         _clear_dependency_caches()
