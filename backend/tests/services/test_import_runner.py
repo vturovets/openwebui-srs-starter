@@ -16,6 +16,7 @@ import backend.app.services.import_runner as import_runner
 from backend.app.services.import_runner import (
     DEFAULT_LATENCY_BUCKETS,
     ImportJobRunner,
+    ImportProgress,
     ImportSummary,
     configure_import_runtime,
 )
@@ -135,6 +136,35 @@ def test_run_import_processes_all_payloads_and_invokes_callback():
         assert summary.peakCpu >= 0.0
     if summary.peakMemoryMb is not None:
         assert summary.peakMemoryMb >= 0.0
+
+
+def test_run_import_emits_progress_updates():
+    pipeline = _RecordingPipeline(statuses=["success"], latency_ms=75.0)
+    runner = ImportJobRunner(
+        pipeline=pipeline,
+        settings=Settings(),
+        logger=None,
+        concurrency_limit=2,
+    )
+
+    requests = _make_requests(3)
+    updates: list[ImportProgress] = []
+
+    async def _invoke() -> ImportSummary:
+        async def _progress(update: ImportProgress) -> None:
+            updates.append(update)
+
+        return await runner.run_import(
+            requests,
+            progress_callback=_progress,
+            total=len(requests),
+        )
+
+    _run(_invoke())
+
+    assert [update.processed for update in updates] == [1, 2, 3]
+    assert all(update.total == len(requests) for update in updates)
+    assert updates[-1].status_counts["success"] == len(requests)
 
 
 def test_run_import_honours_concurrency_cap():
