@@ -15,12 +15,10 @@ vi.mock('../lib/api', () => ({
   fetchFixtures: vi.fn(),
   parseText: vi.fn(),
   postVoice: vi.fn(),
-  createImportJob: vi.fn(),
-  pollImportJob: vi.fn(),
 }));
 
 import App from '../App.svelte';
-import { createImportJob, fetchFixtures, parseText, pollImportJob } from '../lib/api';
+import { fetchFixtures, parseText } from '../lib/api';
 import { CSV_LOG_FIELDS } from '../lib/types';
 
 const FIXTURE_RESPONSE = {
@@ -156,51 +154,6 @@ const PARSE_FAILED = {
   ],
 };
 
-const IMPORT_JOB_PROCESSING = {
-  id: 'job-123',
-  status: 'processing',
-  message: 'Processing import',
-  progress: { processed: 5, total: 10 },
-};
-
-const IMPORT_JOB_COMPLETED = {
-  id: 'job-123',
-  status: 'completed',
-  message: 'Import finished',
-  performanceSummary: {
-    requestCount: 1,
-    meanResponseMs: 34,
-    p95ResponseMs: 34,
-    accuracy: 100,
-    thresholdMs: 1000,
-    thresholdBreached: false,
-    sampleSize: 1000,
-    significance: 0.95,
-    inference: 'inconclusive',
-    assessment: null,
-    standardErrorMs: null,
-    significantBreach: null,
-    zScore: null,
-  },
-  usageSummary: {
-    tokensIn: 50,
-    tokensOut: 10,
-    apiCalls: 1,
-    cpuMs: 20,
-    ramMbSeconds: 5.5,
-  },
-};
-
-const IMPORT_JOB_FAILED = {
-  id: 'job-123',
-  status: 'failed',
-  message: 'Validation failed',
-  validationErrors: [
-    { row: 2, message: 'Missing destination' },
-    { row: null, message: 'Duplicate header' },
-  ],
-};
-
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 const parseCsvLine = (line: string): string[] => {
@@ -239,23 +192,10 @@ const parseCsvLine = (line: string): string[] => {
 describe('Holiday search console', () => {
   const fetchFixturesMock = fetchFixtures as unknown as vi.Mock;
   const parseTextMock = parseText as unknown as vi.Mock;
-  const createImportJobMock = createImportJob as unknown as vi.Mock;
-  const pollImportJobMock = pollImportJob as unknown as vi.Mock;
 
   beforeEach(() => {
     fetchFixturesMock.mockReset().mockResolvedValue({ ...FIXTURE_RESPONSE });
     parseTextMock.mockReset();
-    createImportJobMock.mockReset().mockResolvedValue({
-      id: 'job-123',
-      status: 'queued',
-      message: 'Queued for import',
-    });
-    pollImportJobMock.mockReset().mockImplementation(async (_baseUrl, _jobId, options = {}) => {
-      options?.onUpdate?.(IMPORT_JOB_PROCESSING);
-      await Promise.resolve();
-      options?.onUpdate?.(IMPORT_JOB_COMPLETED);
-      return IMPORT_JOB_COMPLETED;
-    });
   });
 
   it('loads fixtures on mount and displays airports/destinations', async () => {
@@ -337,7 +277,8 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('issue-summary')).toBeInTheDocument();
   });
 
-  it('displays performance and usage summaries after import job completes', async () => {
+  it('imports CSV requests and flags expected mismatches', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
     const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());
@@ -348,48 +289,48 @@ describe('Holiday search console', () => {
     expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument();
     expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
 
-    const file = new File(
-      ['User input,Expected values\n"Find a trip","From: Amsterdam | To: Spain"\n'],
-      'requests.csv',
-      { type: 'text/csv' }
-    );
+    const csvContent = 'User input,Expected values\n"Find a trip","From: Amsterdam | To: Spain"\n';
+    const file = {
+      name: 'requests.csv',
+      type: 'text/csv',
+      text: () => Promise.resolve(csvContent),
+    } as unknown as File;
     const importInput = screen.getByTestId('import-input') as HTMLInputElement;
-    Object.defineProperty(importInput, 'files', { value: [file], configurable: true });
+    Object.defineProperty(importInput, 'files', {
+      value: [file],
+      configurable: true,
+    });
     await fireEvent.change(importInput);
 
-    await waitFor(() => expect(createImportJobMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(pollImportJobMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByTestId('performance-summary')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+    expect(screen.getByTestId('status-label')).toHaveTextContent('failed');
+    expect(screen.getByText('Expected value mismatches:')).toBeInTheDocument();
 
-    expect(screen.queryByTestId('structured-result')).toBeNull();
-
-    expect(screen.getByTestId('performance-requests')).toHaveTextContent('1');
-    expect(screen.getByTestId('performance-mean')).toHaveTextContent('34 ms');
-    expect(screen.getByTestId('performance-p95')).toHaveTextContent('34 ms');
-    expect(screen.getByTestId('performance-threshold')).toHaveTextContent('1000 ms');
-    expect(screen.getByTestId('performance-inference')).toHaveTextContent('Inconclusive');
-    expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('100%');
-
-    expect(screen.getByTestId('usage-summary')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('usage-summary')).toBeInTheDocument());
     expect(screen.getByTestId('usage-tokens-in')).toHaveTextContent('50');
     expect(screen.getByTestId('usage-tokens-out')).toHaveTextContent('10');
     expect(screen.getByTestId('usage-api-calls')).toHaveTextContent('1');
     expect(screen.getByTestId('usage-cpu')).toHaveTextContent('20 ms');
     expect(screen.getByTestId('usage-ram')).toHaveTextContent('5.5 MB·s');
 
-    await waitFor(() => expect(screen.getByTestId('import-status')).toHaveTextContent('Import finished'));
+    await waitFor(() => expect(screen.getByTestId('performance-requests')).toHaveTextContent('1'));
+    expect(screen.getByTestId('performance-mean')).toHaveTextContent('34 ms');
+    expect(screen.getByTestId('performance-p95')).toHaveTextContent('34 ms');
+    expect(screen.getByTestId('performance-threshold')).toHaveTextContent('1000 ms');
+    expect(screen.getByTestId('performance-inference')).toHaveTextContent('Insufficient data');
+    expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('0%');
+
+    const resetButton = screen.getByTestId('reset-button') as HTMLButtonElement;
+    await waitFor(() => expect(resetButton.disabled).toBe(false));
+    await fireEvent.click(resetButton);
+    await waitFor(() => expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
 
     component.$destroy();
   });
 
-  it('shows import progress while job is processing', async () => {
-    pollImportJobMock.mockImplementationOnce(async (_baseUrl, _jobId, options = {}) => {
-      options?.onUpdate?.(IMPORT_JOB_PROCESSING);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      options?.onUpdate?.(IMPORT_JOB_COMPLETED);
-      return IMPORT_JOB_COMPLETED;
-    });
-
+  it('omits successful imports when configured to show failures only', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
     const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());
@@ -397,77 +338,67 @@ describe('Holiday search console', () => {
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
     await screen.findByTestId('fixtures-loaded');
 
-    const file = new File(['User input,Expected values\n"Find a trip",""\n'], 'requests.csv', {
+    const csvContent = 'User input,Expected values\n"Find a trip",""\n';
+    const file = {
+      name: 'requests.csv',
       type: 'text/csv',
-    });
+      text: () => Promise.resolve(csvContent),
+    } as unknown as File;
+
     const importInput = screen.getByTestId('import-input') as HTMLInputElement;
-    Object.defineProperty(importInput, 'files', { value: [file], configurable: true });
-
-    await fireEvent.change(importInput);
-
-    await waitFor(() => expect(screen.getByTestId('import-status')).toHaveTextContent('Import in progress'));
-    await waitFor(() => expect(screen.getByTestId('import-progress')).toHaveTextContent('5 / 10'));
-    await waitFor(() => expect(screen.getByTestId('performance-summary')).toBeInTheDocument());
-
-    component.$destroy();
-  });
-
-  it('does not render structured results even when successful imports are allowed', async () => {
-    fetchFixturesMock.mockResolvedValueOnce({
-      ...FIXTURE_RESPONSE,
-      showFailedOnly: false,
+    Object.defineProperty(importInput, 'files', {
+      value: [file],
+      configurable: true,
     });
-
-    const { component } = render(App);
-    await tick();
-    component.$$.on_mount.forEach((fn) => fn());
-    await tick();
-
-    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('fixtures-loaded');
-
-    const file = new File(['User input,Expected values\n"Find a trip",""\n'], 'requests.csv', {
-      type: 'text/csv',
-    });
-    const importInput = screen.getByTestId('import-input') as HTMLInputElement;
-    Object.defineProperty(importInput, 'files', { value: [file], configurable: true });
 
     await fireEvent.change(importInput);
 
     await waitFor(() => expect(screen.getByTestId('performance-summary')).toBeInTheDocument());
     expect(screen.queryByTestId('structured-result')).toBeNull();
+    expect(screen.getByTestId('performance-requests')).toHaveTextContent('1');
+    expect(screen.getByTestId('performance-mean')).toHaveTextContent('34 ms');
+    expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('100%');
+
+    await waitFor(() => expect(screen.getByTestId('usage-summary')).toBeInTheDocument());
+    expect(screen.getByTestId('usage-tokens-in')).toHaveTextContent('50');
+    expect(screen.getByTestId('usage-tokens-out')).toHaveTextContent('10');
+    expect(screen.getByTestId('usage-api-calls')).toHaveTextContent('1');
 
     component.$destroy();
   });
 
-  it('shows validation errors when the import job fails', async () => {
-    pollImportJobMock.mockImplementationOnce(async (_baseUrl, _jobId, options = {}) => {
-      options?.onUpdate?.(IMPORT_JOB_PROCESSING);
-      await Promise.resolve();
-      options?.onUpdate?.(IMPORT_JOB_FAILED);
-      return IMPORT_JOB_FAILED;
+  it('displays successful imports when showFailedOnly is disabled', async () => {
+    fetchFixturesMock.mockResolvedValueOnce({
+      ...FIXTURE_RESPONSE,
+      showFailedOnly: false,
     });
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
 
     const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());
     await tick();
+
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
     await screen.findByTestId('fixtures-loaded');
 
-    const file = new File(['User input,Expected values\n"Broken",""\n'], 'requests.csv', { type: 'text/csv' });
+    const csvContent = 'User input,Expected values\n"Find a trip",""\n';
+    const file = {
+      name: 'requests.csv',
+      type: 'text/csv',
+      text: () => Promise.resolve(csvContent),
+    } as unknown as File;
+
     const importInput = screen.getByTestId('import-input') as HTMLInputElement;
-    Object.defineProperty(importInput, 'files', { value: [file], configurable: true });
+    Object.defineProperty(importInput, 'files', {
+      value: [file],
+      configurable: true,
+    });
 
     await fireEvent.change(importInput);
 
-    await waitFor(() => expect(screen.getByTestId('import-error')).toHaveTextContent('Validation failed'));
-    const errorList = await screen.findByTestId('import-validation-errors');
-    expect(errorList.textContent).toContain('Row 2');
-    expect(errorList.textContent).toContain('Missing destination');
-    expect(errorList.textContent).toContain('Duplicate header');
-    expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+    expect(screen.getByTestId('status-label')).toHaveTextContent('success');
 
     component.$destroy();
   });
@@ -610,22 +541,9 @@ describe('Holiday search console', () => {
     await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
     expect(resetButton.disabled).toBe(false);
 
-    const file = new File(['User input,Expected values\n"Find a trip",""\n'], 'requests.csv', {
-      type: 'text/csv',
-    });
-    const importInput = screen.getByTestId('import-input') as HTMLInputElement;
-    Object.defineProperty(importInput, 'files', { value: [file], configurable: true });
-    await fireEvent.change(importInput);
-
-    await waitFor(() => expect(screen.getByTestId('performance-summary')).toBeInTheDocument());
-
     await fireEvent.click(resetButton);
     await waitFor(() => expect(screen.getByTestId('empty-state')).toBeInTheDocument());
-    expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
     expect(resetButton).toBeDisabled();
-
-    component.$destroy();
   });
 
   it('disables voice interactions when voice fixtures are disabled', async () => {
