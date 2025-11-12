@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterable, Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -15,6 +16,49 @@ from ..logging.csv_logger import CSVLogger
 from ..pipeline.pipeline import HolidaySearchPipeline
 
 SummaryCallback = Callable[["ImportSummary"], Awaitable[None] | None]
+
+
+def _read_cpu_percent() -> float | None:
+    """Estimate CPU utilisation percentage using the 1-minute load average."""
+
+    try:
+        load_1, _load_5, _load_15 = os.getloadavg()
+    except (AttributeError, OSError):
+        return None
+    cpu_count = os.cpu_count() or 1
+    if cpu_count <= 0:
+        cpu_count = 1
+    utilisation = (load_1 / cpu_count) * 100.0
+    return max(utilisation, 0.0)
+
+
+def _read_memory_usage_mb() -> float | None:
+    """Approximate RAM usage by parsing ``/proc/meminfo`` when available."""
+
+    meminfo_path = "/proc/meminfo"
+    try:
+        with open(meminfo_path, "r", encoding="utf-8") as handle:
+            lines = handle.readlines()
+    except (FileNotFoundError, OSError):
+        return None
+
+    total_kb = available_kb = None
+    for line in lines:
+        if line.startswith("MemTotal:"):
+            parts = line.split()
+            if len(parts) >= 2:
+                total_kb = float(parts[1])
+        elif line.startswith("MemAvailable:"):
+            parts = line.split()
+            if len(parts) >= 2:
+                available_kb = float(parts[1])
+        if total_kb is not None and available_kb is not None:
+            break
+
+    if total_kb is None or available_kb is None:
+        return None
+    used_kb = max(total_kb - available_kb, 0.0)
+    return used_kb / 1024.0
 
 
 def _now_utc() -> datetime:
@@ -119,7 +163,8 @@ class ImportJobRunner:
         self._pipeline = pipeline
         self._settings = settings
         self._logger = logger
-        self._concurrency_limit = max(1, concurrency_limit or settings.import_worker_concurrency)
+        requested = concurrency_limit or settings.import_worker_concurrency
+        self._requested_concurrency = max(1, requested)
 
     async def run_import(
         self,
@@ -127,7 +172,10 @@ class ImportJobRunner:
         *,
         summary_callback: SummaryCallback | None = None,
     ) -> ImportSummary:
-        semaphore = asyncio.Semaphore(self._concurrency_limit)
+        runtime_controls = configure_import_runtime(
+            self._settings, concurrency_override=self._requested_concurrency
+        )
+        semaphore = runtime_controls.semaphore
         concurrency_lock = asyncio.Lock()
         metrics_lock = asyncio.Lock()
 
@@ -215,7 +263,11 @@ class ImportJobRunner:
         started_at = _now_utc()
         start_time = perf_counter()
         async for request in _iterate():
+            await runtime_controls.wait_for_capacity()
             tasks.append(asyncio.create_task(_process_payload(request)))
+            if len(tasks) >= runtime_controls.batch_size:
+                await asyncio.gather(*tasks)
+                tasks.clear()
 
         if tasks:
             await asyncio.gather(*tasks)
@@ -244,3 +296,57 @@ class ImportJobRunner:
 
         return summary
 
+@dataclass(slots=True)
+class ImportRuntimeControls:
+    """Runtime orchestration parameters for import execution."""
+
+    semaphore: asyncio.Semaphore
+    batch_size: int
+    pause_seconds: float
+    cpu_threshold: float | None
+    memory_threshold_mb: float | None
+
+    async def wait_for_capacity(self) -> None:
+        """Sleep when system load exceeds configured thresholds."""
+
+        if self.cpu_threshold is None and self.memory_threshold_mb is None:
+            return
+
+        while True:
+            throttle = False
+            if self.cpu_threshold is not None:
+                cpu_percent = _read_cpu_percent()
+                if cpu_percent is not None and cpu_percent >= self.cpu_threshold:
+                    throttle = True
+            if self.memory_threshold_mb is not None:
+                memory_mb = _read_memory_usage_mb()
+                if memory_mb is not None and memory_mb >= self.memory_threshold_mb:
+                    throttle = True
+            if throttle:
+                await asyncio.sleep(self.pause_seconds)
+                continue
+            break
+
+
+def configure_import_runtime(
+    settings: Settings,
+    *,
+    concurrency_override: int | None = None,
+) -> ImportRuntimeControls:
+    """Resolve runtime knobs for import execution using application settings."""
+
+    requested = concurrency_override or settings.import_worker_concurrency
+    concurrency_limit = max(1, min(requested, settings.import_max_concurrency))
+    semaphore = asyncio.Semaphore(concurrency_limit)
+    batch_size = max(1, settings.import_batch_size)
+    pause_seconds = settings.import_pause_seconds
+    cpu_threshold = settings.import_cpu_threshold
+    memory_threshold = settings.import_memory_threshold_mb
+
+    return ImportRuntimeControls(
+        semaphore=semaphore,
+        batch_size=batch_size,
+        pause_seconds=pause_seconds,
+        cpu_threshold=cpu_threshold,
+        memory_threshold_mb=memory_threshold,
+    )
