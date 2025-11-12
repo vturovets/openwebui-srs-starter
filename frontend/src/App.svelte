@@ -91,6 +91,7 @@
 
   let importPerformanceSummary: PerformanceSummary | null = null;
   let importUsageSummary: UsageSummary | null = null;
+  let importProgress: { processed: number; total: number } | null = null;
 
   function toFiniteNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -776,6 +777,7 @@
     let mismatchCount = 0;
     const usageAggregate = createUsageAggregate();
     let usageDetected = false;
+    let totalRecords = 0;
 
     const recordImportedEntry = (entry: HolidayResultEntry) => {
       processedCount += 1;
@@ -798,17 +800,34 @@
       if (shouldDisplayImportedEntry(entry)) {
         addEntry(entry);
       }
+
+      if (importProgress) {
+        importProgress = {
+          processed: processedCount,
+          total: totalRecords,
+        };
+      }
     };
 
     try {
       const text = await file.text();
       const records = parseCsv(text);
+      const recordsWithInput = records.filter((record) => {
+        const value = (record['User input'] ?? '').trim();
+        return value.length > 0;
+      });
 
-      for (const record of records) {
+      totalRecords = recordsWithInput.length;
+      importProgress =
+        totalRecords > 0
+          ? {
+              processed: 0,
+              total: totalRecords,
+            }
+          : null;
+
+      for (const record of recordsWithInput) {
         const userInput = (record['User input'] ?? '').trim();
-        if (!userInput) {
-          continue;
-        }
 
         const expectedRaw = record['Expected values'] ?? '';
         const expectedValues = parseExpectedValues(expectedRaw);
@@ -871,6 +890,7 @@
         importPerformanceSummary = null;
         importUsageSummary = null;
       }
+      importProgress = null;
     }
   }
 
@@ -1033,6 +1053,15 @@
         </button>
         <button type="button" on:click={exportCsv} data-testid="export-button">Export CSV</button>
       </div>
+
+      {#if importProgress}
+        <p class="import-progress" data-testid="import-progress">
+          Importing {importProgress.processed} of {importProgress.total}
+          {#if importProgress.total > 0}
+            ({Math.round((importProgress.processed / importProgress.total) * 100)}%)
+          {/if}
+        </p>
+      {/if}
     </form>
 
     <MicrophoneWidget
@@ -1348,6 +1377,14 @@
   .actions {
     display: flex;
     gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .import-progress {
+    margin: 0;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #93c5fd;
   }
 
   button {
