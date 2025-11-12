@@ -1,4 +1,9 @@
-import type { Fixtures, HolidayResult, VoiceResponse } from './types';
+import type {
+  Fixtures,
+  FixturesPerformanceTargets,
+  HolidayResult,
+  VoiceResponse,
+} from './types';
 
 function normaliseFixtureNames(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -34,7 +39,55 @@ async function handleResponse(response: Response) {
 type FixturesPayload = Omit<Fixtures, 'airports' | 'destinations'> & {
   airports?: unknown;
   destinations?: unknown;
+  performanceTargets?: unknown;
 };
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function normalisePerformanceTargets(
+  value: unknown
+): FixturesPerformanceTargets | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const targets: FixturesPerformanceTargets = {};
+
+  const threshold = toFiniteNumber(record.importP95ThresholdMs);
+  if (threshold !== null) {
+    targets.importP95ThresholdMs = threshold;
+  }
+
+  const sampleSize = toFiniteNumber(record.importP95SampleSize);
+  if (sampleSize !== null) {
+    targets.importP95SampleSize = Math.max(0, Math.floor(sampleSize));
+  }
+
+  const significance = toFiniteNumber(record.importP95Significance);
+  if (significance !== null) {
+    targets.importP95Significance = significance;
+  }
+
+  return Object.keys(targets).length > 0 ? targets : undefined;
+}
 
 export async function fetchFixtures(baseUrl: string): Promise<Fixtures> {
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/fixtures`);
@@ -45,6 +98,7 @@ export async function fetchFixtures(baseUrl: string): Promise<Fixtures> {
     ...fixtures,
     airports: normaliseFixtureNames(fixtures.airports),
     destinations: normaliseFixtureNames(fixtures.destinations),
+    performanceTargets: normalisePerformanceTargets(fixtures.performanceTargets),
   };
 }
 
