@@ -86,6 +86,11 @@ serving traffic. Key options mirror the SRS:
 | `IMPORT_P95_THRESHOLD_MS` | `1000` | Target P95 latency (ms) used when flagging slow imported runs in the performance summary. |
 | `IMPORT_P95_SAMPLE_SIZE` | `1000` | Minimum number of imported rows required before computing a P95 value. |
 | `IMPORT_P95_SIGNIFICANCE` | `0.95` | Percentile (0–1) applied when calculating the imported response-time P95 metric. |
+| `IMPORT_MAX_CONCURRENCY` | `32` | Hard ceiling for concurrent import worker tasks, even when overrides request more parallelism. |
+| `IMPORT_BATCH_SIZE` | `64` | Number of queued requests submitted before awaiting completion to avoid overwhelming the runtime. |
+| `IMPORT_CPU_THRESHOLD` | `90` | Pause scheduling when the 1-minute CPU load estimate exceeds this percentage. |
+| `IMPORT_MEMORY_THRESHOLD_MB` | `4096` | Pause scheduling when estimated RAM usage exceeds this many megabytes. |
+| `IMPORT_PAUSE_SECONDS` | `0.1` | Duration to sleep before re-checking system load while throttling import execution. |
 
 Create a `.env` file to override defaults, for example:
 

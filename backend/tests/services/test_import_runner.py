@@ -10,10 +10,12 @@ from typing import Iterable
 
 from backend.app.api.routes import ParseRequest
 from backend.app.config import Settings
+import backend.app.services.import_runner as import_runner
 from backend.app.services.import_runner import (
     DEFAULT_LATENCY_BUCKETS,
     ImportJobRunner,
     ImportSummary,
+    configure_import_runtime,
 )
 
 
@@ -191,6 +193,63 @@ def test_run_import_aggregates_large_batch_metrics():
 
     for label, count in expected.items():
         assert histogram[label] == count
+
+
+def test_configure_import_runtime_respects_limits():
+    settings = Settings(
+        import_worker_concurrency=4,
+        import_max_concurrency=2,
+        import_batch_size=5,
+        import_cpu_threshold=85.0,
+        import_memory_threshold_mb=3000,
+        import_pause_seconds=0.2,
+    )
+
+    async def _invoke():
+        return configure_import_runtime(settings, concurrency_override=10)
+
+    runtime = _run(_invoke())
+
+    assert runtime.semaphore._value == 2  # type: ignore[attr-defined]
+    assert runtime.batch_size == 5
+    assert runtime.cpu_threshold == 85.0
+    assert runtime.memory_threshold_mb == 3000
+    assert runtime.pause_seconds == 0.2
+
+
+def test_runtime_controls_wait_for_capacity(monkeypatch):
+    settings = Settings(
+        import_cpu_threshold=10.0,
+        import_memory_threshold_mb=1024,
+        import_pause_seconds=0.01,
+    )
+
+    cpu_readings = iter([50.0, 5.0])
+
+    def _fake_cpu() -> float:
+        return next(cpu_readings, 5.0)
+
+    monkeypatch.setattr(import_runner, "_read_cpu_percent", _fake_cpu, raising=False)
+    monkeypatch.setattr(import_runner, "_read_memory_usage_mb", lambda: 0.0, raising=False)
+
+    sleeps: list[float] = []
+    original_sleep = import_runner.asyncio.sleep
+
+    async def _fake_sleep(duration: float) -> None:
+        sleeps.append(duration)
+        await original_sleep(0)
+
+    monkeypatch.setattr(import_runner.asyncio, "sleep", _fake_sleep)
+
+    async def _invoke() -> list[float]:
+        runtime = configure_import_runtime(settings, concurrency_override=1)
+        await runtime.wait_for_capacity()
+        return sleeps
+
+    recorded = _run(_invoke())
+
+    assert recorded
+    assert recorded[0] == settings.import_pause_seconds
 
 
 def _bucket_label(lower: float, upper: float | None) -> str:

@@ -99,6 +99,41 @@ class Settings(BaseSettings):
             "Maximum number of concurrent tasks when running bulk import jobs."
         ),
     )
+    import_max_concurrency: int = Field(
+        default=32,
+        alias="IMPORT_MAX_CONCURRENCY",
+        description=(
+            "Hard ceiling applied to import concurrency regardless of overrides."
+        ),
+    )
+    import_batch_size: int = Field(
+        default=64,
+        alias="IMPORT_BATCH_SIZE",
+        description=(
+            "Number of requests scheduled before awaiting running import tasks."
+        ),
+    )
+    import_cpu_threshold: Optional[float] = Field(
+        default=90.0,
+        alias="IMPORT_CPU_THRESHOLD",
+        description=(
+            "Pause import scheduling when estimated CPU utilisation exceeds this percentage."
+        ),
+    )
+    import_memory_threshold_mb: Optional[int] = Field(
+        default=4096,
+        alias="IMPORT_MEMORY_THRESHOLD_MB",
+        description=(
+            "Pause import scheduling when estimated RAM usage exceeds this many megabytes."
+        ),
+    )
+    import_pause_seconds: float = Field(
+        default=0.1,
+        alias="IMPORT_PAUSE_SECONDS",
+        description=(
+            "Sleep interval applied while waiting for system resources to recover during import throttling."
+        ),
+    )
     import_p95_threshold_ms: int = Field(
         default=1000,
         alias="IMPORT_P95_THRESHOLD_MS",
@@ -234,6 +269,81 @@ class Settings(BaseSettings):
         if concurrency < 1:
             raise ValueError("IMPORT_WORKER_CONCURRENCY must be at least 1")
         return concurrency
+
+    @field_validator("import_max_concurrency", mode="before")
+    @classmethod
+    def _validate_import_max_concurrency(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 32
+        try:
+            ceiling = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_MAX_CONCURRENCY must be a positive integer") from exc
+        if ceiling < 1:
+            raise ValueError("IMPORT_MAX_CONCURRENCY must be at least 1")
+        return ceiling
+
+    @field_validator("import_batch_size", mode="before")
+    @classmethod
+    def _validate_import_batch_size(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 64
+        try:
+            batch_size = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_BATCH_SIZE must be a positive integer") from exc
+        if batch_size < 1:
+            raise ValueError("IMPORT_BATCH_SIZE must be at least 1")
+        return batch_size
+
+    @field_validator("import_cpu_threshold", mode="before")
+    @classmethod
+    def _validate_import_cpu_threshold(cls, value: object) -> Optional[float]:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 90.0
+        try:
+            threshold = float(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_CPU_THRESHOLD must be a numeric value") from exc
+        if threshold <= 0 or threshold > 100:
+            raise ValueError("IMPORT_CPU_THRESHOLD must be greater than 0 and at most 100")
+        return threshold
+
+    @field_validator("import_memory_threshold_mb", mode="before")
+    @classmethod
+    def _validate_import_memory_threshold(cls, value: object) -> Optional[int]:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 4096
+        try:
+            threshold = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_MEMORY_THRESHOLD_MB must be a positive integer") from exc
+        if threshold <= 0:
+            raise ValueError("IMPORT_MEMORY_THRESHOLD_MB must be greater than zero")
+        return threshold
+
+    @field_validator("import_pause_seconds", mode="before")
+    @classmethod
+    def _validate_import_pause_seconds(cls, value: object) -> float:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 0.1
+        try:
+            pause = float(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_PAUSE_SECONDS must be a numeric value") from exc
+        if pause <= 0:
+            raise ValueError("IMPORT_PAUSE_SECONDS must be greater than zero seconds")
+        return pause
 
     @field_validator("import_p95_threshold_ms", mode="before")
     @classmethod
