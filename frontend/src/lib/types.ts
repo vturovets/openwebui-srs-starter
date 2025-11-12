@@ -82,6 +82,12 @@ export type FixturesConfiguration = {
   [key: string]: unknown;
 };
 
+export type FixturesPerformanceTargets = {
+  importP95ThresholdMs?: number;
+  importP95SampleSize?: number;
+  importP95Significance?: number;
+};
+
 export type Fixtures = {
   airports: string[];
   destinations: string[];
@@ -95,5 +101,6 @@ export type Fixtures = {
   defaultMethod?: string | null;
   methodDefaults?: Record<string, unknown>;
   configuration?: FixturesConfiguration;
+  performanceTargets?: FixturesPerformanceTargets;
 };
 

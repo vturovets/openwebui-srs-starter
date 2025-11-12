@@ -7,6 +7,7 @@
     Fixtures,
     FixturesConfigurationDefaults,
     FixturesConfigurationFlexibility,
+    FixturesPerformanceTargets,
     HolidayResult,
     HolidayResultEntry,
     VoiceResponse,
@@ -37,14 +38,33 @@
   let importInput: HTMLInputElement | null = null;
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
-  const PERFORMANCE_P95_MIN_REQUESTS = 1000;
   const SUCCESS_STATUSES = new Set(['success', 'ok', 'passed']);
+
+  type ImportPerformanceTargets = {
+    thresholdMs: number;
+    sampleSize: number;
+    significance: number;
+  };
+
+  const DEFAULT_IMPORT_PERFORMANCE_TARGETS: ImportPerformanceTargets = {
+    thresholdMs: 1000,
+    sampleSize: 1000,
+    significance: 0.95,
+  };
+
+  let importPerformanceTargets: ImportPerformanceTargets = {
+    ...DEFAULT_IMPORT_PERFORMANCE_TARGETS,
+  };
 
   type PerformanceSummary = {
     requestCount: number;
     meanResponseMs: number;
     p95ResponseMs: number | null;
     accuracy: number;
+    thresholdMs: number;
+    thresholdBreached: boolean;
+    sampleSize: number;
+    significance: number;
   };
 
   type UsageMetricKey = 'tokensIn' | 'tokensOut' | 'apiCalls' | 'cpuMs' | 'ramMbSeconds';
@@ -76,6 +96,33 @@
       }
     }
     return null;
+  }
+
+  function sanitiseImportPerformanceTargets(
+    targets: FixturesPerformanceTargets | undefined
+  ): ImportPerformanceTargets {
+    const resolved: ImportPerformanceTargets = { ...DEFAULT_IMPORT_PERFORMANCE_TARGETS };
+
+    if (!targets) {
+      return resolved;
+    }
+
+    const threshold = toFiniteNumber(targets.importP95ThresholdMs);
+    if (threshold !== null) {
+      resolved.thresholdMs = Math.max(0, threshold);
+    }
+
+    const sampleSize = toFiniteNumber(targets.importP95SampleSize);
+    if (sampleSize !== null) {
+      resolved.sampleSize = Math.max(0, Math.floor(sampleSize));
+    }
+
+    const significance = toFiniteNumber(targets.importP95Significance);
+    if (significance !== null && significance > 0 && significance <= 1) {
+      resolved.significance = significance;
+    }
+
+    return resolved;
   }
 
   function getTotalTimingMs(result: HolidayResult): number | null {
@@ -130,18 +177,30 @@
     totalSum: number;
   }): PerformanceSummary {
     const meanResponseMs = requestCount > 0 ? totalSum / requestCount : 0;
+    const sampleSize = Math.max(0, Math.floor(importPerformanceTargets.sampleSize));
+    const significance =
+      importPerformanceTargets.significance > 0 && importPerformanceTargets.significance <= 1
+        ? importPerformanceTargets.significance
+        : DEFAULT_IMPORT_PERFORMANCE_TARGETS.significance;
+
     const p95ResponseMs =
-      requestCount > PERFORMANCE_P95_MIN_REQUESTS && totalValues.length
-        ? calculatePercentile(totalValues, 0.95)
+      requestCount > sampleSize && totalValues.length
+        ? calculatePercentile(totalValues, significance)
         : null;
     const rawAccuracy = requestCount > 0 ? (1 - mismatchCount / requestCount) * 100 : 0;
     const accuracy = Math.min(100, Math.max(0, rawAccuracy));
+    const thresholdMs = Math.max(0, importPerformanceTargets.thresholdMs);
+    const thresholdBreached = typeof p95ResponseMs === 'number' ? p95ResponseMs > thresholdMs : false;
 
     return {
       requestCount,
       meanResponseMs,
       p95ResponseMs,
       accuracy,
+      thresholdMs,
+      thresholdBreached,
+      sampleSize,
+      significance,
     };
   }
 
@@ -478,6 +537,7 @@
     try {
       const data = await fetchFixtures(baseUrl);
       fixtures = data;
+      importPerformanceTargets = sanitiseImportPerformanceTargets(data.performanceTargets);
       showFailedOnly = typeof data.showFailedOnly === 'boolean' ? data.showFailedOnly : true;
       mode = data.mode;
       dialogOverrideAllowed = isDialogMode(data.mode);
