@@ -149,6 +149,21 @@ class ResourceFootprint(BaseModel):
         alias="memoryMb",
         description="Memory usage samples (MB) captured while processing the batch.",
     )
+    peak_cpu: float | None = Field(
+        default=None,
+        alias="peakCpu",
+        description="Peak CPU utilisation percentage recorded during the import job.",
+    )
+    peak_memory_mb: float | None = Field(
+        default=None,
+        alias="peakMemoryMb",
+        description="Peak memory usage (MB) recorded during the import job.",
+    )
+    throttle_count: int = Field(
+        default=0,
+        alias="throttleCount",
+        description="Number of times import execution was throttled due to guardrails.",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -641,7 +656,13 @@ def _summarise_import(
         startedAt=summary.started_at,
         finishedAt=summary.finished_at,
         durationMs=summary.duration_ms,
-        resourceFootprint=ResourceFootprint(cpu=summary.cpu_samples, memoryMb=summary.memory_samples),
+        resourceFootprint=ResourceFootprint(
+            cpu=summary.cpu_samples,
+            memoryMb=summary.memory_samples,
+            peakCpu=summary.peakCpu,
+            peakMemoryMb=summary.peakMemoryMb,
+            throttleCount=summary.throttleCount,
+        ),
         guardrailActions=guardrail_actions,
     )
 

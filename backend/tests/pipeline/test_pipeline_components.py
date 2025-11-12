@@ -28,6 +28,7 @@ from backend.app.pipeline.pipeline import HolidaySearchPipeline, SearchConfigura
 from backend.app.pipeline.validator import ValidationError
 from fastapi import HTTPException
 from backend.app.services import import_runner
+from backend.app.telemetry import resource_monitor
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -354,7 +355,11 @@ def test_parse_endpoint_import_guardrail_rejection(app_dependencies, monkeypatch
         batch=[{"text": "Book a trip from Amsterdam", "mode": "dialog"}],
     )
 
-    monkeypatch.setattr(import_runner, "_read_cpu_percent", lambda: 100.0)
+    class _HighSampler:
+        def __call__(self) -> tuple[float, float]:
+            return 100.0, 0.0
+
+    monkeypatch.setattr(resource_monitor, "ProcessSampler", lambda: _HighSampler())
 
     original_configure = import_runner.configure_import_runtime
 
