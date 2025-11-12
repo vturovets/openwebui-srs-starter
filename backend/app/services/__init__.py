@@ -5,6 +5,7 @@ from __future__ import annotations
 __all__ = [
     "GuardrailAction",
     "GuardrailOverloadError",
+    "ImportProgress",
     "ImportJobRunner",
     "ImportSummary",
     "JobMetrics",
@@ -13,6 +14,7 @@ __all__ = [
 from .import_runner import (
     GuardrailAction,
     GuardrailOverloadError,
+    ImportProgress,
     ImportJobRunner,
     ImportSummary,
     JobMetrics,

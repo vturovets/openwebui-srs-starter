@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -20,7 +21,41 @@ from backend.app.config import Settings
 from backend.app.logging import ImportSummaryLogger, IMPORT_SUMMARY_LOG_FIELDS
 from backend.app.pipeline.pipeline import HolidaySearchPipeline
 from backend.app.schemas import build_import_summary
-from backend.app.services import ImportJobRunner
+from backend.app.services import ImportJobRunner, ImportProgress
+
+
+@dataclass(slots=True)
+class _ProgressPrinter:
+    """Render a textual progress indicator for import execution."""
+
+    total: int
+    width: int = 30
+    _last_line_length: int = 0
+
+    def update(self, progress: ImportProgress) -> None:
+        processed = progress.processed
+        success = progress.status_counts.get("success", 0)
+        failed = progress.status_counts.get("failed", 0)
+        error = progress.status_counts.get("error", 0)
+
+        ratio = processed / self.total if self.total else 0.0
+        filled = int(self.width * ratio)
+        bar = "#" * filled + "-" * (self.width - filled)
+        percent = ratio * 100 if self.total else 0.0
+        line = (
+            f"[{bar}] {processed}/{self.total} ({percent:5.1f}%) "
+            f"success={success} failed={failed} error={error}"
+        )
+
+        padding = max(0, self._last_line_length - len(line))
+        sys.stderr.write("\r" + line + (" " * padding))
+        sys.stderr.flush()
+        self._last_line_length = len(line)
+
+    def finish(self) -> None:
+        if self._last_line_length:
+            sys.stderr.write("\n")
+            sys.stderr.flush()
 
 
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -109,7 +144,23 @@ async def _execute_import(
 ) -> object:
     pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
     runner = ImportJobRunner(pipeline=pipeline, settings=settings, logger=None)
-    summary = await runner.run_import(requests)
+    progress_printer: _ProgressPrinter | None = None
+    if sys.stderr.isatty():
+        progress_printer = _ProgressPrinter(total=len(requests))
+
+    async def _on_progress(progress: ImportProgress) -> None:
+        if progress_printer is not None:
+            progress_printer.update(progress)
+
+    try:
+        summary = await runner.run_import(
+            requests,
+            progress_callback=_on_progress if progress_printer is not None else None,
+            total=len(requests),
+        )
+    finally:
+        if progress_printer is not None:
+            progress_printer.finish()
     return summary
 
 

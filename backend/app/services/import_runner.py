@@ -22,6 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..api.routes import ParseRequest
 
 SummaryCallback = Callable[["ImportSummary"], Awaitable[None] | None]
+ProgressCallback = Callable[["ImportProgress"], Awaitable[None] | None]
 
 
 class GuardrailOverloadError(RuntimeError):
@@ -179,6 +180,15 @@ class GuardrailAction:
     count: int
 
 
+@dataclass(slots=True, frozen=True)
+class ImportProgress:
+    """Snapshot of import execution progress."""
+
+    processed: int
+    status_counts: Mapping[str, int]
+    total: int | None = None
+
+
 class ImportJobRunner:
     """Run batches of parse requests with bounded concurrency."""
 
@@ -201,6 +211,8 @@ class ImportJobRunner:
         payloads: Iterable[ParseRequest] | AsyncIterable[ParseRequest],
         *,
         summary_callback: SummaryCallback | None = None,
+        progress_callback: ProgressCallback | None = None,
+        total: int | None = None,
     ) -> ImportSummary:
         from ..api import routes as api_routes
 
@@ -232,6 +244,7 @@ class ImportJobRunner:
                 if upper is None or total_ms < upper:
                     bucket = label
                     break
+            progress_update: ImportProgress | None = None
             async with metrics_lock:
                 metrics_state["total_requests"] += 1
                 if status == "success":
@@ -242,6 +255,20 @@ class ImportJobRunner:
                     metrics_state["error_count"] += 1
                 metrics_state["latency_histogram"][bucket] += 1
                 metrics_state["durations"].append(total_ms)
+                if progress_callback is not None:
+                    progress_update = ImportProgress(
+                        processed=metrics_state["total_requests"],
+                        status_counts={
+                            "success": metrics_state["success_count"],
+                            "failed": metrics_state["failed_count"],
+                            "error": metrics_state["error_count"],
+                        },
+                        total=total,
+                    )
+            if progress_update is not None and progress_callback is not None:
+                maybe_coro = progress_callback(progress_update)
+                if asyncio.iscoroutine(maybe_coro):
+                    await maybe_coro
 
         async def _process_payload(payload: ParseRequest) -> None:
             nonlocal current_concurrency
@@ -485,6 +512,7 @@ def configure_import_runtime(
 __all__ = [
     "GuardrailAction",
     "GuardrailOverloadError",
+    "ImportProgress",
     "ImportJobRunner",
     "ImportRuntimeControls",
     "ImportSummary",
