@@ -83,7 +83,9 @@ Voice features require multiple settings to be in place:
    is not supplied but `STT_ENGINE=deepgram`, the backend falls back to a local
    `faster-whisper` model that honours `FALLBACK_WHISPER_MODEL`,
    `FALLBACK_WHISPER_DEVICE`, `FALLBACK_WHISPER_COMPUTE_TYPE`, and
-   `FALLBACK_WHISPER_CACHE_DIR`. 【F:backend/app/config.py†L69-L116】
+   `FALLBACK_WHISPER_CACHE_DIR`. Install the optional dependency via
+   `pip install faster-whisper` and ensure `ffmpeg` is available on `PATH` so the
+   model can decode the uploaded audio formats. 【F:backend/app/config.py†L69-L116】【F:backend/app/integrations/stt.py†L131-L240】
 
 The API validates incoming audio against the configured MIME-type allowlist and payload
 size limit, returning HTTP 415/413 when requests fall outside those bounds. Adjust

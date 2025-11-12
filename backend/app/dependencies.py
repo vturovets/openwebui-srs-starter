@@ -7,7 +7,11 @@ from typing import Callable, Iterator, Mapping
 
 from .config import Settings
 from .pipeline.configuration import MethodsCatalog
-from .integrations.stt import DeepgramSpeechToTextClient, SpeechToTextClient
+from .integrations.stt import (
+    DeepgramSpeechToTextClient,
+    FasterWhisperSpeechToTextClient,
+    SpeechToTextClient,
+)
 from .integrations.llm import HolidaySearchLLMClient
 from .logging import (
     CSVLogger,
@@ -135,9 +139,22 @@ def get_stt_client() -> SpeechToTextClient | None:
         return None
 
     if engine == "deepgram":
-        if not settings.deepgram_api_key:
-            raise RuntimeError("DEEPGRAM_API_KEY must be configured when using the Deepgram STT engine")
-        return DeepgramSpeechToTextClient(api_key=settings.deepgram_api_key)
+        api_key = (settings.deepgram_api_key or "").strip()
+        if api_key:
+            return DeepgramSpeechToTextClient(api_key=api_key)
+
+        try:
+            return FasterWhisperSpeechToTextClient(
+                model=settings.fallback_whisper_model,
+                device=settings.fallback_whisper_device,
+                compute_type=settings.fallback_whisper_compute_type,
+                cache_dir=settings.fallback_whisper_cache_dir,
+                voice_max_bytes=settings.voice_max_bytes,
+            )
+        except Exception as exc:  # pragma: no cover - depends on optional dependency
+            raise RuntimeError(
+                "Deepgram credentials are missing and the faster-whisper fallback could not be initialised",
+            ) from exc
 
     raise RuntimeError(f"Unsupported STT engine '{settings.stt_engine}' configured")
 
