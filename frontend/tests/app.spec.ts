@@ -17,6 +17,11 @@ test.beforeEach(async ({ page }) => {
           { id: 'gpt5-default', type: 'llm' },
         ],
         defaultMethod: 'rules-basic',
+        performanceTargets: {
+          importP95ThresholdMs: 1000,
+          importP95SampleSize: 1000,
+          importP95Significance: 0.95,
+        },
       }),
     });
   });
@@ -142,5 +147,67 @@ test('voice upload routes through parse flow and updates status indicators', asy
   await expect(page.locator('[data-testid="structured-result"] pre').first()).toHaveText(
     'Fly from Amsterdam to Rome'
   );
+});
+
+test('import summary honours performance targets and exposes inference', async ({ page }) => {
+  await page.unroute('**/v1/fixtures');
+  await page.route('**/v1/fixtures', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        airports: ['AMS'],
+        destinations: ['Rome'],
+        voiceEnabled: true,
+        mode: 'dialog',
+        llmMethod: 'rules-basic',
+        availableMethods: [
+          { id: 'rules-basic', type: 'rules' },
+          { id: 'gpt5-default', type: 'llm' },
+        ],
+        defaultMethod: 'rules-basic',
+        performanceTargets: {
+          importP95ThresholdMs: 2000,
+          importP95SampleSize: 2,
+          importP95Significance: 0.9,
+        },
+      }),
+    });
+  });
+
+  await page.unroute('**/v1/parse');
+  const timings = [500, 600, 700];
+  await page.route('**/v1/parse', async (route) => {
+    const totalMs = timings.shift() ?? 700;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'success',
+        data: {},
+        metadata: {
+          mode: 'dialog',
+          method: 'rules-basic',
+          timings: {
+            totalMs,
+          },
+        },
+        clarifications: [],
+      }),
+    });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('fixtures-loaded')).toBeVisible();
+
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('import-button').click();
+  const chooser = await fileChooserPromise;
+  const csvContent = '"User input"\n"Trip one"\n"Trip two"\n"Trip three"\n';
+  await chooser.setFiles({ name: 'batch.csv', mimeType: 'text/csv', buffer: Buffer.from(csvContent) });
+
+  await expect(page.getByTestId('performance-summary')).toBeVisible();
+  await expect(page.getByTestId('performance-threshold')).toHaveText('2000 ms');
+  await expect(page.getByTestId('performance-inference')).toHaveText('Meets target');
 });
 

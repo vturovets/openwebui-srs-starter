@@ -5,3 +5,4 @@ lint:
 
 test:
 	pytest
+	npm --prefix frontend test
