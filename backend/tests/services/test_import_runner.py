@@ -129,6 +129,8 @@ def test_run_import_processes_all_payloads_and_invokes_callback():
     assert isinstance(summary.memory_samples, list)
     assert isinstance(summary.guardrail_actions, list)
     assert summary.throttleCount >= 0
+    assert summary.retryCount >= 0
+    assert summary.permanentFailures >= 0
     if summary.peakCpu is not None:
         assert summary.peakCpu >= 0.0
     if summary.peakMemoryMb is not None:
@@ -153,6 +155,8 @@ def test_run_import_honours_concurrency_cap():
     assert summary.metrics.total_requests == len(requests)
     assert isinstance(summary.guardrail_actions, list)
     assert summary.total_processing_ms >= 0.0
+    assert summary.retryCount >= 0
+    assert summary.permanentFailures >= 0
 
 
 def test_run_import_aggregates_large_batch_metrics():
@@ -192,7 +196,8 @@ def test_run_import_aggregates_large_batch_metrics():
     requests = _make_requests(total)
     summary = _run(runner.run_import(requests))
 
-    assert pipeline.calls == total
+    assert pipeline.calls == total + summary.metrics.retry_count
+    assert summary.metrics.retry_count == pipeline.calls - total
     assert summary.metrics.total_requests == total
     assert summary.metrics.success_count == successes
     assert summary.metrics.failed_count == failures
@@ -216,6 +221,46 @@ def test_run_import_aggregates_large_batch_metrics():
         assert histogram[label] == count
 
     assert summary.latency_percentiles["p99"] >= max(latencies.values())
+
+
+def test_run_import_retries_transient_errors():
+    pipeline = _RecordingPipeline(statuses=["error", "success"], latency_ms=80.0)
+    settings = Settings(import_retry_attempts=3, import_retry_backoff_seconds=0.0)
+    runner = ImportJobRunner(
+        pipeline=pipeline,
+        settings=settings,
+        logger=None,
+        concurrency_limit=2,
+    )
+
+    summary = _run(runner.run_import(_make_requests(1)))
+
+    assert len(pipeline.calls) == 2
+    assert summary.metrics.success_count == 1
+    assert summary.metrics.retry_count == 1
+    assert summary.retryCount == 1
+    assert summary.metrics.permanent_failures == 0
+    assert summary.permanentFailures == 0
+
+
+def test_run_import_marks_permanent_failures_after_max_attempts():
+    pipeline = _RecordingPipeline(statuses=["error"], latency_ms=60.0)
+    settings = Settings(import_retry_attempts=2, import_retry_backoff_seconds=0.0)
+    runner = ImportJobRunner(
+        pipeline=pipeline,
+        settings=settings,
+        logger=None,
+        concurrency_limit=1,
+    )
+
+    summary = _run(runner.run_import(_make_requests(1)))
+
+    assert len(pipeline.calls) == 2
+    assert summary.metrics.error_count == 1
+    assert summary.metrics.retry_count == 1
+    assert summary.retryCount == 1
+    assert summary.metrics.permanent_failures == 1
+    assert summary.permanentFailures == 1
 
 
 def test_configure_import_runtime_respects_limits():
