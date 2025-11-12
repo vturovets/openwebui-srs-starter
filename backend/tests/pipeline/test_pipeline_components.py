@@ -14,12 +14,9 @@ import asyncio
 
 from backend.app.config import Settings
 from backend.app.dependencies import CSV_LOG_FIELDS
-from backend.app.logging.csv_logger import CSVLogger
-from backend.app.api.routes import (
-    ImportSummaryResponse,
-    ParseRequest,
-    parse_text,
-)
+from backend.app.logging import CSVLogger, ImportSummaryLogger, IMPORT_SUMMARY_LOG_FIELDS
+from backend.app.api.routes import ParseRequest, parse_text
+from backend.app.schemas import ImportSummary as ImportSummarySchema
 from backend.app.pipeline.extractor_rules import ExtractionResult
 from backend.app.pipeline import language as language_module
 from backend.app.pipeline.language import LanguageDetector
@@ -46,10 +43,13 @@ def pipeline(tmp_path: Path) -> HolidaySearchPipeline:
 
 
 @pytest.fixture()
-def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger]]:
+def app_dependencies(
+    tmp_path: Path,
+) -> Iterator[tuple[Settings, HolidaySearchPipeline, CSVLogger, ImportSummaryLogger]]:
     settings = Settings(
         fixtures_dir=FIXTURES_DIR,
         csv_path=tmp_path / "api-log.csv",
+        import_summary_path=tmp_path / "import-summary.csv",
         allowed_langs=["en", "nl", "fr"],
     )
     pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
@@ -57,7 +57,11 @@ def app_dependencies(tmp_path: Path) -> Iterator[tuple[Settings, HolidaySearchPi
         path=settings.csv_path,
         fieldnames=CSV_LOG_FIELDS,
     )
-    yield settings, pipeline, logger
+    summary_logger = ImportSummaryLogger(
+        path=settings.import_summary_path,
+        fieldnames=IMPORT_SUMMARY_LOG_FIELDS,
+    )
+    yield settings, pipeline, logger, summary_logger
 
 
 def test_language_detector_accepts_supported_language(pipeline: HolidaySearchPipeline) -> None:
@@ -256,19 +260,28 @@ def _call_parse(
     settings: Settings,
     pipeline: HolidaySearchPipeline,
     logger: CSVLogger,
+    summary_logger: ImportSummaryLogger | None,
 ):
-    return asyncio.run(parse_text(payload, settings=settings, pipeline=pipeline, logger=logger))
+    return asyncio.run(
+        parse_text(
+            payload,
+            settings=settings,
+            pipeline=pipeline,
+            logger=logger,
+            summary_logger=summary_logger,
+        )
+    )
 
 
 def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> None:
-    settings, pipeline, logger = app_dependencies
+    settings, pipeline, logger, summary_logger = app_dependencies
     payload = ParseRequest(
         text="Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
         mode="dialog",
         method="sut",
     )
 
-    response = _call_parse(payload, settings, pipeline, logger)
+    response = _call_parse(payload, settings, pipeline, logger, summary_logger)
 
     assert response.status == "success"
     assert response.data["from"] == ["AMS"]
@@ -309,7 +322,7 @@ def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> No
 
 
 def test_parse_endpoint_import_mode_returns_summary(app_dependencies) -> None:
-    settings, pipeline, logger = app_dependencies
+    settings, pipeline, logger, summary_logger = app_dependencies
     batch_payload = [
         {
             "text": "Book a family trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
@@ -323,29 +336,34 @@ def test_parse_endpoint_import_mode_returns_summary(app_dependencies) -> None:
     ]
     payload = ParseRequest(text="", import_mode=True, batch=batch_payload)
 
-    response = _call_parse(payload, settings, pipeline, logger)
+    response = _call_parse(payload, settings, pipeline, logger, summary_logger)
 
-    assert isinstance(response, ImportSummaryResponse)
+    assert isinstance(response, ImportSummarySchema)
     assert response.status in {"success", "partial"}
-    assert response.totals["requests"] == len(batch_payload)
-    assert response.percentiles.p50 is not None
-    assert response.duration_ms >= 0.0
-    assert isinstance(response.resource_footprint.cpu, list)
-    assert isinstance(response.resource_footprint.memory_mb, list)
+    assert response.counts.requests == len(batch_payload)
+    assert response.latency.p50_ms is not None
+    assert response.durations.job_ms >= 0.0
+    assert response.durations.processing_ms >= 0.0
+    assert response.resources.throttle_count >= 0
 
-    with settings.csv_path.open("r", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
+    with settings.import_summary_path.open("r", encoding="utf-8") as handle:
+        reader = csv.reader(handle)
         rows = list(reader)
 
-    assert len(rows) == 1
-    summary_row = rows[0]
-    assert summary_row["Request type"] == "Import"
-    assert summary_row["Pipeline Status"] == response.status.capitalize()
-    assert "totals" in summary_row["Output"]
+    assert len(rows) == 2
+    header, summary_row = rows
+    assert header == list(IMPORT_SUMMARY_LOG_FIELDS)
+
+    def index_for(field: str) -> int:
+        return header.index(field)
+
+    assert summary_row[index_for("Status")] == response.status
+    assert summary_row[index_for("Requests")] == str(response.counts.requests)
+    assert summary_row[index_for("Mode")] == (response.mode or "")
 
 
 def test_parse_endpoint_import_guardrail_rejection(app_dependencies, monkeypatch) -> None:
-    settings, pipeline, logger = app_dependencies
+    settings, pipeline, logger, summary_logger = app_dependencies
     settings.import_cpu_threshold = 0.0
     settings.import_pause_seconds = 0.0
     settings.import_memory_threshold_mb = None
@@ -371,13 +389,13 @@ def test_parse_endpoint_import_guardrail_rejection(app_dependencies, monkeypatch
     monkeypatch.setattr(import_runner, "configure_import_runtime", _configure_override)
 
     with pytest.raises(HTTPException) as exc:
-        _call_parse(payload, settings, pipeline, logger)
+        _call_parse(payload, settings, pipeline, logger, summary_logger)
 
     assert exc.value.status_code == 429
 
 
 def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
-    settings, pipeline, logger = app_dependencies
+    settings, pipeline, logger, summary_logger = app_dependencies
     payload = ParseRequest(
         text=(
             "Je cherche des vacances au départ de Ostende vers l'Italie le 10 octobre 2025 "
@@ -386,7 +404,7 @@ def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
         mode="dialog",
     )
 
-    response = _call_parse(payload, settings, pipeline, logger)
+    response = _call_parse(payload, settings, pipeline, logger, summary_logger)
 
     assert response.status == "success"
     assert response.data["language"] == "fr"
@@ -407,12 +425,12 @@ def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
     output_payload = json.loads(log_entry[header.index("Output")])
     assert output_payload["status"] == "success"
 def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
-    settings, pipeline, logger = app_dependencies
+    settings, pipeline, logger, summary_logger = app_dependencies
     payload = ParseRequest(
         text="I am looking for a trip starting on October 10 2025.",
     )
 
-    response = _call_parse(payload, settings, pipeline, logger)
+    response = _call_parse(payload, settings, pipeline, logger, summary_logger)
 
     assert response.status == "failed"
     assert response.metadata["validation"]["status"] == "failed"

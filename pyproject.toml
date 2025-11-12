@@ -34,6 +34,9 @@ target-version = "py310"
 testpaths = [
     "backend/tests",
 ]
+markers = [
+    "integration: long-running end-to-end import tests",
+]
 
 [tool.setuptools.packages.find]
 include = ["backend*"]

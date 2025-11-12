@@ -18,14 +18,16 @@ from ..config import Settings
 from ..dependencies import (
     get_csv_logger,
     get_dialog_orchestrator,
+    get_import_summary_logger,
     get_stt_client,
     get_pipeline,
     get_settings,
 )
-from ..logging.csv_logger import CSVLogger
+from ..logging import CSVLogger, ImportSummaryLogger
 from ..pipeline.dialog import DialogOrchestrator
 from ..pipeline.pipeline import HolidaySearchPipeline
-from ..services import GuardrailOverloadError, ImportJobRunner, ImportSummary
+from ..schemas import ImportSummary as ImportSummarySchema, build_import_summary
+from ..services import GuardrailOverloadError, ImportJobRunner, ImportSummary as ImportSummaryData
 from ..integrations.stt import (
     SpeechToTextClient,
     SpeechToTextError,
@@ -38,6 +40,7 @@ api_router = APIRouter(prefix="/v1", tags=["v1"])
 _DEPENDENCY_RESOLVERS = {
     get_pipeline: get_pipeline,
     get_csv_logger: get_csv_logger,
+    get_import_summary_logger: get_import_summary_logger,
     get_stt_client: get_stt_client,
 }
 
@@ -126,71 +129,6 @@ class ParseResponse(BaseModel):
     status: str
     data: dict[str, object]
     metadata: dict[str, object]
-
-
-class PercentileSummary(BaseModel):
-    """Latency percentile metrics for import execution."""
-
-    p50: float | None = Field(default=None, description="Median request latency (ms).")
-    p90: float | None = Field(default=None, description="90th percentile latency (ms).")
-    p95: float | None = Field(default=None, description="95th percentile latency (ms).")
-    p99: float | None = Field(default=None, description="99th percentile latency (ms).")
-
-
-class ResourceFootprint(BaseModel):
-    """Resource utilisation samples captured during import execution."""
-
-    cpu: list[float] = Field(
-        default_factory=list,
-        description="CPU utilisation percentage samples captured while processing the batch.",
-    )
-    memory_mb: list[float] = Field(
-        default_factory=list,
-        alias="memoryMb",
-        description="Memory usage samples (MB) captured while processing the batch.",
-    )
-    peak_cpu: float | None = Field(
-        default=None,
-        alias="peakCpu",
-        description="Peak CPU utilisation percentage recorded during the import job.",
-    )
-    peak_memory_mb: float | None = Field(
-        default=None,
-        alias="peakMemoryMb",
-        description="Peak memory usage (MB) recorded during the import job.",
-    )
-    throttle_count: int = Field(
-        default=0,
-        alias="throttleCount",
-        description="Number of times import execution was throttled due to guardrails.",
-    )
-
-    model_config = ConfigDict(populate_by_name=True)
-
-
-class GuardrailActionSummary(BaseModel):
-    """Summary of guardrail interventions invoked during import execution."""
-
-    type: str = Field(..., description="Identifier for the guardrail action (e.g. 'cpu').")
-    count: int = Field(..., description="Number of times the guardrail action was applied.")
-
-
-class ImportSummaryResponse(BaseModel):
-    """Structured response returned when parse requests are imported in bulk."""
-
-    status: str
-    totals: dict[str, int]
-    percentiles: PercentileSummary
-    histogram: dict[str, int]
-    started_at: datetime = Field(alias="startedAt")
-    finished_at: datetime = Field(alias="finishedAt")
-    duration_ms: float = Field(alias="durationMs")
-    resource_footprint: ResourceFootprint = Field(alias="resourceFootprint")
-    guardrail_actions: list[GuardrailActionSummary] = Field(
-        default_factory=list, alias="guardrailActions"
-    )
-
-    model_config = ConfigDict(populate_by_name=True)
 
 
 class ClarificationPayload(BaseModel):
@@ -630,72 +568,27 @@ def _prepare_import_requests(payload: ParseRequest) -> Iterable[ParseRequest]:
 
 
 def _summarise_import(
-    summary: ImportSummary, *, logger: CSVLogger | None, mode: str | None
-) -> ImportSummaryResponse:
-    totals = {
-        "requests": summary.metrics.total_requests,
-        "success": summary.metrics.success_count,
-        "failed": summary.metrics.failed_count,
-        "error": summary.metrics.error_count,
-    }
-    percentiles = PercentileSummary(**summary.latency_percentiles)
-    guardrail_actions = [
-        GuardrailActionSummary(type=action.type, count=action.count)
-        for action in summary.guardrail_actions
-    ]
-    overall_status = "success"
-    if summary.metrics.error_count:
-        overall_status = "error"
-    elif summary.metrics.failed_count:
-        overall_status = "partial"
-    response = ImportSummaryResponse(
-        status=overall_status,
-        totals=totals,
-        percentiles=percentiles,
-        histogram=summary.metrics.latency_histogram,
-        startedAt=summary.started_at,
-        finishedAt=summary.finished_at,
-        durationMs=summary.duration_ms,
-        resourceFootprint=ResourceFootprint(
-            cpu=summary.cpu_samples,
-            memoryMb=summary.memory_samples,
-            peakCpu=summary.peakCpu,
-            peakMemoryMb=summary.peakMemoryMb,
-            throttleCount=summary.throttleCount,
-        ),
-        guardrailActions=guardrail_actions,
-    )
+    summary: ImportSummaryData,
+    *,
+    mode: str | None,
+    summary_logger: ImportSummaryLogger | None,
+) -> ImportSummarySchema:
+    response = build_import_summary(summary, mode=mode)
 
-    if logger is not None:
-        logger.log(
-            {
-                "Timestamp (UTC)": _utc_timestamp(),
-                "User input": "",
-                "Request type": "Import",
-                "Method": "",
-                "Interaction Mode": mode or "import",
-                "Pipeline Status": overall_status.capitalize(),
-                "Language Detection": ["", ""],
-                "Processing Time": f"{summary.duration_ms:.2f}",
-                "Extraction": "",
-                "Mapping": "",
-                "Validation": "",
-                "Transcription": "",
-                "Network Latency": "",
-                "Output": response.model_dump(mode="json", by_alias=True),
-            }
-        )
+    if summary_logger is not None:
+        summary_logger.log(response)
 
     return response
 
 
-@api_router.post("/parse", response_model=ParseResponse | ImportSummaryResponse)
+@api_router.post("/parse", response_model=ParseResponse | ImportSummarySchema)
 async def parse_text(
     payload: ParseRequest,
     settings: Settings = Depends(get_settings),
     pipeline: HolidaySearchPipeline = Depends(get_pipeline),
     logger: CSVLogger = Depends(get_csv_logger),
-) -> ParseResponse | ImportSummaryResponse:
+    summary_logger: ImportSummaryLogger | None = Depends(get_import_summary_logger),
+) -> ParseResponse | ImportSummarySchema:
     """Run the NLP pipeline and expose timings plus validation metadata."""
 
     if payload.import_mode:
@@ -707,7 +600,7 @@ async def parse_text(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=str(exc),
             ) from exc
-        return _summarise_import(summary, logger=logger, mode=payload.mode)
+        return _summarise_import(summary, mode=payload.mode, summary_logger=summary_logger)
 
     result = pipeline.run(payload.text, method=payload.method)
 
