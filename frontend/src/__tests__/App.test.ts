@@ -315,7 +315,9 @@ describe('Holiday search console', () => {
 
     await waitFor(() => expect(screen.getByTestId('performance-requests')).toHaveTextContent('1'));
     expect(screen.getByTestId('performance-mean')).toHaveTextContent('34 ms');
-    expect(screen.getByTestId('performance-p95')).toHaveTextContent('—');
+    expect(screen.getByTestId('performance-p95')).toHaveTextContent('34 ms');
+    expect(screen.getByTestId('performance-threshold')).toHaveTextContent('1000 ms');
+    expect(screen.getByTestId('performance-inference')).toHaveTextContent('Insufficient data');
     expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('0%');
 
     const resetButton = screen.getByTestId('reset-button') as HTMLButtonElement;

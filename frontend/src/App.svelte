@@ -13,6 +13,12 @@
     VoiceResponse,
   } from './lib/types';
   import { CSV_LOG_FIELDS } from './lib/types';
+  import {
+    assessP95Threshold,
+    calculatePercentile,
+    type PerformanceInference,
+    type ThresholdAssessment,
+  } from './lib/performance';
   import { getExtractedValueRows } from './lib/extractedValues';
   import { parseCsv } from './lib/csv';
   import { compareExpectedValues, parseExpectedValues } from './lib/importUtils';
@@ -65,6 +71,11 @@
     thresholdBreached: boolean;
     sampleSize: number;
     significance: number;
+    inference: PerformanceInference | null;
+    assessment: ThresholdAssessment | null;
+    standardErrorMs: number | null;
+    significantBreach: boolean | null;
+    zScore: number | null;
   };
 
   type UsageMetricKey = 'tokensIn' | 'tokensOut' | 'apiCalls' | 'cpuMs' | 'ramMbSeconds';
@@ -159,38 +170,51 @@
     return Array.isArray(mismatches) && mismatches.length > 0;
   }
 
-  function calculatePercentile(values: number[], percentile: number): number {
-    const sorted = [...values].sort((a, b) => a - b);
-    const index = Math.min(sorted.length - 1, Math.ceil(percentile * sorted.length) - 1);
-    return sorted[index];
-  }
-
   function calculatePerformanceSummary({
     requestCount,
     mismatchCount,
     totalValues,
     totalSum,
+    targets,
   }: {
     requestCount: number;
     mismatchCount: number;
     totalValues: number[];
     totalSum: number;
+    targets: ImportPerformanceTargets;
   }): PerformanceSummary {
     const meanResponseMs = requestCount > 0 ? totalSum / requestCount : 0;
-    const sampleSize = Math.max(0, Math.floor(importPerformanceTargets.sampleSize));
+    const sampleSize = Math.max(0, Math.floor(targets.sampleSize));
     const significance =
-      importPerformanceTargets.significance > 0 && importPerformanceTargets.significance <= 1
-        ? importPerformanceTargets.significance
+      targets.significance > 0 && targets.significance <= 1
+        ? targets.significance
         : DEFAULT_IMPORT_PERFORMANCE_TARGETS.significance;
+    const alpha = 1 - significance;
 
     const p95ResponseMs =
-      requestCount > sampleSize && totalValues.length
-        ? calculatePercentile(totalValues, significance)
-        : null;
+      totalValues.length > 0 && requestCount > 0 ? calculatePercentile(totalValues, 0.95) : null;
     const rawAccuracy = requestCount > 0 ? (1 - mismatchCount / requestCount) * 100 : 0;
     const accuracy = Math.min(100, Math.max(0, rawAccuracy));
-    const thresholdMs = Math.max(0, importPerformanceTargets.thresholdMs);
-    const thresholdBreached = typeof p95ResponseMs === 'number' ? p95ResponseMs > thresholdMs : false;
+    const thresholdMs = Math.max(0, targets.thresholdMs);
+
+    const assessment: ThresholdAssessment | null =
+      p95ResponseMs !== null
+        ? assessP95Threshold({
+            values: totalValues,
+            requestCount,
+            thresholdMs,
+            sampleSize,
+            alpha,
+            percentile: 0.95,
+          })
+        : null;
+
+    const thresholdBreached =
+      assessment?.thresholdBreached ?? (typeof p95ResponseMs === 'number' ? p95ResponseMs > thresholdMs : false);
+    const inference: PerformanceInference | null = assessment?.inference ?? null;
+    const standardErrorMs = assessment?.standardErrorMs ?? null;
+    const significantBreach = assessment?.significantBreach ?? null;
+    const zScore = assessment?.zScore ?? null;
 
     return {
       requestCount,
@@ -201,7 +225,31 @@
       thresholdBreached,
       sampleSize,
       significance,
+      inference,
+      assessment,
+      standardErrorMs,
+      significantBreach,
+      zScore,
     };
+  }
+
+  const INFERENCE_LABELS: Record<PerformanceInference, string> = {
+    'meets-target': 'Meets target',
+    'violates-target': 'Violates target',
+    inconclusive: 'Inconclusive',
+  };
+
+  function formatInference(summary: PerformanceSummary | null): string {
+    if (!summary) {
+      return '—';
+    }
+    if (summary.inference) {
+      return INFERENCE_LABELS[summary.inference];
+    }
+    if (summary.sampleSize > 0 && summary.requestCount < summary.sampleSize) {
+      return 'Insufficient data';
+    }
+    return 'Unavailable';
   }
 
   function formatMetric(value: number, decimals = 2): string {
@@ -816,6 +864,7 @@
           mismatchCount,
           totalValues,
           totalSum,
+          targets: importPerformanceTargets,
         });
         importUsageSummary = usageDetected ? finaliseUsageSummary(usageAggregate) : null;
       } else {
@@ -1042,6 +1091,26 @@
                   {:else}
                     —
                   {/if}
+                {:else}
+                  —
+                {/if}
+              </dd>
+            </div>
+            <div class="metric-row">
+              <dt>Threshold</dt>
+              <dd data-testid="performance-threshold">
+                {#if importPerformanceSummary}
+                  {formatMetric(importPerformanceSummary.thresholdMs)} ms
+                {:else}
+                  —
+                {/if}
+              </dd>
+            </div>
+            <div class="metric-row">
+              <dt>Inference</dt>
+              <dd data-testid="performance-inference">
+                {#if importPerformanceSummary}
+                  {formatInference(importPerformanceSummary)}
                 {:else}
                   —
                 {/if}
