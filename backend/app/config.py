@@ -91,6 +91,33 @@ class Settings(BaseSettings):
         alias="DEEPGRAM_API_KEY",
         description="API token used when STT_ENGINE is configured to 'deepgram'.",
     )
+    fallback_whisper_model: str = Field(
+        default="small.en",
+        alias="FALLBACK_WHISPER_MODEL",
+        description=(
+            "Model size or path supplied to faster_whisper.WhisperModel when falling back "
+            "to local transcription."
+        ),
+    )
+    fallback_whisper_device: str = Field(
+        default="auto",
+        alias="FALLBACK_WHISPER_DEVICE",
+        description=(
+            "Device hint passed to faster_whisper.WhisperModel (e.g., 'cpu', 'cuda', or 'auto')."
+        ),
+    )
+    fallback_whisper_compute_type: str = Field(
+        default="default",
+        alias="FALLBACK_WHISPER_COMPUTE_TYPE",
+        description=(
+            "Compute type passed to faster_whisper.WhisperModel such as 'default', 'int8', or 'int8_float16'."
+        ),
+    )
+    fallback_whisper_cache_dir: Path | None = Field(
+        default=None,
+        alias="FALLBACK_WHISPER_CACHE_DIR",
+        description="Optional directory where faster-whisper downloads and caches model files.",
+    )
     voice_enabled: bool = Field(
         default=False,
         alias="VOICE_ENABLED",

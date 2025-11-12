@@ -76,6 +76,10 @@ serving traffic. Key options mirror the SRS:
 | `LLM_TIMEOUT` | `30` | Client-side timeout (seconds) for outbound LLM requests. |
 | `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled (e.g., `deepgram`). |
 | `DEEPGRAM_API_KEY` | _(unset)_ | API key for Deepgram when `STT_ENGINE=deepgram`. |
+| `FALLBACK_WHISPER_MODEL` | `small.en` | Local model identifier used by `faster-whisper` when Deepgram credentials are missing. |
+| `FALLBACK_WHISPER_DEVICE` | `auto` | Device hint forwarded to `faster-whisper` (`auto`, `cpu`, `cuda`, etc.). |
+| `FALLBACK_WHISPER_COMPUTE_TYPE` | `default` | Compute type passed to `faster-whisper` (`default`, `int8`, `int8_float16`, ...). |
+| `FALLBACK_WHISPER_CACHE_DIR` | _(unset)_ | Optional directory for caching `faster-whisper` model downloads. |
 | `VOICE_ENABLED` | `false` | Toggle indicating whether voice input is active in the UI. |
 | `VOICE_MAX_BYTES` | `10000000` | Maximum audio payload size accepted by `/v1/voice` in bytes. |
 | `VOICE_ALLOWED_CONTENT_TYPES` | see code | Comma-separated list of MIME types accepted by `/v1/voice` (defaults cover WAV, MP3, OGG, WebM, and FLAC). |
@@ -225,7 +229,10 @@ speech-to-text client via `get_stt_client`. The default implementation is
 audio to Deepgram’s REST API and returns word-level timings for the UI. The
 `VoiceResponse` payload reports the transcription status, selected engine, word
 timings, and the downstream pipeline metadata so voice and text flows stay
-aligned.
+aligned. If `STT_ENGINE=deepgram` but `DEEPGRAM_API_KEY` is not provided, the
+service automatically falls back to a local `faster-whisper` instance configured
+via `FALLBACK_WHISPER_MODEL`, `FALLBACK_WHISPER_DEVICE`,
+`FALLBACK_WHISPER_COMPUTE_TYPE`, and `FALLBACK_WHISPER_CACHE_DIR`. 【F:backend/app/config.py†L84-L120】
 
 ## Frontend quick start
 
