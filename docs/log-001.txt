@@ -1,1 +1,6 @@
+[2025-02-14 09:12:04] pytest backend/tests/api/test_voice_endpoint.py -k mp4
+FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_accepts_audio_mp4 - AssertionError: assert 'Unsupported audio format' not raised
 
+Root cause: when operators override VOICE_ALLOWED_CONTENT_TYPES with an empty string (as seen in staging), the validator replaces the list with a fallback that accidentally omitted audio/mp4. Safari uploads default to audio/mp4, so the voice endpoint rejects them.
+
+Fix: centralise the allowlist in backend/app/config.py (VOICE_ALLOWED_CONTENT_TYPES_DEFAULT) so both the default factory and validator share the same values. Added regression tests in backend/tests/test_config.py.

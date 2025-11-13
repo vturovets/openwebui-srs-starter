@@ -158,6 +158,35 @@ def test_voice_endpoint_rejects_unsupported_media_type():
     asyncio.run(scenario())
 
 
+def test_voice_endpoint_accepts_audio_mp4(tmp_path):
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            csv_path=tmp_path / "voice-log.csv",
+        )
+        upload = create_upload(b"mp4-bytes", content_type="audio/mp4", filename="sample.mp4")
+
+        pipeline = StubPipeline()
+        logger = StubLogger()
+        stt_client = StubSTTClient(transcript="book a trip", duration_ms=30.0)
+
+        response = await voice_endpoint(
+            audio=upload,
+            settings=settings,
+            pipeline=pipeline,
+            logger=logger,
+            stt_client=stt_client,
+        )
+
+        assert response.status == "success"
+        assert response.transcript == "book a trip"
+        assert stt_client.seen_content_types[-1] == "audio/mp4"
+
+    asyncio.run(scenario())
+
+
 def test_voice_endpoint_transcribes_and_logs(tmp_path):
     async def scenario() -> None:
         settings = Settings(
