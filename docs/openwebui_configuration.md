@@ -27,7 +27,7 @@ below. 【F:backend/app/config.py†L18-L158】
 | `fallback_whisper_cache_dir` | `FALLBACK_WHISPER_CACHE_DIR` | `None` | Optional path where fallback whisper models are cached on disk. |
 | `voice_enabled` | `VOICE_ENABLED` | `False` | Enables the `/v1/voice` endpoint and STT integration when true. |
 | `voice_max_bytes` | `VOICE_MAX_BYTES` | `10000000` | Maximum upload size (in bytes) accepted by the voice endpoint. |
-| `voice_allowed_content_types` | `VOICE_ALLOWED_CONTENT_TYPES` | `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/webm`, `video/webm`, `audio/flac` | Whitelisted MIME types for audio uploads. |
+| `voice_allowed_content_types` | `VOICE_ALLOWED_CONTENT_TYPES` | `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`, `audio/mp4`, `audio/ogg`, `audio/webm`, `video/webm`, `audio/flac` | Whitelisted MIME types for audio uploads. |
 | `fixtures_dir` | `FIXTURES_DIR` | `fixtures` | Directory containing JSON fixtures used by the pipeline. |
 | `processing_threshold_ms` | `PROCESSING_THRESHOLD_MS` | `1000` | SLA threshold used to flag slow pipeline executions in metadata. |
 
