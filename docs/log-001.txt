@@ -1,1 +1,164 @@
+(.venv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest backend/tests/api/test_voice_endpoint.py -k mp4
+================================================================================= test session starts =================================================================================
+platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
+rootdir: C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search
+configfile: pyproject.toml
+plugins: anyio-4.11.0
+collected 11 items / 10 deselected / 1 selected                                                                                                                                        
 
+backend\tests\api\test_voice_endpoint.py F                                                                                                                                       [100%]
+
+====================================================================================== FAILURES =======================================================================================
+________________________________________________________________________ test_voice_endpoint_accepts_audio_mp4 ________________________________________________________________________
+
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-256/test_voice_endpoint_accepts_au0')
+
+    def test_voice_endpoint_accepts_audio_mp4(tmp_path):
+        async def scenario() -> None:
+            settings = Settings(
+                voice_enabled=True,
+                stt_engine="deepgram",
+                deepgram_api_key="dg",
+                csv_path=tmp_path / "voice-log.csv",
+            )
+            upload = create_upload(b"mp4-bytes", content_type="audio/mp4", filename="sample.mp4")
+
+            pipeline = StubPipeline()
+            logger = StubLogger()
+            stt_client = StubSTTClient(transcript="book a trip", duration_ms=30.0)
+
+            response = await voice_endpoint(
+                audio=upload,
+                settings=settings,
+                pipeline=pipeline,
+                logger=logger,
+                stt_client=stt_client,
+            )
+
+            assert response.status == "success"
+            assert response.transcript == "book a trip"
+            assert stt_client.seen_content_types[-1] == "audio/mp4"
+
+>       asyncio.run(scenario())
+
+backend\tests\api\test_voice_endpoint.py:187:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:685: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\tests\api\test_voice_endpoint.py:175: in scenario
+    response = await voice_endpoint(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+audio = UploadFile(filename='sample.mp4', size=None, headers=Headers({'content-type': 'audio/mp4'}))
+settings = Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('C:/Users/votu/AppData/Local/Temp...'fixtures'), methods_config_path=WindowsPath('config/methods.yaml'), processing_threshold_ms=750, methods_catalog=None)
+pipeline = <test_voice_endpoint.StubPipeline object at 0x000001B5BF5CDCD0>, logger = <test_voice_endpoint.StubLogger object at 0x000001B5BFD3A4E0>
+stt_client = <test_voice_endpoint.StubSTTClient object at 0x000001B5D836A9C0>
+
+    @api_router.post("/voice", response_model=VoiceResponse)
+    async def voice_endpoint(
+        audio: UploadFile = File(...),
+        settings: Settings = Depends(get_settings),
+        pipeline: HolidaySearchPipeline = Depends(get_pipeline),
+        logger: CSVLogger = Depends(get_csv_logger),
+        stt_client: SpeechToTextClient | None = Depends(get_stt_client),
+    ) -> VoiceResponse:
+        """Transcribe an audio sample and feed it through the holiday search pipeline."""
+
+        pipeline = cast(HolidaySearchPipeline, _resolve_dependency(pipeline))
+        logger = cast(CSVLogger, _resolve_dependency(logger))
+        resolved_stt_client = _resolve_dependency(stt_client)
+        stt_client = cast(SpeechToTextClient | None, resolved_stt_client)
+
+        total_start = perf_counter()
+
+        if not settings.voice_enabled:
+            await audio.close()
+            metadata = {
+                "timings": {"totalMs": (perf_counter() - total_start) * 1000},
+                "mode": settings.interaction_mode,
+            }
+            return VoiceResponse(
+                status="noop",
+                voice_enabled=False,
+                engine=None,
+                transcript=None,
+                words=[],
+                data=None,
+                metadata=metadata,
+            )
+
+        if stt_client is None:
+            # ``get_stt_client`` already swaps in the local faster-whisper fallback when
+            # Deepgram credentials are absent, so reaching this branch means no speech
+            # engine could be initialised at all.
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Speech-to-text provider is not configured",
+            )
+
+        raw_content_type = (audio.content_type or "").lower()
+        base_content_type = raw_content_type.split(";")[0].strip() or raw_content_type
+
+        sniff_leading_bytes = b""
+        if not base_content_type or base_content_type == "application/octet-stream":
+            (
+                raw_content_type,
+                base_content_type,
+                sniff_leading_bytes,
+            ) = await _resolve_missing_audio_content_type(audio, raw_content_type, base_content_type)
+
+        allowed_types = {item.lower() for item in settings.voice_allowed_content_types}
+        if base_content_type not in allowed_types:
+            await audio.close()
+>           raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Unsupported audio format",
+            )
+E           fastapi.exceptions.HTTPException: 415: Unsupported audio format
+
+backend\app\api\routes.py:939: HTTPException
+================================================================================== warnings summary =================================================================================== 
+.venv\Lib\site-packages\ctranslate2\__init__.py:8
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\ctranslate2\__init__.py:8: UserWarning: pkg_resources is deprecated as an 
+API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+backend\app\main.py:26
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py:26: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+.venv\Lib\site-packages\fastapi\applications.py:4575
+.venv\Lib\site-packages\fastapi\applications.py:4575
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\applications.py:4575: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)
+
+backend\app\main.py:31
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py:31: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================================================================== short test summary info =============================================================================== 
+FAILED backend/tests/api/test_voice_endpoint.py::test_voice_endpoint_accepts_audio_mp4 - fastapi.exceptions.HTTPException: 415: Unsupported audio format
+==================================================================== 1 failed, 10 deselected, 5 warnings in 1.09s ===================================================================== 
