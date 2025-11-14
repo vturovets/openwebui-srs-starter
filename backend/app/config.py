@@ -17,19 +17,6 @@ from pydantic_core import PydanticUndefined
 from .pipeline.configuration import MethodsCatalog, load_methods_catalog
 
 
-VOICE_ALLOWED_CONTENT_TYPES_DEFAULT = [
-    "audio/wav",
-    "audio/x-wav",
-    "audio/mpeg",
-    "audio/mp3",
-    "audio/mp4",
-    "audio/ogg",
-    "audio/webm",
-    "video/webm",
-    "audio/flac",
-]
-
-
 class Settings(BaseSettings):
     """Settings loaded from environment variables or ``.env`` files."""
 
@@ -230,7 +217,17 @@ class Settings(BaseSettings):
         description="Maximum audio payload size accepted by the voice endpoint (bytes).",
     )
     voice_allowed_content_types: List[str] = Field(
-        default_factory=lambda: list(VOICE_ALLOWED_CONTENT_TYPES_DEFAULT),
+        default_factory=lambda: [
+            "audio/wav",
+            "audio/x-wav",
+            "audio/mpeg",
+            "audio/mp3",
+            "audio/mp4",
+            "audio/ogg",
+            "audio/webm",
+            "video/webm",
+            "audio/flac",
+        ],
         alias="VOICE_ALLOWED_CONTENT_TYPES",
         description="List of MIME types accepted for audio uploads.",
     )
@@ -284,12 +281,31 @@ class Settings(BaseSettings):
         if value is PydanticUndefined:
             return value  # type: ignore[return-value]
         if value is None:
-            return list(VOICE_ALLOWED_CONTENT_TYPES_DEFAULT)
+            return [
+                "audio/wav",
+                "audio/x-wav",
+                "audio/mpeg",
+                "audio/mp3",
+                "audio/ogg",
+                "audio/webm",
+                "video/webm",
+                "audio/flac",
+            ]
         if isinstance(value, str):
             value = [item.strip() for item in value.split(",") if item.strip()]
         if isinstance(value, (list, tuple, set)):
             cleaned = [str(item).strip() for item in value if str(item).strip()]
-            return cleaned or list(VOICE_ALLOWED_CONTENT_TYPES_DEFAULT)
+            return cleaned or [
+                "audio/wav",
+                "audio/x-wav",
+                "audio/mpeg",
+                "audio/mp3",
+                "audio/mp4",
+                "audio/ogg",
+                "audio/webm",
+                "video/webm",
+                "audio/flac",
+            ]
         raise TypeError(
             "VOICE_ALLOWED_CONTENT_TYPES must be provided as a comma-separated string or list",
         )
