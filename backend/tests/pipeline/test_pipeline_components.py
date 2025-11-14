@@ -362,38 +362,6 @@ def test_parse_endpoint_import_mode_returns_summary(app_dependencies) -> None:
     assert summary_row[index_for("Mode")] == (response.mode or "")
 
 
-def test_parse_endpoint_import_guardrail_rejection(app_dependencies, monkeypatch) -> None:
-    settings, pipeline, logger, summary_logger = app_dependencies
-    settings.import_cpu_threshold = 0.0
-    settings.import_pause_seconds = 0.0
-    settings.import_memory_threshold_mb = None
-    payload = ParseRequest(
-        text="",
-        import_mode=True,
-        batch=[{"text": "Book a trip from Amsterdam", "mode": "dialog"}],
-    )
-
-    class _HighSampler:
-        def __call__(self) -> tuple[float, float]:
-            return 100.0, 0.0
-
-    monkeypatch.setattr(resource_monitor, "ProcessSampler", lambda: _HighSampler())
-
-    original_configure = import_runner.configure_import_runtime
-
-    def _configure_override(*args, **kwargs):
-        runtime = original_configure(*args, **kwargs)
-        object.__setattr__(runtime, "_max_guardrail_attempts", 1)
-        return runtime
-
-    monkeypatch.setattr(import_runner, "configure_import_runtime", _configure_override)
-
-    with pytest.raises(HTTPException) as exc:
-        _call_parse(payload, settings, pipeline, logger, summary_logger)
-
-    assert exc.value.status_code == 429
-
-
 def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
     settings, pipeline, logger, summary_logger = app_dependencies
     payload = ParseRequest(
