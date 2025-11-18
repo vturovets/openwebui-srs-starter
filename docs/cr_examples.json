@@ -1,0 +1,661 @@
+{
+  "unspecified": {
+    "status": "success",
+    "data": {
+      "language": "en",
+      "from": [
+        "CHARLEROI"
+      ],
+      "to": [],
+      "departureDate": [
+        "2026-02-16",
+        "2026-02-22"
+      ],
+      "durationId": "2007",
+      "party": {
+        "adults": 2,
+        "nonAdults": 0
+      },
+      "rooms": null
+    },
+    "metadata": {
+      "methodId": "rules-basic",
+      "methodType": "rules",
+      "imputation": {
+        "enabled": true,
+        "imputed": {
+          "durationId": {
+            "source": "global",
+            "value": "2007"
+          },
+          "party": {
+            "source": "global",
+            "value": {
+              "adults": 2,
+              "nonAdults": 0
+            }
+          },
+          "rooms": {
+            "source": "configuration",
+            "autoRoomAllocationSwitch": true,
+            "value": null
+          },
+          "from": {
+            "source": "global",
+            "value": "Charleroi"
+          },
+          "departureDate": {
+            "source": "global",
+            "interval": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "value": "2026-02-19"
+          }
+        }
+      },
+      "imputed": {
+        "durationId": {
+          "source": "global",
+          "value": "2007"
+        },
+        "party": {
+          "source": "global",
+          "value": {
+            "adults": 2,
+            "nonAdults": 0
+          }
+        },
+        "rooms": {
+          "source": "configuration",
+          "autoRoomAllocationSwitch": true,
+          "value": null
+        },
+        "from": {
+          "source": "global",
+          "value": "Charleroi"
+        },
+        "departureDate": {
+          "source": "global",
+          "interval": {
+            "start": "2026-02-19",
+            "end": "2026-02-19"
+          },
+          "value": "2026-02-19"
+        }
+      },
+      "requestedAlias": "sut",
+      "availableMethods": [
+        {
+          "id": "rules-basic",
+          "type": "rules",
+          "label": "rules-basic",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.0,
+            "dictionary_filename": "data/dictionary.csv",
+            "configuration_filename": "configs/rules.conf"
+          }
+        },
+        {
+          "id": "gpt5-default",
+          "type": "llm",
+          "label": "gpt5-default",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.1,
+            "max_tokens": 512
+          },
+          "provider": "openai",
+          "model": "gpt-5-chat-latest",
+          "api_base": "https://api.openai.com/v1",
+          "api_key_env": "OPENAI_API_KEY"
+        },
+        {
+          "id": "hybrid-v1",
+          "type": "hybrid",
+          "label": "hybrid-v1",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.0
+          },
+          "strategy": "cascade",
+          "stages": [
+            "rules-basic",
+            "gpt5-default"
+          ],
+          "fallback": "gpt5-default"
+        }
+      ],
+      "methodDefaults": {
+        "timeout_s": 30,
+        "temperature": 0.0
+      },
+      "defaultMethod": "rules-basic",
+      "catalogSize": 3,
+      "mode": "dialog",
+      "method": "rules-basic",
+      "requestedMethod": "rules-basic",
+      "timings": {
+        "languageMs": 619.0499639999985,
+        "extractionMs": 3039.4535279999673,
+        "normalizationMs": 0.1654610000514367,
+        "validationMs": 0.054282999997212755,
+        "totalMs": 3658.984743000019,
+        "thresholdBreached": true
+      },
+      "validation": {
+        "status": "passed",
+        "errors": []
+      },
+      "transcript": [
+        {
+          "role": "user",
+          "text": "Show me the cheapest offers"
+        }
+      ],
+      "attempts": [
+        {
+          "method": "rules-basic",
+          "type": "rules",
+          "status": "success"
+        }
+      ],
+      "recognized": {
+        "airports": [
+          {
+            "id": "CHARLEROI",
+            "name": "Charleroi",
+            "available": true
+          }
+        ],
+        "destinations": [],
+        "duration": {
+          "id": "2007",
+          "name": "7 nights",
+          "isDefault": true
+        },
+        "flexibility": null,
+        "dates": [
+          {
+            "phrase": "2026-02-19",
+            "iso": "2026-02-19T00:00:00"
+          }
+        ]
+      },
+      "recognizedEntities": {
+        "airports": [
+          "CHARLEROI"
+        ],
+        "destinations": [],
+        "dates": [
+          "2026-02-19T00:00:00"
+        ],
+        "duration": "2007",
+        "flexibility": null
+      },
+      "missingFields": [
+        "to"
+      ],
+      "invalidFields": [],
+      "language": {
+        "code": "en",
+        "confidence": 0.9999964930332083
+      },
+      "llm": {}
+    }
+  },
+  "single_destination": {
+    "status": "success",
+    "data": {
+      "language": "en",
+      "from": [
+        "CHARLEROI"
+      ],
+      "to": [
+        "d7b4bb39-2000-1234-aaaa-1234567a:COUNTRY"
+      ],
+      "departureDate": [
+        "2026-02-16",
+        "2026-02-22"
+      ],
+      "durationId": "2007",
+      "party": {
+        "adults": 2,
+        "nonAdults": 0
+      },
+      "rooms": null
+    },
+    "metadata": {
+      "methodId": "rules-basic",
+      "methodType": "rules",
+      "imputation": {
+        "enabled": true,
+        "imputed": {
+          "durationId": {
+            "source": "destination:Australia",
+            "value": "2007"
+          },
+          "party": {
+            "source": "destination:Australia",
+            "value": {
+              "adults": 2,
+              "nonAdults": 0
+            }
+          },
+          "rooms": {
+            "source": "configuration",
+            "autoRoomAllocationSwitch": true,
+            "value": null
+          },
+          "from": {
+            "source": "destination:Australia",
+            "value": "Charleroi"
+          },
+          "departureDate": {
+            "source": "destination:Australia",
+            "interval": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "value": "2026-02-19"
+          }
+        }
+      },
+      "imputed": {
+        "durationId": {
+          "source": "destination:Australia",
+          "value": "2007"
+        },
+        "party": {
+          "source": "destination:Australia",
+          "value": {
+            "adults": 2,
+            "nonAdults": 0
+          }
+        },
+        "rooms": {
+          "source": "configuration",
+          "autoRoomAllocationSwitch": true,
+          "value": null
+        },
+        "from": {
+          "source": "destination:Australia",
+          "value": "Charleroi"
+        },
+        "departureDate": {
+          "source": "destination:Australia",
+          "interval": {
+            "start": "2026-02-19",
+            "end": "2026-02-19"
+          },
+          "value": "2026-02-19"
+        }
+      },
+      "requestedAlias": "sut",
+      "availableMethods": [
+        {
+          "id": "rules-basic",
+          "type": "rules",
+          "label": "rules-basic",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.0,
+            "dictionary_filename": "data/dictionary.csv",
+            "configuration_filename": "configs/rules.conf"
+          }
+        },
+        {
+          "id": "gpt5-default",
+          "type": "llm",
+          "label": "gpt5-default",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.1,
+            "max_tokens": 512
+          },
+          "provider": "openai",
+          "model": "gpt-5-chat-latest",
+          "api_base": "https://api.openai.com/v1",
+          "api_key_env": "OPENAI_API_KEY"
+        },
+        {
+          "id": "hybrid-v1",
+          "type": "hybrid",
+          "label": "hybrid-v1",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.0
+          },
+          "strategy": "cascade",
+          "stages": [
+            "rules-basic",
+            "gpt5-default"
+          ],
+          "fallback": "gpt5-default"
+        }
+      ],
+      "methodDefaults": {
+        "timeout_s": 30,
+        "temperature": 0.0
+      },
+      "defaultMethod": "rules-basic",
+      "catalogSize": 3,
+      "mode": "dialog",
+      "method": "rules-basic",
+      "requestedMethod": "rules-basic",
+      "timings": {
+        "languageMs": 18.4345609999923,
+        "extractionMs": 176.8687769999815,
+        "normalizationMs": 0.1047250000283384,
+        "validationMs": 0.03184299998792994,
+        "totalMs": 195.78283300000976,
+        "thresholdBreached": false
+      },
+      "validation": {
+        "status": "passed",
+        "errors": []
+      },
+      "transcript": [
+        {
+          "role": "user",
+          "text": "Best cheap hotels in Australia"
+        }
+      ],
+      "attempts": [
+        {
+          "method": "rules-basic",
+          "type": "rules",
+          "status": "success"
+        }
+      ],
+      "recognized": {
+        "airports": [
+          {
+            "id": "CHARLEROI",
+            "name": "Charleroi",
+            "available": true
+          }
+        ],
+        "destinations": [
+          {
+            "id": "d7b4bb39-2000-1234-aaaa-1234567a",
+            "name": "Australia",
+            "type": "COUNTRY",
+            "multiSelect": true,
+            "fewDaysFlag": false,
+            "url": null,
+            "parentCode": null,
+            "available": true,
+            "synonym": null
+          }
+        ],
+        "duration": {
+          "id": "2007",
+          "name": "7 nights",
+          "isDefault": true
+        },
+        "flexibility": null,
+        "dates": [
+          {
+            "phrase": "2026-02-19",
+            "iso": "2026-02-19T00:00:00"
+          }
+        ]
+      },
+      "recognizedEntities": {
+        "airports": [
+          "CHARLEROI"
+        ],
+        "destinations": [
+          "d7b4bb39-2000-1234-aaaa-1234567a"
+        ],
+        "dates": [
+          "2026-02-19T00:00:00"
+        ],
+        "duration": "2007",
+        "flexibility": null
+      },
+      "missingFields": [],
+      "invalidFields": [],
+      "language": {
+        "code": "en",
+        "confidence": 0.857139547567511
+      },
+      "llm": {}
+    }
+  },
+  "multi_destination": {
+    "status": "success",
+    "data": {
+      "language": "en",
+      "from": [
+        "CHARLEROI"
+      ],
+      "to": [
+        "d7b4bb39-2000-1234-aaac-1234567c:COUNTRY",
+        "d7b4bb39-2000-1234-aaad-1234567d:COUNTRY"
+      ],
+      "departureDate": [
+        "2026-02-16",
+        "2026-02-22"
+      ],
+      "durationId": "2007",
+      "party": {
+        "adults": 2,
+        "nonAdults": 0
+      },
+      "rooms": null
+    },
+    "metadata": {
+      "methodId": "rules-basic",
+      "methodType": "rules",
+      "imputation": {
+        "enabled": true,
+        "imputed": {
+          "durationId": {
+            "source": "destination:Japan",
+            "value": "2007"
+          },
+          "party": {
+            "source": "destination:Japan",
+            "value": {
+              "adults": 2,
+              "nonAdults": 0
+            }
+          },
+          "rooms": {
+            "source": "configuration",
+            "autoRoomAllocationSwitch": true,
+            "value": null
+          },
+          "from": {
+            "source": "destination:Japan",
+            "value": "Charleroi"
+          },
+          "departureDate": {
+            "source": "global",
+            "interval": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "value": "2026-02-19"
+          }
+        }
+      },
+      "imputed": {
+        "durationId": {
+          "source": "destination:Japan",
+          "value": "2007"
+        },
+        "party": {
+          "source": "destination:Japan",
+          "value": {
+            "adults": 2,
+            "nonAdults": 0
+          }
+        },
+        "rooms": {
+          "source": "configuration",
+          "autoRoomAllocationSwitch": true,
+          "value": null
+        },
+        "from": {
+          "source": "destination:Japan",
+          "value": "Charleroi"
+        },
+        "departureDate": {
+          "source": "global",
+          "interval": {
+            "start": "2026-02-19",
+            "end": "2026-02-19"
+          },
+          "value": "2026-02-19"
+        }
+      },
+      "requestedAlias": "sut",
+      "availableMethods": [
+        {
+          "id": "rules-basic",
+          "type": "rules",
+          "label": "rules-basic",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.0,
+            "dictionary_filename": "data/dictionary.csv",
+            "configuration_filename": "configs/rules.conf"
+          }
+        },
+        {
+          "id": "gpt5-default",
+          "type": "llm",
+          "label": "gpt5-default",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.1,
+            "max_tokens": 512
+          },
+          "provider": "openai",
+          "model": "gpt-5-chat-latest",
+          "api_base": "https://api.openai.com/v1",
+          "api_key_env": "OPENAI_API_KEY"
+        },
+        {
+          "id": "hybrid-v1",
+          "type": "hybrid",
+          "label": "hybrid-v1",
+          "params": {
+            "timeout_s": 30,
+            "temperature": 0.0
+          },
+          "strategy": "cascade",
+          "stages": [
+            "rules-basic",
+            "gpt5-default"
+          ],
+          "fallback": "gpt5-default"
+        }
+      ],
+      "methodDefaults": {
+        "timeout_s": 30,
+        "temperature": 0.0
+      },
+      "defaultMethod": "rules-basic",
+      "catalogSize": 3,
+      "mode": "dialog",
+      "method": "rules-basic",
+      "requestedMethod": "rules-basic",
+      "timings": {
+        "languageMs": 3.298806999964654,
+        "extractionMs": 198.09292600001527,
+        "normalizationMs": 0.10503999999400548,
+        "validationMs": 0.03472699995654693,
+        "totalMs": 201.81533600003831,
+        "thresholdBreached": false
+      },
+      "validation": {
+        "status": "passed",
+        "errors": []
+      },
+      "transcript": [
+        {
+          "role": "user",
+          "text": "Cheapest offers for Kenya and Japan"
+        }
+      ],
+      "attempts": [
+        {
+          "method": "rules-basic",
+          "type": "rules",
+          "status": "success"
+        }
+      ],
+      "recognized": {
+        "airports": [
+          {
+            "id": "CHARLEROI",
+            "name": "Charleroi",
+            "available": true
+          }
+        ],
+        "destinations": [
+          {
+            "id": "d7b4bb39-2000-1234-aaac-1234567c",
+            "name": "Japan",
+            "type": "COUNTRY",
+            "multiSelect": true,
+            "fewDaysFlag": false,
+            "url": null,
+            "parentCode": null,
+            "available": true,
+            "synonym": null
+          },
+          {
+            "id": "d7b4bb39-2000-1234-aaad-1234567d",
+            "name": "Kenya",
+            "type": "COUNTRY",
+            "multiSelect": true,
+            "fewDaysFlag": false,
+            "url": null,
+            "parentCode": null,
+            "available": true,
+            "synonym": null
+          }
+        ],
+        "duration": {
+          "id": "2007",
+          "name": "7 nights",
+          "isDefault": true
+        },
+        "flexibility": null,
+        "dates": [
+          {
+            "phrase": "2026-02-19",
+            "iso": "2026-02-19T00:00:00"
+          }
+        ]
+      },
+      "recognizedEntities": {
+        "airports": [
+          "CHARLEROI"
+        ],
+        "destinations": [
+          "d7b4bb39-2000-1234-aaac-1234567c",
+          "d7b4bb39-2000-1234-aaad-1234567d"
+        ],
+        "dates": [
+          "2026-02-19T00:00:00"
+        ],
+        "duration": "2007",
+        "flexibility": null
+      },
+      "missingFields": [],
+      "invalidFields": [],
+      "language": {
+        "code": "en",
+        "confidence": 0.999996850709607
+      },
+      "llm": {}
+    }
+  }
+}
