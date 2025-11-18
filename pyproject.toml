@@ -20,6 +20,9 @@ dependencies = [
     "python-multipart>=0.0.6",
 ]
 
+[project.scripts]
+build-popularity-stats = "scripts.build_popularity_stats:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4",
@@ -42,4 +45,4 @@ markers = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["backend*"]
+include = ["backend*", "scripts*"]

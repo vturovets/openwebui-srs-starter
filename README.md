@@ -447,3 +447,50 @@ Content-Type: application/json
   configuration steps for pointing Open-WebUI at this backend.
 - [`docs/srs.md`](docs/srs.md) and [`docs/sdd.md`](docs/sdd.md) – detailed
   requirements and design documentation for the prototype.
+
+## Popularity statistics fixture
+
+The popularity imputer described in [`docs/CR-001.md`](docs/CR-001.md) consumes the
+pre-computed statistics stored in [`fixtures/popularity_stats.json`](fixtures/popularity_stats.json).
+The file is regenerated from `docs/demo_set_example.csv` and exposes the
+following schema so the backend can decide whether to use global trends or
+destination-specific modes:
+
+- `metadata` – includes the schema version, UTC generation timestamp, source
+  CSV path, the SHA-256 checksum of that CSV (used to detect stale fixtures),
+  the number of processed rows, the `top_n` limit applied to frequency lists,
+  and the fully-qualified generator name (`scripts.build_popularity_stats`).
+- `global` – captures the most popular parameters across the entire dataset.
+  Each metric (duration, rooms, party tuple, departure interval, departure
+  airport) is summarised with `mode`, `mode_count`, `top_values` (up to
+  `metadata.top_n` entries), `unique_values`, and the total number of
+  observations used. `rooms` keeps `null` whenever the CSV stores a blank value
+  and `0` when the source row requested automatic room allocation. `party`
+  values are serialised as `{adults, children, infants}` objects. `interval`
+  values are `{start, end}` ISO-8601 strings. `global.totals` also records the
+  number of rows processed and how many destination mentions were encountered in
+  the CSV.
+- `destinations` – a dictionary keyed by destination name where each value
+  mirrors the global summary fields above so the imputer can prefer
+  destination-specific defaults whenever possible.
+- `intersections` – captures the most popular departure intervals for historic
+  searches that mentioned multiple destinations at once. Each entry stores the
+  sorted list of destinations, the modal interval, and the `top_intervals`
+  collection so the runtime service can quickly detect overlaps instead of
+  recomputing intersections.
+
+### Rebuilding the fixture
+
+Use the helper CLI whenever the CSV changes:
+
+```bash
+make popularity-stats
+# or
+python -m scripts.build_popularity_stats --csv docs/demo_set_example.csv \
+  --output fixtures/popularity_stats.json --pretty
+```
+
+The script normalises start/end dates to ISO format, coerces numeric fields,
+splits multi-destination rows, and emits the JSON payload above. Because the
+metadata captures both a schema version and the CSV checksum, the backend can
+fail fast whenever the fixture is out of sync with the raw data.

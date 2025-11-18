@@ -1,0 +1,1819 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "generated_at": "2025-11-18T10:33:39.883603+00:00",
+    "source": {
+      "path": "docs/demo_set_example.csv",
+      "sha256": "974a3b0432c07a7b3f0718beb5e19e173a585a915a98ea95f7188d2b7da736b1",
+      "rows": 10
+    },
+    "top_n": 5,
+    "generator": "scripts.build_popularity_stats"
+  },
+  "global": {
+    "duration": {
+      "mode": 7,
+      "mode_count": 5,
+      "top_values": [
+        {
+          "value": 7,
+          "count": 5
+        },
+        {
+          "value": 11,
+          "count": 2
+        },
+        {
+          "value": 10,
+          "count": 2
+        },
+        {
+          "value": 6,
+          "count": 1
+        }
+      ],
+      "unique_values": 4,
+      "total": 10
+    },
+    "rooms": {
+      "mode": 0,
+      "mode_count": 6,
+      "top_values": [
+        {
+          "value": 0,
+          "count": 6
+        },
+        {
+          "value": 1,
+          "count": 3
+        },
+        {
+          "value": 2,
+          "count": 1
+        }
+      ],
+      "unique_values": 3,
+      "total": 10
+    },
+    "party": {
+      "mode": {
+        "adults": 2,
+        "children": 0,
+        "infants": 0
+      },
+      "mode_count": 4,
+      "top_values": [
+        {
+          "value": {
+            "adults": 2,
+            "children": 0,
+            "infants": 0
+          },
+          "count": 4
+        },
+        {
+          "value": {
+            "adults": 1,
+            "children": 0,
+            "infants": 0
+          },
+          "count": 3
+        },
+        {
+          "value": {
+            "adults": 2,
+            "children": 1,
+            "infants": 1
+          },
+          "count": 1
+        },
+        {
+          "value": {
+            "adults": 1,
+            "children": 1,
+            "infants": 0
+          },
+          "count": 1
+        },
+        {
+          "value": {
+            "adults": 3,
+            "children": 0,
+            "infants": 0
+          },
+          "count": 1
+        }
+      ],
+      "unique_values": 5,
+      "total": 10
+    },
+    "interval": {
+      "mode": {
+        "start": "2026-02-19",
+        "end": "2026-02-19"
+      },
+      "mode_count": 2,
+      "top_values": [
+        {
+          "value": {
+            "start": "2026-02-19",
+            "end": "2026-02-19"
+          },
+          "count": 2
+        },
+        {
+          "value": {
+            "start": "2025-11-27",
+            "end": "2025-11-27"
+          },
+          "count": 2
+        },
+        {
+          "value": {
+            "start": "2026-01-30",
+            "end": "2026-01-30"
+          },
+          "count": 2
+        },
+        {
+          "value": {
+            "start": "2026-07-25",
+            "end": "2026-07-25"
+          },
+          "count": 2
+        },
+        {
+          "value": {
+            "start": "2025-12-11",
+            "end": "2025-12-11"
+          },
+          "count": 1
+        }
+      ],
+      "unique_values": 6,
+      "total": 10
+    },
+    "departure_airport": {
+      "mode": "Charleroi",
+      "mode_count": 4,
+      "top_values": [
+        {
+          "value": "Charleroi",
+          "count": 4
+        },
+        {
+          "value": "Liege",
+          "count": 3
+        }
+      ],
+      "unique_values": 2,
+      "total": 7
+    },
+    "totals": {
+      "rows": 10,
+      "destination_mentions": 86
+    }
+  },
+  "destinations": {
+    "Australia": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 4
+          },
+          {
+            "value": 11,
+            "count": 2
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 9
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 6,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 6
+          },
+          {
+            "value": 1,
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 9
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 4
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 3
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 9
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-02-19",
+          "end": "2026-02-19"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-02-15",
+              "end": "2026-02-15"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 9
+      },
+      "departure_airport": {
+        "mode": "Charleroi",
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": "Charleroi",
+            "count": 4
+          },
+          {
+            "value": "Liege",
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 7
+      }
+    },
+    "Chile": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 3
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 11,
+            "count": 1
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 7
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 5,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 5
+          },
+          {
+            "value": 1,
+            "count": 2
+          }
+        ],
+        "unique_values": 2,
+        "total": 7
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 3
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 7
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-01-30",
+          "end": "2026-01-30"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "start": "2026-02-15",
+              "end": "2026-02-15"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 7
+      },
+      "departure_airport": {
+        "mode": "Liege",
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": "Liege",
+            "count": 3
+          },
+          {
+            "value": "Charleroi",
+            "count": 2
+          }
+        ],
+        "unique_values": 2,
+        "total": 5
+      }
+    },
+    "Columbia": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 4
+          },
+          {
+            "value": 11,
+            "count": 2
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 9
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 6,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 6
+          },
+          {
+            "value": 1,
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 9
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 4
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 3
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 9
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-02-19",
+          "end": "2026-02-19"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-02-15",
+              "end": "2026-02-15"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 9
+      },
+      "departure_airport": {
+        "mode": "Charleroi",
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": "Charleroi",
+            "count": 4
+          },
+          {
+            "value": "Liege",
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 7
+      }
+    },
+    "Costa Rica": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 5,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 5
+          },
+          {
+            "value": 11,
+            "count": 2
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 10
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 6,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 6
+          },
+          {
+            "value": 1,
+            "count": 3
+          },
+          {
+            "value": 2,
+            "count": 1
+          }
+        ],
+        "unique_values": 3,
+        "total": 10
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 4
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 3
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 3,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 10
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-02-19",
+          "end": "2026-02-19"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-12-11",
+              "end": "2025-12-11"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 6,
+        "total": 10
+      },
+      "departure_airport": {
+        "mode": "Charleroi",
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": "Charleroi",
+            "count": 4
+          },
+          {
+            "value": "Liege",
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 7
+      }
+    },
+    "Japan": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 4
+          },
+          {
+            "value": 11,
+            "count": 2
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 9
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 6,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 6
+          },
+          {
+            "value": 1,
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 9
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 4
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 3
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 9
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-02-19",
+          "end": "2026-02-19"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-02-15",
+              "end": "2026-02-15"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 9
+      },
+      "departure_airport": {
+        "mode": "Charleroi",
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": "Charleroi",
+            "count": 4
+          },
+          {
+            "value": "Liege",
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 7
+      }
+    },
+    "Kenya": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 5,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 5
+          },
+          {
+            "value": 11,
+            "count": 2
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 10
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 6,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 6
+          },
+          {
+            "value": 1,
+            "count": 3
+          },
+          {
+            "value": 2,
+            "count": 1
+          }
+        ],
+        "unique_values": 3,
+        "total": 10
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 4
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 3
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 3,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 10
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-02-19",
+          "end": "2026-02-19"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-12-11",
+              "end": "2025-12-11"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 6,
+        "total": 10
+      },
+      "departure_airport": {
+        "mode": "Charleroi",
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": "Charleroi",
+            "count": 4
+          },
+          {
+            "value": "Liege",
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 7
+      }
+    },
+    "Korea": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 3
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 11,
+            "count": 1
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 7
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 5,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 5
+          },
+          {
+            "value": 1,
+            "count": 2
+          }
+        ],
+        "unique_values": 2,
+        "total": 7
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 3
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 7
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-01-30",
+          "end": "2026-01-30"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "start": "2026-02-15",
+              "end": "2026-02-15"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 7
+      },
+      "departure_airport": {
+        "mode": "Liege",
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": "Liege",
+            "count": 3
+          },
+          {
+            "value": "Charleroi",
+            "count": 2
+          }
+        ],
+        "unique_values": 2,
+        "total": 5
+      }
+    },
+    "Kuwait": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 3
+          },
+          {
+            "value": 11,
+            "count": 2
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 8
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 6,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 6
+          },
+          {
+            "value": 1,
+            "count": 2
+          }
+        ],
+        "unique_values": 2,
+        "total": 8
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 4
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 8
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-02-19",
+          "end": "2026-02-19"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "start": "2026-02-15",
+              "end": "2026-02-15"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 8
+      },
+      "departure_airport": {
+        "mode": "Charleroi",
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": "Charleroi",
+            "count": 3
+          },
+          {
+            "value": "Liege",
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 6
+      }
+    },
+    "Latvia": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 3
+          },
+          {
+            "value": 11,
+            "count": 2
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 8
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 6,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 6
+          },
+          {
+            "value": 1,
+            "count": 2
+          }
+        ],
+        "unique_values": 2,
+        "total": 8
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 4
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 8
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-02-19",
+          "end": "2026-02-19"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "start": "2026-02-15",
+              "end": "2026-02-15"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 8
+      },
+      "departure_airport": {
+        "mode": "Charleroi",
+        "mode_count": 3,
+        "top_values": [
+          {
+            "value": "Charleroi",
+            "count": 3
+          },
+          {
+            "value": "Liege",
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 6
+      }
+    },
+    "New Zealand": {
+      "duration": {
+        "mode": 7,
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": 7,
+            "count": 4
+          },
+          {
+            "value": 11,
+            "count": 2
+          },
+          {
+            "value": 10,
+            "count": 2
+          },
+          {
+            "value": 6,
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 9
+      },
+      "rooms": {
+        "mode": 0,
+        "mode_count": 6,
+        "top_values": [
+          {
+            "value": 0,
+            "count": 6
+          },
+          {
+            "value": 1,
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 9
+      },
+      "party": {
+        "mode": {
+          "adults": 2,
+          "children": 0,
+          "infants": 0
+        },
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": {
+              "adults": 2,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 4
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 0,
+              "infants": 0
+            },
+            "count": 3
+          },
+          {
+            "value": {
+              "adults": 2,
+              "children": 1,
+              "infants": 1
+            },
+            "count": 1
+          },
+          {
+            "value": {
+              "adults": 1,
+              "children": 1,
+              "infants": 0
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 4,
+        "total": 9
+      },
+      "interval": {
+        "mode": {
+          "start": "2026-02-19",
+          "end": "2026-02-19"
+        },
+        "mode_count": 2,
+        "top_values": [
+          {
+            "value": {
+              "start": "2026-02-19",
+              "end": "2026-02-19"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2025-11-27",
+              "end": "2025-11-27"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-01-30",
+              "end": "2026-01-30"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-07-25",
+              "end": "2026-07-25"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "start": "2026-02-15",
+              "end": "2026-02-15"
+            },
+            "count": 1
+          }
+        ],
+        "unique_values": 5,
+        "total": 9
+      },
+      "departure_airport": {
+        "mode": "Charleroi",
+        "mode_count": 4,
+        "top_values": [
+          {
+            "value": "Charleroi",
+            "count": 4
+          },
+          {
+            "value": "Liege",
+            "count": 3
+          }
+        ],
+        "unique_values": 2,
+        "total": 7
+      }
+    }
+  },
+  "intersections": {
+    "Costa Rica||Kenya": {
+      "destinations": [
+        "Costa Rica",
+        "Kenya"
+      ],
+      "mode": {
+        "start": "2025-12-11",
+        "end": "2025-12-11"
+      },
+      "mode_count": 1,
+      "top_intervals": [
+        {
+          "value": {
+            "start": "2025-12-11",
+            "end": "2025-12-11"
+          },
+          "count": 1
+        }
+      ],
+      "unique_intervals": 1,
+      "total": 1
+    },
+    "Australia||Columbia||Costa Rica||Japan||Kenya||New Zealand": {
+      "destinations": [
+        "Australia",
+        "Columbia",
+        "Costa Rica",
+        "Japan",
+        "Kenya",
+        "New Zealand"
+      ],
+      "mode": {
+        "start": "2025-11-27",
+        "end": "2025-11-27"
+      },
+      "mode_count": 1,
+      "top_intervals": [
+        {
+          "value": {
+            "start": "2025-11-27",
+            "end": "2025-11-27"
+          },
+          "count": 1
+        }
+      ],
+      "unique_intervals": 1,
+      "total": 1
+    },
+    "Australia||Columbia||Costa Rica||Japan||Kenya||Kuwait||Latvia||New Zealand": {
+      "destinations": [
+        "Australia",
+        "Columbia",
+        "Costa Rica",
+        "Japan",
+        "Kenya",
+        "Kuwait",
+        "Latvia",
+        "New Zealand"
+      ],
+      "mode": {
+        "start": "2026-02-19",
+        "end": "2026-02-19"
+      },
+      "mode_count": 1,
+      "top_intervals": [
+        {
+          "value": {
+            "start": "2026-02-19",
+            "end": "2026-02-19"
+          },
+          "count": 1
+        }
+      ],
+      "unique_intervals": 1,
+      "total": 1
+    },
+    "Australia||Chile||Columbia||Costa Rica||Japan||Kenya||Korea||Kuwait||Latvia||New Zealand": {
+      "destinations": [
+        "Australia",
+        "Chile",
+        "Columbia",
+        "Costa Rica",
+        "Japan",
+        "Kenya",
+        "Korea",
+        "Kuwait",
+        "Latvia",
+        "New Zealand"
+      ],
+      "mode": {
+        "start": "2026-01-30",
+        "end": "2026-01-30"
+      },
+      "mode_count": 2,
+      "top_intervals": [
+        {
+          "value": {
+            "start": "2026-01-30",
+            "end": "2026-01-30"
+          },
+          "count": 2
+        },
+        {
+          "value": {
+            "start": "2026-07-25",
+            "end": "2026-07-25"
+          },
+          "count": 2
+        },
+        {
+          "value": {
+            "start": "2026-02-19",
+            "end": "2026-02-19"
+          },
+          "count": 1
+        },
+        {
+          "value": {
+            "start": "2025-11-27",
+            "end": "2025-11-27"
+          },
+          "count": 1
+        },
+        {
+          "value": {
+            "start": "2026-02-15",
+            "end": "2026-02-15"
+          },
+          "count": 1
+        }
+      ],
+      "unique_intervals": 5,
+      "total": 7
+    }
+  }
+}

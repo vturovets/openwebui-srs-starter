@@ -1,4 +1,4 @@
-.PHONY: lint test
+.PHONY: lint test popularity-stats
 
 lint:
 	ruff check backend
@@ -6,3 +6,6 @@ lint:
 test:
 	pytest
 	npm --prefix frontend test
+
+popularity-stats:
+	python -m scripts.build_popularity_stats --pretty
