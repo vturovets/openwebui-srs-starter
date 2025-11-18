@@ -63,6 +63,16 @@ def _resolve_dependency(value: object) -> object:
     return value
 
 
+def _resolve_suggestions_limit(settings: Settings) -> int:
+    """Return a sane suggestions limit based on configuration."""
+
+    try:
+        configured_limit = int(settings.suggestions_limit)
+    except (TypeError, ValueError):  # pragma: no cover - defensive fallback
+        return 1
+    return max(1, configured_limit)
+
+
 def _utc_timestamp() -> str:
     """Return an ISO 8601 timestamp with millisecond precision in UTC."""
 
@@ -883,6 +893,8 @@ async def fetch_fixtures(
             "importP95SampleSize": settings.import_p95_sample_size,
             "importP95Significance": settings.import_p95_significance,
         },
+        "suggestionsEnabled": settings.suggestions_enabled,
+        "suggestionsLimit": _resolve_suggestions_limit(settings),
     }
 
 
@@ -902,12 +914,7 @@ async def fetch_suggestions(
     if not normalized_query:
         return {"suggestions": {}}
 
-    try:
-        configured_limit = int(settings.suggestions_limit)
-    except (TypeError, ValueError):  # pragma: no cover - defensive fallback
-        configured_limit = 1
-
-    configured_limit = max(1, configured_limit)
+    configured_limit = _resolve_suggestions_limit(settings)
     requested_limit = max(1, int(limit or 1))
     safe_limit = min(requested_limit, configured_limit)
 
