@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import AutoComplete from './components/AutoComplete.svelte';
   import MicrophoneWidget from './components/MicrophoneWidget.svelte';
   import StructuredResult from './components/StructuredResult.svelte';
   import { fetchFixtures, parseText, postVoice } from './lib/api';
@@ -42,6 +43,7 @@
   let downloadAnchor: HTMLAnchorElement | null = null;
   let downloadUrl: string | null = null;
   let importInput: HTMLInputElement | null = null;
+  let resettingHistory = false;
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const SUCCESS_STATUSES = new Set(['success', 'ok', 'passed']);
@@ -714,6 +716,68 @@
     return '—';
   }
 
+  const SUGGESTION_LABELS: Record<string, string> = {
+    destinations: 'Destination',
+    departureDates: 'Dates',
+    durations: 'Duration',
+    party: 'Party',
+    rooms: 'Rooms',
+    from: 'From',
+  };
+
+  function formatSuggestionHint(field: string, value: any): string {
+    const prefix = SUGGESTION_LABELS[field] ?? 'Suggestion';
+    if (!value) {
+      return '';
+    }
+
+    if (field === 'departureDates') {
+      const start = value.start ?? value?.value?.start;
+      const end = value.end ?? value?.value?.end;
+      if (start && end) {
+        const badge = value.label || value.source;
+        return `${prefix}: ${start} – ${end}${badge ? ` (${badge})` : ''}`;
+      }
+      return '';
+    }
+
+    if (field === 'party') {
+      const payload = value.value ?? value;
+      const adults = typeof payload?.adults === 'number' ? payload.adults : 0;
+      const kids = typeof payload?.nonAdults === 'number' ? payload.nonAdults : 0;
+      if (!adults && !kids) {
+        return '';
+      }
+      const parts: string[] = [];
+      if (adults) {
+        parts.push(`${adults} adult${adults === 1 ? '' : 's'}`);
+      }
+      if (kids) {
+        parts.push(`${kids} child${kids === 1 ? '' : 'ren'}`);
+      }
+      return `${prefix}: ${parts.join(', ')}`;
+    }
+
+    const suggestion = value as { label?: string; value?: unknown };
+    const hintValue =
+      typeof suggestion?.label !== 'undefined' && suggestion.label !== null && suggestion.label !== ''
+        ? suggestion.label
+        : suggestion?.value ?? value;
+    if (typeof hintValue === 'string' || typeof hintValue === 'number') {
+      return `${prefix}: ${hintValue}`;
+    }
+
+    return '';
+  }
+
+  function handleSuggestionSelect(event: CustomEvent<{ field: string; value: unknown }>) {
+    const hint = formatSuggestionHint(event.detail.field, event.detail.value);
+    if (!hint) {
+      return;
+    }
+    query = query.trim() ? `${query.trimEnd()}\n${hint}` : hint;
+  }
+
   function trackEntry(
     source: 'text' | 'voice',
     result: HolidayResult,
@@ -963,13 +1027,18 @@
       return;
     }
 
-    history = [];
-    importPerformanceSummary = null;
-    importUsageSummary = null;
+    resettingHistory = true;
+    try {
+      history = [];
+      importPerformanceSummary = null;
+      importUsageSummary = null;
 
-    if (downloadUrl) {
-      URL.revokeObjectURL(downloadUrl);
-      downloadUrl = null;
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl);
+        downloadUrl = null;
+      }
+    } finally {
+      resettingHistory = false;
     }
   }
 </script>
@@ -1040,6 +1109,13 @@
           data-testid="query-input"
         ></textarea>
       </label>
+
+      <AutoComplete
+        query={query}
+        baseUrl={baseUrl}
+        disabled={busy || resettingHistory}
+        on:selectSuggestion={handleSuggestionSelect}
+      />
 
       <div class="actions">
         <button type="submit" disabled={busy} data-testid="submit-button">{busy ? 'Parsing…' : 'Parse request'}</button>
