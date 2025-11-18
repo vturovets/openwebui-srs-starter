@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, List, Mapping, Optional, Sequence
 
 from .extractor_rules import ExtractionResult
 
@@ -126,14 +126,26 @@ class Normalizer:
             return str(extraction.duration.get("id", "")).strip() or self._config.default_duration_id
         return self._config.default_duration_id
 
-    def _normalize_party(self) -> Dict[str, int]:
+    def _normalize_party(self, extraction: ExtractionResult) -> Dict[str, int]:
+        if isinstance(extraction.party, Mapping):
+            adults = extraction.party.get("adults")
+            non_adults = extraction.party.get("nonAdults")
+            if adults is not None and non_adults is not None:
+                return {
+                    "adults": int(adults),
+                    "nonAdults": int(non_adults),
+                }
+
         defaults = self._config.defaults
         return {
             "adults": defaults.get("adults", 0),
             "nonAdults": defaults.get("nonAdults", 0),
         }
 
-    def _normalize_rooms(self) -> Optional[int]:
+    def _normalize_rooms(self, extraction: ExtractionResult) -> Optional[int]:
+        if extraction.rooms is not None:
+            return extraction.rooms
+
         rooms_cfg = self._config.rooms_configuration
         if rooms_cfg.get("autoRoomAllocationSwitch"):
             return None
@@ -144,8 +156,8 @@ class Normalizer:
         from_codes = self._normalize_airports(extraction)
         to_ids = self._normalize_destinations(extraction)
         duration_id = self._normalize_duration(extraction)
-        party = self._normalize_party()
-        rooms = self._normalize_rooms()
+        party = self._normalize_party(extraction)
+        rooms = self._normalize_rooms(extraction)
 
         context = {
             "airports": extraction.airports,
