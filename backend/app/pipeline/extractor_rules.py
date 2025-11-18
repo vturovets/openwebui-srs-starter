@@ -26,6 +26,8 @@ class ExtractionResult:
     duration: Optional[Dict[str, object]] = None
     flexibility: Optional[Dict[str, object]] = None
     dates: List[Tuple[str, datetime]] = field(default_factory=list)
+    party: Optional[Dict[str, int]] = None
+    rooms: Optional[int] = None
 
     def has_dates(self) -> bool:
         return bool(self.dates)

@@ -393,12 +393,23 @@ def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
     output_payload = json.loads(log_entry[header.index("Output")])
     assert output_payload["status"] == "success"
 def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
-    settings, pipeline, logger, summary_logger = app_dependencies
+    settings, _, logger, summary_logger = app_dependencies
+    failure_settings = Settings(
+        fixtures_dir=settings.fixtures_dir,
+        csv_path=settings.csv_path,
+        import_summary_path=settings.import_summary_path,
+        allowed_langs=settings.allowed_langs,
+        popularity_imputer_enabled=False,
+    )
+    pipeline = HolidaySearchPipeline(
+        settings=failure_settings,
+        fixtures_dir=failure_settings.fixtures_dir,
+    )
     payload = ParseRequest(
         text="I am looking for a trip starting on October 10 2025.",
     )
 
-    response = _call_parse(payload, settings, pipeline, logger, summary_logger)
+    response = _call_parse(payload, failure_settings, pipeline, logger, summary_logger)
 
     assert response.status == "failed"
     assert response.metadata["validation"]["status"] == "failed"

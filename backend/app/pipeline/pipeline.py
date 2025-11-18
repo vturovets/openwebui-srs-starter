@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Callable, Dict, List, Mapping, Optional, Set
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Set
 
 from ..config import Settings
 from ..fixtures.repository import FixtureRepository
@@ -21,6 +22,7 @@ from .extractors import ExtractorOutcome, LLMExtractor
 from .language import LanguageDetector, LanguageDetectionResult
 from .normalizer import Normalizer, NormalizedResult
 from .validator import ValidationError, Validator
+from ..services.popularity_imputer import PopularityImputer
 
 
 @dataclass
@@ -38,6 +40,52 @@ class PipelineRunResult:
     attempts: list[Dict[str, Any]]
     timings: Dict[str, float]
     error: str | None = None
+
+
+def extraction_to_imputer_payload(extraction: ExtractionResult) -> Dict[str, object]:
+    """Convert an extraction result into a popularity imputer payload."""
+
+    def _collect_labels(entities: Sequence[Mapping[str, object]]) -> list[str]:
+        labels: list[str] = []
+        seen: set[str] = set()
+        for entity in entities:
+            label = str(entity.get("name") or entity.get("id") or "").strip()
+            if not label:
+                continue
+            lowered = label.lower()
+            if lowered in seen:
+                continue
+            seen.add(lowered)
+            labels.append(label)
+        return labels
+
+    airports = _collect_labels(extraction.airports)
+    destinations = _collect_labels(extraction.destinations)
+    dates = [dt.isoformat() for _, dt in extraction.dates]
+
+    duration_id: str | None = None
+    if extraction.duration:
+        duration_id = str(extraction.duration.get("id", "")).strip() or None
+
+    party_payload: Dict[str, int] = {}
+    if isinstance(extraction.party, Mapping):
+        adults = extraction.party.get("adults")
+        non_adults = extraction.party.get("nonAdults")
+        if adults is not None and non_adults is not None:
+            party_payload = {
+                "adults": int(adults),
+                "nonAdults": int(non_adults),
+            }
+
+    payload: Dict[str, object] = {
+        "from": airports,
+        "to": destinations,
+        "durationId": duration_id,
+        "departureDate": dates,
+        "party": party_payload,
+        "rooms": extraction.rooms,
+    }
+    return payload
 
 
 class HolidaySearchPipeline:
@@ -71,6 +119,12 @@ class HolidaySearchPipeline:
             self._configuration,
             llm_client=llm_client,
         )
+        self._imputer: PopularityImputer | None = None
+        if self._settings.popularity_imputer_enabled:
+            self._imputer = PopularityImputer(
+                settings=self._settings,
+                configuration=self._configuration,
+            )
 
     def _load_search_configuration(self, fixtures_root: Path) -> SearchConfiguration:
         config_path = fixtures_root / self.CONFIG_FILENAME
@@ -140,6 +194,10 @@ class HolidaySearchPipeline:
             llm_metadata = self._llm_extractor.last_metadata
             if isinstance(llm_metadata, Mapping):
                 metadata_payload["llm"] = dict(llm_metadata)
+
+        imputation_meta = self._apply_imputation(extraction)
+        metadata_payload["imputation"] = dict(imputation_meta)
+        metadata_payload["imputed"] = dict(imputation_meta.get("imputed", {}))
 
         normalized = self._measure(
             "normalizationMs",
@@ -322,6 +380,7 @@ class HolidaySearchPipeline:
         metadata.setdefault("methodDefaults", dict(self._methods_catalog.defaults))
         metadata.setdefault("defaultMethod", self._methods_catalog.default_method_id)
         metadata.setdefault("catalogSize", len(self._methods_catalog.list_methods()))
+        metadata.setdefault("imputed", metadata.get("imputed", {}))
         attempts = [dict(item) for item in outcome.attempts]
 
         normalized = outcome.normalized
@@ -396,5 +455,92 @@ class HolidaySearchPipeline:
 
         return self._methods_catalog.default_method_id
 
+    def _apply_imputation(self, extraction: ExtractionResult) -> Dict[str, object]:
+        if self._imputer is None:
+            return {"enabled": False, "imputed": {}}
 
-__all__ = ["HolidaySearchPipeline", "PipelineRunResult", "SearchConfiguration"]
+        params = extraction_to_imputer_payload(extraction)
+        enriched, metadata = self._imputer.impute(params)
+        self._merge_imputed_values(extraction, enriched)
+        metadata.setdefault("imputed", {})
+        metadata.setdefault("enabled", True)
+        return metadata
+
+    def _merge_imputed_values(self, extraction: ExtractionResult, params: Mapping[str, object]) -> None:
+        def _coerce_strings(value: object) -> list[str]:
+            if isinstance(value, str):
+                candidates = [value]
+            elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+                candidates = list(value)
+            else:
+                candidates = []
+            results: list[str] = []
+            for item in candidates:
+                if not isinstance(item, str):
+                    continue
+                cleaned = item.strip()
+                if cleaned:
+                    results.append(cleaned)
+            return results
+
+        if not extraction.airports:
+            airports: list[Dict[str, object]] = []
+            seen: set[str] = set()
+            for label in _coerce_strings(params.get("from")):
+                try:
+                    airport = self._fixtures.get_airport_by_name(label)
+                except KeyError:
+                    airport = {"id": label.upper(), "name": label, "available": True}
+                if "available" not in airport:
+                    airport["available"] = True
+                code = str(airport.get("id", "")).upper()
+                if not code or code in seen:
+                    continue
+                seen.add(code)
+                airports.append(dict(airport))
+            if airports:
+                extraction.airports = airports
+
+        if not extraction.dates:
+            dates: list[tuple[str, datetime]] = []
+            for iso_value in _coerce_strings(params.get("departureDate")):
+                try:
+                    parsed = datetime.fromisoformat(iso_value)
+                except ValueError:
+                    continue
+                dates.append((iso_value, parsed))
+            if dates:
+                extraction.dates = dates
+
+        if extraction.duration is None or not str(extraction.duration.get("id", "")).strip():
+            duration_id = params.get("durationId")
+            if isinstance(duration_id, str) and duration_id.strip():
+                meta = self._configuration.duration_by_id.get(duration_id.strip())
+                if meta:
+                    extraction.duration = dict(meta)
+
+        if not isinstance(extraction.party, Mapping):
+            party_payload = params.get("party")
+            if isinstance(party_payload, Mapping):
+                adults = party_payload.get("adults")
+                non_adults = party_payload.get("nonAdults")
+                if adults is not None and non_adults is not None:
+                    extraction.party = {
+                        "adults": int(adults),
+                        "nonAdults": int(non_adults),
+                    }
+
+        if extraction.rooms is None and params.get("rooms") is not None:
+            rooms_value = params.get("rooms")
+            try:
+                extraction.rooms = int(rooms_value) if rooms_value is not None else None
+            except (TypeError, ValueError):
+                extraction.rooms = None
+
+
+__all__ = [
+    "HolidaySearchPipeline",
+    "PipelineRunResult",
+    "SearchConfiguration",
+    "extraction_to_imputer_payload",
+]

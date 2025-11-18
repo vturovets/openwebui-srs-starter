@@ -25,6 +25,7 @@ def pipeline_factory(tmp_path: Path):
         allowed_langs: list[str] | None = None,
         methods_config_path: Path | None = None,
         default_method: str | None = None,
+        popularity_imputer_enabled: bool | None = None,
     ) -> HolidaySearchPipeline:
         settings_kwargs: dict[str, object] = {
             "fixtures_dir": FIXTURES_DIR,
@@ -35,6 +36,8 @@ def pipeline_factory(tmp_path: Path):
             settings_kwargs["methods_config_path"] = methods_config_path
         if default_method is not None:
             settings_kwargs["llm_method"] = default_method
+        if popularity_imputer_enabled is not None:
+            settings_kwargs["popularity_imputer_enabled"] = popularity_imputer_enabled
         settings = Settings(**settings_kwargs)
 
         if responses is None:
@@ -89,7 +92,7 @@ def test_pipeline_hybrid_fallback_success(pipeline_factory) -> None:
             "dates": ["2025-11-25"],
         }
     }
-    pipeline = pipeline_factory(llm_payloads)
+    pipeline = pipeline_factory(llm_payloads, popularity_imputer_enabled=False)
 
     result = pipeline.run("Need a getaway from Amsterdam to Spain", method="hybrid")
 
@@ -119,7 +122,7 @@ def test_pipeline_records_llm_network_latency(pipeline_factory) -> None:
             0.05,
         )
     }
-    pipeline = pipeline_factory(llm_payloads)
+    pipeline = pipeline_factory(llm_payloads, popularity_imputer_enabled=False)
 
     result = pipeline.run("Measure latency", method="llm")
 
@@ -142,7 +145,7 @@ def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
             },
         }
     }
-    pipeline = pipeline_factory(llm_payloads)
+    pipeline = pipeline_factory(llm_payloads, popularity_imputer_enabled=False)
 
     result = pipeline.run("Expose metadata", method="llm")
 
@@ -162,7 +165,7 @@ def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
             "dates": [],
         }
     }
-    pipeline = pipeline_factory(llm_payloads)
+    pipeline = pipeline_factory(llm_payloads, popularity_imputer_enabled=False)
 
     result = pipeline.run("Fallback still missing data", method="hybrid")
 
@@ -271,3 +274,28 @@ def test_pipeline_rejects_language_outside_allow_list(pipeline_factory) -> None:
 
     with pytest.raises(ValueError):
         pipeline.run("Je cherche des vacances en Italie", method="rules")
+
+
+def test_pipeline_imputer_enriches_missing_fields(pipeline_factory) -> None:
+    pipeline = pipeline_factory()
+
+    result = pipeline.run("Show me the best Costa Rica deals", method="rules")
+
+    assert result.status == "success"
+    normalized = result.normalized
+    assert normalized is not None
+    assert normalized.departure_dates
+    assert normalized.party["adults"] == 2
+    imputed = result.metadata.get("imputed")
+    assert isinstance(imputed, dict)
+    assert "departureDate" in imputed
+
+
+def test_pipeline_imputer_can_be_disabled(pipeline_factory) -> None:
+    pipeline = pipeline_factory(popularity_imputer_enabled=False)
+
+    result = pipeline.run("Show me the best Costa Rica deals", method="rules")
+
+    assert result.status == "failed"
+    assert result.validation["status"] == "failed"
+    assert result.metadata.get("imputed") == {}
