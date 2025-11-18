@@ -238,17 +238,12 @@ class Settings(BaseSettings):
     popularity_imputer_enabled: bool = Field(
         default=True,
         alias="POPULARITY_IMPUTER_ENABLED",
-        description="Toggle for enabling the popularity-based imputer.",
+        description="Toggle the popularity-based imputer described in docs/CR-001.md.",
     )
     popularity_data_path: Path = Field(
         default=Path("fixtures/popularity_stats.json"),
         alias="POPULARITY_DATA_PATH",
-        description="Filesystem path to the cached popularity statistics JSON payload.",
-    )
-    popularity_source_csv_path: Path = Field(
-        default=Path("docs/demo_set_example.csv"),
-        alias="POPULARITY_SOURCE_CSV_PATH",
-        description="Fallback CSV path used to rebuild popularity statistics when the cache is missing.",
+        description="Path to the persisted popularity statistics consumed by the imputer.",
     )
     methods_config_path: Path = Field(
         default=Path("config/methods.yaml"),
@@ -472,14 +467,16 @@ class Settings(BaseSettings):
             return delimiter
         raise TypeError("CSV_DELIMITER must be provided as a single-character string")
 
-    @field_validator("csv_path", "fixtures_dir", "methods_config_path", mode="before")
+    @field_validator("csv_path", "fixtures_dir", "methods_config_path", "popularity_data_path", mode="before")
     @classmethod
     def _ensure_path(cls, value: object) -> Path:
         if isinstance(value, Path):
             return value
         if isinstance(value, str):
             return Path(value)
-        raise TypeError("Expected a filesystem path string for CSV_PATH/FIXTURES_DIR")
+        raise TypeError(
+            "Expected a filesystem path string for CSV_PATH/FIXTURES_DIR/METHODS_CONFIG_PATH/POPULARITY_DATA_PATH"
+        )
 
     def load_methods_catalog(self) -> MethodsCatalog:
         """Load and cache the configured methods catalogue."""
@@ -568,6 +565,23 @@ class Settings(BaseSettings):
         self.popularity_data_path.parent.mkdir(parents=True, exist_ok=True)
         if self.import_summary_path is not None:
             self.import_summary_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def resolve_popularity_data_path(self) -> Path:
+        """Return the fully-resolved popularity statistics file path."""
+
+        data_path = self.popularity_data_path
+        if data_path.is_absolute():
+            return data_path
+
+        fixtures_dir = self.fixtures_dir
+        default_root = Path("fixtures")
+        relative_path = data_path
+        try:
+            relative_path = data_path.relative_to(default_root)
+        except ValueError:
+            pass
+
+        return (fixtures_dir / relative_path).resolve()
 
 
 __all__ = ["Settings"]
