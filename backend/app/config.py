@@ -245,6 +245,16 @@ class Settings(BaseSettings):
         alias="POPULARITY_DATA_PATH",
         description="Path to the persisted popularity statistics consumed by the imputer.",
     )
+    suggestions_enabled: bool = Field(
+        default=True,
+        alias="SUGGESTIONS_ENABLED",
+        description="Enable or disable the auto-completion suggestions service described in docs/CR-002.md.",
+    )
+    suggestions_limit: int = Field(
+        default=3,
+        alias="SUGGESTIONS_LIMIT",
+        description="Maximum number of suggestions returned per field when auto-completion is enabled.",
+    )
     methods_config_path: Path = Field(
         default=Path("config/methods.yaml"),
         alias="METHODS_CONFIG_PATH",
@@ -268,6 +278,14 @@ class Settings(BaseSettings):
         # VOICE_ALLOWED_CONTENT_TYPES) without triggering JSON decode errors for
         # blank values by skipping automatic decoding in the settings sources.
         enable_decoding=False,
+        json_schema_extra={
+            "features": {
+                "auto_completion": {
+                    "enabled_env": "SUGGESTIONS_ENABLED",
+                    "limit_env": "SUGGESTIONS_LIMIT",
+                }
+            }
+        },
     )
 
     @field_validator("allowed_langs", mode="before")
@@ -556,6 +574,21 @@ class Settings(BaseSettings):
         if len(cleaned) != 1:
             raise ValueError("IMPORT_SUMMARY_DELIMITER must be a single character")
         return cleaned
+
+    @field_validator("suggestions_limit", mode="before")
+    @classmethod
+    def _validate_suggestions_limit(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 3
+        try:
+            limit = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("SUGGESTIONS_LIMIT must be a positive integer") from exc
+        if limit < 1:
+            raise ValueError("SUGGESTIONS_LIMIT must be at least 1")
+        return limit
 
     def ensure_directories(self) -> None:
         """Create required directories for runtime artifacts if missing."""
