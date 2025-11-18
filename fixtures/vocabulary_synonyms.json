@@ -20,18 +20,18 @@
   ],
   "destinations": [
     {
-      "target": "d7b4bb39-123c-1234-b123-1234567i",
+      "target": "d7b4bb39-2000-1234-aaaa-1234567a",
       "values": [
-        {"lang": "nl", "value": "italie"},
-        {"lang": "nl", "value": "italië"},
-        {"lang": "fr", "value": "italie"}
+        {"lang": "nl", "value": "australie"},
+        {"lang": "nl", "value": "australië"},
+        {"lang": "fr", "value": "australie"}
       ]
     },
     {
-      "target": "d7b4bb39-123c-1234-1234-1234567s",
+      "target": "d7b4bb39-2000-1234-aaaa-1234567b",
       "values": [
-        {"lang": "nl", "value": "spanje"},
-        {"lang": "fr", "value": "espagne"}
+        {"lang": "nl", "value": "nieuw-zeeland"},
+        {"lang": "fr", "value": "nouvelle-zélande"}
       ]
     }
   ],

@@ -22,7 +22,22 @@
 				"id": "BRU",
 				"name": "Brussels",
 				"available": true
-			}
+			},
+			{
+				"id": "CRL",
+				"name": "Charleroi",
+				"available": true
+			},
+			{
+				"id": "LGG",
+				"name": "Liege",
+				"available": true
+			},
+			{
+				"id": "LIL",
+				"name": "Lille",
+				"available": true
+			}			
 		]
 	}
 }
