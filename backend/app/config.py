@@ -562,6 +562,7 @@ class Settings(BaseSettings):
 
         self.csv_path.parent.mkdir(parents=True, exist_ok=True)
         self.fixtures_dir.mkdir(parents=True, exist_ok=True)
+        self.popularity_data_path.parent.mkdir(parents=True, exist_ok=True)
         if self.import_summary_path is not None:
             self.import_summary_path.parent.mkdir(parents=True, exist_ok=True)
 

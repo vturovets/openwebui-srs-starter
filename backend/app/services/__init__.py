@@ -9,6 +9,7 @@ __all__ = [
     "ImportJobRunner",
     "ImportSummary",
     "JobMetrics",
+    "PopularityImputer",
 ]
 
 from .import_runner import (
@@ -19,4 +20,5 @@ from .import_runner import (
     ImportSummary,
     JobMetrics,
 )
+from .popularity_imputer import PopularityImputer
 
