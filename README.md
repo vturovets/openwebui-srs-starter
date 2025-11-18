@@ -102,6 +102,8 @@ serving traffic. Key options mirror the SRS:
 | `VOICE_MAX_BYTES` | `10000000` | Maximum audio payload size accepted by `/v1/voice` in bytes. |
 | `VOICE_ALLOWED_CONTENT_TYPES` | see code | Comma-separated list of MIME types accepted by `/v1/voice` (defaults cover WAV, MP3, OGG, WebM, and FLAC). |
 | `FIXTURES_DIR` | `fixtures` | Directory containing the JSON fixture files. |
+| `POPULARITY_IMPUTER_ENABLED` | `true` | Enable or disable the popularity-based imputer that fills missing dates, airports, and party values using historic stats. |
+| `POPULARITY_DATA_PATH` | `fixtures/popularity_stats.json` | Location of the persisted popularity statistics. Relative paths are resolved under `FIXTURES_DIR`. |
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 | `SHOW_FAILED_ONLY` | `true` | When importing CSV logs into the UI, hide successful runs unless explicitly requested. |
@@ -134,6 +136,9 @@ LLM_API_KEY=sk-your-key
 LLM_MODEL=gpt-4o
 # Optional when routing through a proxy/self-hosted gateway
 # LLM_API_BASE=https://your-proxy.example.com/v1
+# Enable the popularity imputer and override the stats filename (relative to FIXTURES_DIR)
+POPULARITY_IMPUTER_ENABLED=true
+POPULARITY_DATA_PATH=popularity_stats.json
 PROCESSING_THRESHOLD_MS=750
 IMPORT_P95_THRESHOLD_MS=1250
 IMPORT_P95_SAMPLE_SIZE=2000
@@ -452,6 +457,10 @@ Content-Type: application/json
 
 The popularity imputer described in [`docs/CR-001.md`](docs/CR-001.md) consumes the
 pre-computed statistics stored in [`fixtures/popularity_stats.json`](fixtures/popularity_stats.json).
+Set `POPULARITY_IMPUTER_ENABLED=false` in your `.env` to bypass the imputer when
+debugging and use `POPULARITY_DATA_PATH` to point at alternate stats files.
+Relative values are resolved under `FIXTURES_DIR`, so `POPULARITY_DATA_PATH=popularity_stats.json`
+will resolve to `<fixtures_dir>/popularity_stats.json` automatically.
 The file is regenerated from `docs/demo_set_example.csv` and exposes the
 following schema so the backend can decide whether to use global trends or
 destination-specific modes:
@@ -481,7 +490,8 @@ destination-specific modes:
 
 ### Rebuilding the fixture
 
-Use the helper CLI whenever the CSV changes:
+Use the helper CLI whenever the CSV changes to regenerate the file referenced by
+`POPULARITY_DATA_PATH`:
 
 ```bash
 make popularity-stats
