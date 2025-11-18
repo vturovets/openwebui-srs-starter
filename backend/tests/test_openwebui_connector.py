@@ -42,6 +42,8 @@ def build_transport():
                 ],
                 "defaultMethod": "rules-basic",
                 "methodDefaults": {"temperature": 0.0, "timeout_s": 30},
+                "suggestionsEnabled": True,
+                "suggestionsLimit": 3,
             }
             return type("Resp", (), {"status_code": 200, "body": json.dumps(payload)})()
         if path.endswith("v1/voice") and method == "POST":

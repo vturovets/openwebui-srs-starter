@@ -44,6 +44,8 @@
   let downloadUrl: string | null = null;
   let importInput: HTMLInputElement | null = null;
   let resettingHistory = false;
+  let suggestionsEnabled = true;
+  let suggestionsLimit = 3;
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const SUCCESS_STATUSES = new Set(['success', 'ok', 'passed']);
@@ -592,6 +594,14 @@
       showFailedOnly = typeof data.showFailedOnly === 'boolean' ? data.showFailedOnly : true;
       mode = data.mode;
       dialogOverrideAllowed = isDialogMode(data.mode);
+      suggestionsEnabled = typeof data.suggestionsEnabled === 'boolean' ? data.suggestionsEnabled : true;
+      const configuredLimit = toFiniteNumber(data.suggestionsLimit);
+      if (configuredLimit !== null) {
+        const normalizedLimit = Math.max(1, Math.floor(configuredLimit));
+        suggestionsLimit = normalizedLimit;
+      } else {
+        suggestionsLimit = 3;
+      }
       methodOptions = normaliseMethodOptions(data?.availableMethods);
       method = typeof data.llmMethod === 'string' ? data.llmMethod : '';
       if (method && !methodOptions.some((option) => option.id === method)) {
@@ -1110,12 +1120,15 @@
         ></textarea>
       </label>
 
-      <AutoComplete
-        query={query}
-        baseUrl={baseUrl}
-        disabled={busy || resettingHistory}
-        on:selectSuggestion={handleSuggestionSelect}
-      />
+      {#if suggestionsEnabled}
+        <AutoComplete
+          query={query}
+          baseUrl={baseUrl}
+          limit={suggestionsLimit}
+          disabled={busy || resettingHistory}
+          on:selectSuggestion={handleSuggestionSelect}
+        />
+      {/if}
 
       <div class="actions">
         <button type="submit" disabled={busy} data-testid="submit-button">{busy ? 'Parsing…' : 'Parse request'}</button>
