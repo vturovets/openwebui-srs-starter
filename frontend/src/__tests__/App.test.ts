@@ -15,6 +15,7 @@ vi.mock('../lib/api', () => ({
   fetchFixtures: vi.fn(),
   parseText: vi.fn(),
   postVoice: vi.fn(),
+  fetchSuggestions: vi.fn(),
 }));
 
 import App from '../App.svelte';
