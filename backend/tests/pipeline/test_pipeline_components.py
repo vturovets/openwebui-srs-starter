@@ -21,7 +21,11 @@ from backend.app.pipeline.extractor_rules import ExtractionResult
 from backend.app.pipeline import language as language_module
 from backend.app.pipeline.language import LanguageDetector
 from backend.app.pipeline.normalizer import Normalizer
-from backend.app.pipeline.pipeline import HolidaySearchPipeline, SearchConfiguration
+from backend.app.pipeline.pipeline import (
+    HolidaySearchPipeline,
+    PipelineRunResult,
+    SearchConfiguration,
+)
 from backend.app.pipeline.validator import ValidationError
 from fastapi import HTTPException
 from backend.app.services import import_runner
@@ -253,6 +257,55 @@ def test_validator_requires_departure_or_destination_with_date(pipeline: Holiday
         pipeline.validator.validate(normalized)
 
     assert "Utterance must include departure date" in str(exc.value)
+
+
+def _run_pipeline_scenario(
+    pipeline: HolidaySearchPipeline, utterance: str
+) -> PipelineRunResult:
+    result = pipeline.run(utterance)
+
+    assert result.status == "success"
+    assert result.validation["status"] == "passed"
+    assert result.normalized is not None
+    return result
+
+
+def test_pipeline_imputes_unspecified_search(pipeline: HolidaySearchPipeline) -> None:
+    result = _run_pipeline_scenario(pipeline, "Show me the cheapest offers")
+
+    normalized = result.normalized
+    assert normalized is not None
+    assert normalized.from_codes
+    assert normalized.departure_dates
+
+    metadata = result.metadata.get("imputed", {})
+    assert metadata
+    assert metadata["departureDate"]["source"] == "global"
+
+
+def test_pipeline_imputes_single_destination_stats(pipeline: HolidaySearchPipeline) -> None:
+    result = _run_pipeline_scenario(pipeline, "Best cheap hotels in Australia")
+
+    extraction = result.extraction
+    assert extraction is not None
+    assert len(extraction.destinations) == 1
+
+    metadata = result.metadata.get("imputed", {})
+    assert metadata.get("departureDate", {}).get("source") == "destination:Australia"
+    assert metadata.get("from", {}).get("source") == "destination:Australia"
+
+
+def test_pipeline_imputes_multi_destination_without_intersection(
+    pipeline: HolidaySearchPipeline,
+) -> None:
+    result = _run_pipeline_scenario(pipeline, "Cheapest offers for Kenya and Japan")
+
+    extraction = result.extraction
+    assert extraction is not None
+    assert len(extraction.destinations) == 2
+
+    metadata = result.metadata.get("imputed", {})
+    assert metadata.get("departureDate", {}).get("source") == "global"
 
 
 def _call_parse(

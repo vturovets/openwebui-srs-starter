@@ -36,17 +36,61 @@
 				"available": true,
 				"synonym": null
 			},
-			{
-				"id": "d7b4bb39-123c-1234-1234-1234567s",
-				"name": "Spain",
-				"type": "COUNTRY",
-				"multiSelect": true,
-				"fewDaysFlag": false,
-				"url": null,
-				"parentCode": null,
-				"available": true,
-				"synonym": null
-			}
-		]
-	}
+                        {
+                                "id": "d7b4bb39-123c-1234-1234-1234567s",
+                                "name": "Spain",
+                                "type": "COUNTRY",
+                                "multiSelect": true,
+                                "fewDaysFlag": false,
+                                "url": null,
+                                "parentCode": null,
+                                "available": true,
+                                "synonym": null
+                        },
+                        {
+                                "id": "d7b4bb39-2000-1234-aaaa-1234567a",
+                                "name": "Australia",
+                                "type": "COUNTRY",
+                                "multiSelect": true,
+                                "fewDaysFlag": false,
+                                "url": null,
+                                "parentCode": null,
+                                "available": true,
+                                "synonym": null
+                        },
+                        {
+                                "id": "d7b4bb39-2000-1234-aaab-1234567b",
+                                "name": "Costa Rica",
+                                "type": "COUNTRY",
+                                "multiSelect": true,
+                                "fewDaysFlag": false,
+                                "url": null,
+                                "parentCode": null,
+                                "available": true,
+                                "synonym": null
+                        },
+                        {
+                                "id": "d7b4bb39-2000-1234-aaac-1234567c",
+                                "name": "Japan",
+                                "type": "COUNTRY",
+                                "multiSelect": true,
+                                "fewDaysFlag": false,
+                                "url": null,
+                                "parentCode": null,
+                                "available": true,
+                                "synonym": null
+                        },
+                        {
+                                "id": "d7b4bb39-2000-1234-aaad-1234567d",
+                                "name": "Kenya",
+                                "type": "COUNTRY",
+                                "multiSelect": true,
+                                "fewDaysFlag": false,
+                                "url": null,
+                                "parentCode": null,
+                                "available": true,
+                                "synonym": null
+                        }
+                ]
+        }
 }
