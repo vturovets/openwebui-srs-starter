@@ -235,6 +235,21 @@ class Settings(BaseSettings):
         alias="FIXTURES_DIR",
         description="Directory containing validation fixture data.",
     )
+    popularity_imputer_enabled: bool = Field(
+        default=True,
+        alias="POPULARITY_IMPUTER_ENABLED",
+        description="Toggle for enabling the popularity-based imputer.",
+    )
+    popularity_data_path: Path = Field(
+        default=Path("fixtures/popularity_stats.json"),
+        alias="POPULARITY_DATA_PATH",
+        description="Filesystem path to the cached popularity statistics JSON payload.",
+    )
+    popularity_source_csv_path: Path = Field(
+        default=Path("docs/demo_set_example.csv"),
+        alias="POPULARITY_SOURCE_CSV_PATH",
+        description="Fallback CSV path used to rebuild popularity statistics when the cache is missing.",
+    )
     methods_config_path: Path = Field(
         default=Path("config/methods.yaml"),
         alias="METHODS_CONFIG_PATH",
@@ -550,6 +565,7 @@ class Settings(BaseSettings):
 
         self.csv_path.parent.mkdir(parents=True, exist_ok=True)
         self.fixtures_dir.mkdir(parents=True, exist_ok=True)
+        self.popularity_data_path.parent.mkdir(parents=True, exist_ok=True)
         if self.import_summary_path is not None:
             self.import_summary_path.parent.mkdir(parents=True, exist_ok=True)
 
