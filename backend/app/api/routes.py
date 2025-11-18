@@ -19,6 +19,7 @@ from ..config import Settings
 from ..dependencies import (
     get_csv_logger,
     get_dialog_orchestrator,
+    get_auto_completion_service,
     get_import_summary_logger,
     get_stt_client,
     get_pipeline,
@@ -28,7 +29,12 @@ from ..logging import CSVLogger, ImportSummaryLogger
 from ..pipeline.dialog import DialogOrchestrator
 from ..pipeline.pipeline import HolidaySearchPipeline
 from ..schemas import ImportSummary as ImportSummarySchema, build_import_summary
-from ..services import GuardrailOverloadError, ImportJobRunner, ImportSummary as ImportSummaryData
+from ..services import (
+    AutoCompletionService,
+    GuardrailOverloadError,
+    ImportJobRunner,
+    ImportSummary as ImportSummaryData,
+)
 from ..integrations.stt import (
     SpeechToTextClient,
     SpeechToTextError,
@@ -878,6 +884,36 @@ async def fetch_fixtures(
             "importP95Significance": settings.import_p95_significance,
         },
     }
+
+
+@api_router.get("/suggestions")
+async def fetch_suggestions(
+    q: str,
+    limit: int = 3,
+    settings: Settings = Depends(get_settings),
+    service: AutoCompletionService = Depends(get_auto_completion_service),
+) -> dict[str, object]:
+    """Return auto-completion suggestions derived from popularity statistics."""
+
+    if not settings.suggestions_enabled:
+        return {"suggestions": {}}
+
+    normalized_query = (q or "").strip()
+    if not normalized_query:
+        return {"suggestions": {}}
+
+    try:
+        configured_limit = int(settings.suggestions_limit)
+    except (TypeError, ValueError):  # pragma: no cover - defensive fallback
+        configured_limit = 1
+
+    configured_limit = max(1, configured_limit)
+    requested_limit = max(1, int(limit or 1))
+    safe_limit = min(requested_limit, configured_limit)
+
+    resolved_service = cast(AutoCompletionService, _resolve_dependency(service))
+    suggestions = resolved_service.suggest(normalized_query, safe_limit)
+    return {"suggestions": suggestions}
 
 
 @api_router.post("/voice", response_model=VoiceResponse)
