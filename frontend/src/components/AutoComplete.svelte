@@ -23,6 +23,9 @@
   let errorMessage = '';
   let debounceId: ReturnType<typeof setTimeout> | null = null;
   let activeRequestId = 0;
+  let destinationSearch: string | null = null;
+
+  const DESTINATION_TRIGGER = /(?:^|\s)to\s+([^\s]*)\s*$/i;
 
   const sections: Array<{ field: SuggestionField; label: string }> = [
     { field: 'destinations', label: 'Destinations' },
@@ -32,6 +35,24 @@
     { field: 'rooms', label: 'Rooms' },
     { field: 'from', label: 'From' },
   ];
+
+  function resolveDestinationSearch(input: string): string | null {
+    if (!input) {
+      return null;
+    }
+
+    const match = DESTINATION_TRIGGER.exec(input);
+    if (!match) {
+      return null;
+    }
+
+    const term = (match[1] ?? '').trim();
+    if (term.length > 3) {
+      return null;
+    }
+
+    return term;
+  }
 
   function clearTimer() {
     if (debounceId) {
@@ -124,21 +145,22 @@
     return formatDefaultSuggestion(suggestion as SuggestionValue);
   }
 
+  $: destinationSearch = resolveDestinationSearch(query);
+
   $: {
-    const trimmed = query.trim();
     const resolvedBase = baseUrl;
     const numericLimit = Number.isFinite(limit) ? Math.floor(limit) : 3;
     const safeLimit = numericLimit > 0 ? numericLimit : 3;
-    if (!trimmed || disabled || !resolvedBase) {
+    if (disabled || !resolvedBase || destinationSearch === null) {
       cancelRequests();
       suggestions = null;
       errorMessage = '';
     } else {
-      scheduleFetch(trimmed, safeLimit);
+      scheduleFetch(destinationSearch, safeLimit);
     }
   }
 
-  const shouldRender = () => !disabled && Boolean(query.trim());
+  const shouldRender = () => !disabled && destinationSearch !== null;
 
   onDestroy(() => {
     cancelRequests();
