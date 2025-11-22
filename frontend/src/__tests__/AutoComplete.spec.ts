@@ -23,23 +23,23 @@ describe('AutoComplete', () => {
     vi.mocked(fetchSuggestions).mockResolvedValue({ suggestions: {} });
     const { component } = render(AutoComplete, { query: '', baseUrl: 'http://example.test' });
 
-    component.$set({ query: 'a' });
-    component.$set({ query: 'am' });
+    component.$set({ query: 'plan a trip to a' });
+    component.$set({ query: 'plan a trip to au' });
     await vi.advanceTimersByTimeAsync(200);
     expect(fetchSuggestions).not.toHaveBeenCalled();
 
-    component.$set({ query: 'ams' });
+    component.$set({ query: 'plan a trip to aus' });
     await vi.advanceTimersByTimeAsync(350);
     expect(fetchSuggestions).toHaveBeenCalledTimes(1);
-    expect(fetchSuggestions).toHaveBeenCalledWith('http://example.test', 'ams', 3);
+    expect(fetchSuggestions).toHaveBeenCalledWith('http://example.test', 'aus', 3);
   });
 
   it('cancels pending requests when the query clears', async () => {
     vi.mocked(fetchSuggestions).mockResolvedValue({ suggestions: {} });
-    const { component } = render(AutoComplete, { query: 'rome', baseUrl: 'http://example.test' });
+    const { component } = render(AutoComplete, { query: '', baseUrl: 'http://example.test' });
 
-    component.$set({ query: 'rom' });
-    component.$set({ query: '' });
+    component.$set({ query: 'book me a trip to rom' });
+    component.$set({ query: 'book me a trip' });
     await vi.advanceTimersByTimeAsync(400);
 
     expect(fetchSuggestions).not.toHaveBeenCalled();
@@ -51,7 +51,10 @@ describe('AutoComplete', () => {
         destinations: [{ value: 'Rome', label: 'Rome, Italy' }],
       },
     });
-    const { component } = render(AutoComplete, { query: 'rom', baseUrl: 'http://example.test' });
+    const { component } = render(AutoComplete, {
+      query: 'book me a trip to rom',
+      baseUrl: 'http://example.test',
+    });
     const handler = vi.fn();
     component.$on('selectSuggestion', handler);
 
@@ -64,5 +67,15 @@ describe('AutoComplete', () => {
       field: 'destinations',
       value: { value: 'Rome', label: 'Rome, Italy' },
     });
+  });
+
+  it('ignores destination fragments longer than three characters', async () => {
+    vi.mocked(fetchSuggestions).mockResolvedValue({ suggestions: {} });
+    const { component } = render(AutoComplete, { query: '', baseUrl: 'http://example.test' });
+
+    component.$set({ query: 'Find me a trip from Amsterdam to Austria' });
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect(fetchSuggestions).not.toHaveBeenCalled();
   });
 });
