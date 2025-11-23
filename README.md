@@ -104,8 +104,6 @@ serving traffic. Key options mirror the SRS:
 | `FIXTURES_DIR` | `fixtures` | Directory containing the JSON fixture files. |
 | `POPULARITY_IMPUTER_ENABLED` | `true` | Enable or disable the popularity-based imputer that fills missing dates, airports, and party values using historic stats. |
 | `POPULARITY_DATA_PATH` | `fixtures/popularity_stats.json` | Location of the persisted popularity statistics. Relative paths are resolved under `FIXTURES_DIR`. |
-| `SUGGESTIONS_ENABLED` | `true` | Feature flag controlling the auto-completion suggestions surface described in [`docs/CR-002.md`](docs/CR-002.md). |
-| `SUGGESTIONS_LIMIT` | `3` | Default maximum number of suggestions returned per field when auto-completion is enabled. |
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 | `SHOW_FAILED_ONLY` | `true` | When importing CSV logs into the UI, hide successful runs unless explicitly requested. |
