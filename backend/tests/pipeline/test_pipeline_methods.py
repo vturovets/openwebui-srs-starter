@@ -291,6 +291,21 @@ def test_pipeline_imputer_enriches_missing_fields(pipeline_factory) -> None:
     assert "departureDate" in imputed
 
 
+def test_pipeline_imputer_populates_empty_request_from_popularity_stats(pipeline_factory) -> None:
+    pipeline = pipeline_factory()
+
+    result = pipeline.run("Find me a trip", method="rules")
+
+    assert result.status == "success"
+    normalized = result.normalized
+    assert normalized is not None
+    assert normalized.from_codes == ["CRL"]
+    assert normalized.departure_dates == ["2026-02-16", "2026-02-22"]
+    assert normalized.duration_id == "2007"
+    assert normalized.party == {"adults": 2, "nonAdults": 0}
+    assert normalized.rooms is None
+
+
 def test_pipeline_imputer_can_be_disabled(pipeline_factory) -> None:
     pipeline = pipeline_factory(popularity_imputer_enabled=False)
 

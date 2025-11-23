@@ -29,7 +29,12 @@ class PopularityImputer:
     ) -> None:
         self._settings = settings or Settings()
         self._enabled = bool(self._settings.popularity_imputer_enabled)
-        self._stats_path = Path(stats_path or self._settings.popularity_data_path)
+        resolved_path = (
+            Path(stats_path)
+            if stats_path is not None
+            else self._settings.resolve_popularity_data_path()
+        )
+        self._stats_path = resolved_path
         self._configuration = configuration or self._load_configuration()
 
         payload = stats_payload or self._load_statistics()
