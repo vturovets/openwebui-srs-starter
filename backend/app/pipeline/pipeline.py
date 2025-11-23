@@ -19,11 +19,7 @@ from .configuration import (
 )
 from .extractor_rules import ExtractionResult, RulesExtractor
 from .extractors import ExtractorOutcome, LLMExtractor
-from .language import (
-    LanguageDetector,
-    LanguageDetectionResult,
-    LanguageNotPermittedError,
-)
+from .language import LanguageDetector, LanguageDetectionResult
 from .normalizer import Normalizer, NormalizedResult
 from .validator import ValidationError, Validator
 from ..services.popularity_imputer import PopularityImputer
@@ -36,7 +32,7 @@ class PipelineRunResult:
     status: str
     method_requested: str
     method_used: str
-    detection: LanguageDetectionResult | None
+    detection: LanguageDetectionResult
     extraction: ExtractionResult | None
     normalized: NormalizedResult | None
     validation: Dict[str, Any]
@@ -145,38 +141,6 @@ class HolidaySearchPipeline:
             return func()
         finally:
             timings[label] = timings.get(label, 0.0) + (perf_counter() - start) * 1000
-
-    def _build_language_error(
-        self, *, detected_language: str | None, resolved_method: MethodConfig
-    ) -> tuple[str, Dict[str, object], list[Dict[str, object]]]:
-        """Construct user-friendly validation payload for unsupported languages."""
-
-        supported = sorted(self._settings.allowed_langs)
-        supported_list = ", ".join(supported)
-        detail = (
-            f"Sorry, we don't currently support '{detected_language}'. Supported languages: {supported_list}."
-            if detected_language
-            else f"Sorry, this language is not supported. Supported languages: {supported_list}."
-        )
-        validation = {
-            "status": "error",
-            "errors": [
-                {
-                    "message": detail,
-                    "code": "unsupported_language",
-                    "language": detected_language,
-                }
-            ],
-        }
-        attempts = [
-            {
-                "method": resolved_method.id,
-                "type": resolved_method.kind,
-                "status": "error",
-                "detail": detail,
-            }
-        ]
-        return detail, validation, attempts
 
     def _run_single_pass(
         self,
@@ -395,50 +359,13 @@ class HolidaySearchPipeline:
         timings: Dict[str, float] = {}
         total_start = perf_counter()
 
+        detection = self._measure(
+            "languageMs",
+            timings,
+            lambda: self._language.detect(utterance),
+        )
+
         requested_alias, resolved_method = self._resolve_method(method)
-        try:
-            detection = self._measure(
-                "languageMs",
-                timings,
-                lambda: self._language.detect(utterance),
-            )
-        except LanguageNotPermittedError as exc:
-            total_ms = (perf_counter() - total_start) * 1000
-            timings["totalMs"] = total_ms
-            detail, validation, attempts = self._build_language_error(
-                detected_language=getattr(exc, "language", None),
-                resolved_method=resolved_method,
-            )
-            metadata: Dict[str, object] = {
-                "methodId": resolved_method.id,
-                "methodType": resolved_method.kind,
-                "availableMethods": self._methods_catalog.to_metadata(),
-                "methodDefaults": dict(self._methods_catalog.defaults),
-                "defaultMethod": self._methods_catalog.default_method_id,
-                "catalogSize": len(self._methods_catalog.list_methods()),
-                "requestedMethod": resolved_method.id,
-                "imputed": {},
-            }
-            if requested_alias and requested_alias.lower() != resolved_method.id.lower():
-                metadata["requestedAlias"] = requested_alias
-
-            return PipelineRunResult(
-                status="error",
-                method_requested=resolved_method.id,
-                method_used=resolved_method.id,
-                detection=None,
-                extraction=None,
-                normalized=None,
-                validation=validation,
-                metadata=metadata,
-                attempts=attempts,
-                timings=timings,
-                error=detail,
-            )
-
-        if not isinstance(detection, LanguageDetectionResult):
-            raise ValueError("Language detection failed to return a valid result")
-
         outcome = self._execute_method(resolved_method, utterance, detection.language, timings)
 
         total_ms = (perf_counter() - total_start) * 1000
