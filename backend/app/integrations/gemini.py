@@ -47,6 +47,7 @@ class GeminiStructuredLLMClient:
         *,
         fixtures_dir: str | Path | None = None,
         http_client: httpx.Client | None = None,
+        show_curl: bool = False,
     ) -> None:
         fixtures_path = Path(fixtures_dir or settings.fixtures_dir)
         fixtures = FixtureRepository(fixtures_path)
@@ -76,6 +77,7 @@ class GeminiStructuredLLMClient:
         self._model = settings.llm_model
         self._api_key = settings.llm_api_key
         self._endpoint = endpoint_path
+        self._show_curl = show_curl
         self._last_latency_ms: float | None = None
 
         self._client = http_client or httpx.Client(base_url=api_base, timeout=settings.llm_timeout)
@@ -233,6 +235,34 @@ class GeminiStructuredLLMClient:
 
         return dict(structured_payload)
 
+    def _format_curl_command(
+        self,
+        request_payload: Mapping[str, Any],
+        params: Mapping[str, str] | None,
+    ) -> str:
+        url = f"{self._client.base_url}{self._endpoint}"
+        if params:
+            query_string = str(httpx.QueryParams(params))
+            if query_string:
+                url = f"{url}?{query_string}"
+
+        payload_json = json.dumps(request_payload, ensure_ascii=False)
+        escaped_payload = payload_json.replace("'", "'\"'\"'")
+
+        return (
+            "curl -X POST "
+            "-H \"Content-Type: application/json\" "
+            f"-d '{escaped_payload}' "
+            f'"{url}"'
+        )
+
+    def build_curl_command(self, query: str) -> str:
+        """Return a cURL command that mirrors the Gemini request for ``query``."""
+
+        request_payload = self._build_request_payload(query)
+        params = {"key": self._api_key} if self._api_key else None
+        return self._format_curl_command(request_payload, params)
+
     def _merge_metadata(
         self,
         payload: MutableMapping[str, Any],
@@ -286,6 +316,9 @@ class GeminiStructuredLLMClient:
     def __call__(self, text: str) -> Mapping[str, Any]:
         request_payload = self._build_request_payload(text)
         params = {"key": self._api_key} if self._api_key else None
+
+        if self._show_curl:
+            print(self._format_curl_command(request_payload, params))
 
         start = perf_counter()
         try:
