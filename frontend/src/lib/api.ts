@@ -2,7 +2,6 @@ import type {
   Fixtures,
   FixturesPerformanceTargets,
   HolidayResult,
-  SuggestionsResponse,
   VoiceResponse,
 } from './types';
 
@@ -135,18 +134,5 @@ export async function postVoice(baseUrl: string, formData: FormData): Promise<Vo
     payload.voiceEnabled = payload.voice_enabled as boolean;
   }
   return payload as VoiceResponse;
-}
-
-export async function fetchSuggestions(
-  baseUrl: string,
-  q: string,
-  limit = 3
-): Promise<SuggestionsResponse> {
-  const normalizedBase = baseUrl.replace(/\/$/, '');
-  const params = new URLSearchParams();
-  params.set('q', q);
-  params.set('limit', String(limit));
-  const response = await fetch(`${normalizedBase}/v1/suggestions?${params.toString()}`);
-  return handleResponse(response);
 }
 
