@@ -119,6 +119,19 @@ def test_language_detector_recovers_from_misclassified_lang(monkeypatch) -> None
     assert detection.confidence > 0.0
 
 
+def test_pipeline_populates_defaults_for_unspecified_request(pipeline: HolidaySearchPipeline) -> None:
+    result = pipeline.run("Find me a trip")
+
+    assert result.status == "success"
+    assert result.normalized is not None
+    assert result.normalized.to_ids == ["d7b4bb39-2000-1234-aaab-1234567h:COUNTRY"]
+    assert result.normalized.from_codes == ["CRL"]
+    assert result.normalized.departure_dates == ["2026-02-16", "2026-02-22"]
+    assert result.normalized.duration_id == "2007"
+    assert result.normalized.party == {"adults": 2, "nonAdults": 0}
+    assert result.normalized.rooms == 1
+
+
 @pytest.mark.parametrize(
     (
         "utterance",
