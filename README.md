@@ -104,8 +104,8 @@ serving traffic. Key options mirror the SRS:
 | `FIXTURES_DIR` | `fixtures` | Directory containing the JSON fixture files. |
 | `POPULARITY_IMPUTER_ENABLED` | `true` | Enable or disable the popularity-based imputer that fills missing dates, airports, and party values using historic stats. |
 | `POPULARITY_DATA_PATH` | `fixtures/popularity_stats.json` | Location of the persisted popularity statistics. Relative paths are resolved under `FIXTURES_DIR`. |
-| `SUGGESTIONS_ENABLED` | `true` | Feature flag controlling the auto-completion suggestions service and `/v1/suggestions` endpoint described in [`docs/CR-002.md`](docs/CR-002.md). When disabled the API short-circuits with `{ "suggestions": {} }` and the UI hides the auto-complete surface. |
-| `SUGGESTIONS_LIMIT` | `3` | Default maximum number of suggestions returned per field when auto-completion is enabled. Incoming `limit` query params on `/v1/suggestions` and the frontend component are clamped to this value to avoid runaway payloads. |
+| `SUGGESTIONS_ENABLED` | `true` | Feature flag controlling the auto-completion suggestions surface described in [`docs/CR-002.md`](docs/CR-002.md). |
+| `SUGGESTIONS_LIMIT` | `3` | Default maximum number of suggestions returned per field when auto-completion is enabled. |
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 | `SHOW_FAILED_ONLY` | `true` | When importing CSV logs into the UI, hide successful runs unless explicitly requested. |
@@ -117,8 +117,6 @@ serving traffic. Key options mirror the SRS:
 | `IMPORT_CPU_THRESHOLD` | `90` | Pause scheduling when the 1-minute CPU load estimate exceeds this percentage. |
 | `IMPORT_MEMORY_THRESHOLD_MB` | `4096` | Pause scheduling when estimated RAM usage exceeds this many megabytes. |
 | `IMPORT_PAUSE_SECONDS` | `0.1` | Duration to sleep before re-checking system load while throttling import execution. |
-
-When `SUGGESTIONS_ENABLED=true` the backend exposes contextual auto-completion for destinations, dates, and party sizes via `/v1/suggestions`; the value of `SUGGESTIONS_LIMIT` caps the number of suggestions per field even if callers request more, keeping UI payloads predictable. Set `SUGGESTIONS_ENABLED=false` in `.env` to disable both the endpoint response and the frontend auto-complete widget without removing any UI code paths. 【F:backend/app/api/routes.py†L889-L918】【F:frontend/src/components/AutoComplete.svelte†L10-L120】
 
 > **Note:** When `STT_ENGINE=deepgram` but the `DEEPGRAM_API_KEY` is omitted, the
 > backend falls back to a local `faster-whisper` model. Install it with `pip
@@ -317,14 +315,6 @@ Additional scripts:
 | Build production bundle | `npm run build` |
 | Preview built bundle | `npm run preview` |
 
-### Auto-complete suggestions surface
-
-[`frontend/src/components/AutoComplete.svelte`](frontend/src/components/AutoComplete.svelte) debounces user input for 300 ms, calls `fetchSuggestions` with the current base URL, and renders grouped lists for destinations, dates, durations, party, rooms, and departure airports. Each selection dispatches a `selectSuggestion` event so parent components can either patch the free-text query or set structured filters directly. Empty queries, disabled states, or network errors automatically clear the panel. 【F:frontend/src/components/AutoComplete.svelte†L1-L120】
-
-The component reuses [`fetchSuggestions`](frontend/src/lib/api.ts) to perform `GET /v1/suggestions?q=<text>&limit=<n>` calls and trusts the backend to clamp the limit when it exceeds `SUGGESTIONS_LIMIT`, matching the API contract documented below. 【F:frontend/src/lib/api.ts†L1-L96】
-
-Unit tests in [`frontend/src/__tests__/AutoComplete.spec.ts`](frontend/src/__tests__/AutoComplete.spec.ts) cover debouncing, cancellation when the query clears, and emitting the `selectSuggestion` payload. Run them via `npm test` (Vitest + Playwright) or `npm run test:watch` for an interactive loop; both commands live in [`frontend/package.json`](frontend/package.json). 【F:frontend/src/__tests__/AutoComplete.spec.ts†L1-L52】【F:frontend/package.json†L7-L17】
-
 Vitest is configured with JSDOM in [`frontend/vitest.setup.ts`](frontend/vitest.setup.ts),
 and Playwright suites live under [`frontend/tests`](frontend/tests).
 
@@ -337,7 +327,6 @@ and Playwright suites live under [`frontend/tests`](frontend/tests).
 | `POST /v1/dialog` | Maintains clarification sessions, returning prompts and accumulating transcript context when `INTERACTION_MODE=dialog`. |
 | `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, configuration defaults, enabled methods, and UI hints such as `voiceEnabled`/`showFailedOnly`. |
 | `POST /v1/voice` | Streams uploaded audio to the configured STT engine, returns the transcript with timing data, and forwards the utterance into the holiday search pipeline. |
-| `GET /v1/suggestions` | Returns popularity-based auto-completion suggestions for destinations, dates, duration, party, rooms, and departure airports. Requires `SUGGESTIONS_ENABLED=true`. |
 
 ### Sample `/v1/parse` request
 
@@ -450,50 +439,6 @@ Content-Type: application/json
   }
 }
 ```
-
-### `/v1/suggestions` request and response
-
-`GET /v1/suggestions?q=<free-text>&limit=<int>` accepts the following query parameters:
-
-- `q` *(required)* – the free-text utterance to analyse. The backend trims whitespace and returns an empty payload when the value is blank.
-- `limit` *(optional)* – number of suggestions per field. Defaults to `3` and is clamped by `SUGGESTIONS_LIMIT` to prevent excessive payloads.
-
-```http
-GET /v1/suggestions?q=Kenya%20and%20Japan&limit=3
-```
-
-```json
-{
-  "suggestions": {
-    "destinations": [
-      {"value": "Kenya"},
-      {"value": "Japan"},
-      {"value": "South Africa"}
-    ],
-    "departureDates": [
-      {"start": "2026-07-01", "end": "2026-07-14", "source": "intersection", "label": "Kenya ∩ Japan"},
-      {"start": "2026-08-10", "end": "2026-08-17", "source": "Kenya"}
-    ],
-    "durations": [
-      {"value": "7", "label": "7 nights", "source": "Kenya"},
-      {"value": "14", "label": "14 nights", "source": "global"}
-    ],
-    "party": [
-      {"value": {"adults": 2, "nonAdults": 0}, "source": "Kenya"}
-    ],
-    "rooms": [
-      {"value": "1", "source": "Kenya"},
-      {"value": "2", "source": "global"}
-    ],
-    "from": [
-      {"value": "Amsterdam", "source": "text"},
-      {"value": "Brussels", "source": "global"}
-    ]
-  }
-}
-```
-
-The endpoint returns `{ "suggestions": {} }` whenever `SUGGESTIONS_ENABLED=false` or no query text is supplied. Each group shares a consistent schema so clients can decide how to render metadata such as the `source` field or intersection `label`. 【F:backend/app/api/routes.py†L889-L918】【F:backend/app/services/auto_completion.py†L63-L205】
 
 ## Testing checklist
 
