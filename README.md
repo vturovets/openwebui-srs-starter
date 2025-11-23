@@ -25,6 +25,9 @@ be swapped in while retaining comparable output for experiments.
 - **CSV-backed observability** – [`backend/app/logging/csv_logger.py`](backend/app/logging/csv_logger.py)
   emits a stable schema that the frontend can replay for A/B comparisons and
   regressions analysis.
+- **Aggregated import logging** – [`backend/app/logging/import_summary_logger.py`](backend/app/logging/import_summary_logger.py)
+  captures one-row summaries for each bulk job so latency, guardrail breaches,
+  and capacity metrics are easy to inspect alongside the per-request CSV log.
 - **Frontend parity** – [`frontend/`](frontend) reproduces the OpenWebUI flow with
   component tests (Vitest) and Playwright E2E coverage for interactive journeys.
 
@@ -87,6 +90,8 @@ serving traffic. Key options mirror the SRS:
 | `ALLOWED_LANGS` | `en` | Comma-separated ISO language codes accepted by the language detector (v1 ships with English only). |
 | `CSV_PATH` | `data/log.csv` | Path to the CSV audit log; directories are created automatically. |
 | `CSV_DELIMITER` | `,` | Single-character delimiter used when writing the CSV audit log. |
+| `IMPORT_SUMMARY_PATH` | `data/import_summary.csv` | CSV sink for aggregated import job summaries; set to an empty string to disable writing summaries. |
+| `IMPORT_SUMMARY_DELIMITER` | `,` | Single-character delimiter used for import summary rows. |
 | `LLM_METHOD` | _(unset)_ | Optional identifier for the NLP technique under evaluation (e.g., `rules`, `llm`, `hybrid`). |
 | `LLM_API_BASE` | _(unset)_ | Override the LLM provider base URL when using a proxy or self-hosted gateway. |
 | `LLM_API_KEY` | _(unset)_ | Credential passed to the structured LLM client when `LLM_METHOD=llm` or `hybrid`. |
@@ -107,6 +112,7 @@ serving traffic. Key options mirror the SRS:
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 | `SHOW_FAILED_ONLY` | `true` | When importing CSV logs into the UI, hide successful runs unless explicitly requested. |
+| `IMPORT_WORKER_CONCURRENCY` | `8` | Maximum concurrent worker tasks used during import execution. |
 | `IMPORT_P95_THRESHOLD_MS` | `1000` | Target P95 latency (ms) used when flagging slow imported runs in the performance summary. |
 | `IMPORT_P95_SAMPLE_SIZE` | `1000` | Minimum number of imported rows required before computing a P95 value. |
 | `IMPORT_P95_SIGNIFICANCE` | `0.95` | Percentile (0–1) applied when calculating the imported response-time P95 metric. |
@@ -115,6 +121,8 @@ serving traffic. Key options mirror the SRS:
 | `IMPORT_CPU_THRESHOLD` | `90` | Pause scheduling when the 1-minute CPU load estimate exceeds this percentage. |
 | `IMPORT_MEMORY_THRESHOLD_MB` | `4096` | Pause scheduling when estimated RAM usage exceeds this many megabytes. |
 | `IMPORT_PAUSE_SECONDS` | `0.1` | Duration to sleep before re-checking system load while throttling import execution. |
+| `IMPORT_RETRY_ATTEMPTS` | `3` | Maximum attempts for transient pipeline failures before a request is marked as failed. |
+| `IMPORT_RETRY_BACKOFF_SECONDS` | `0.25` | Starting backoff interval (seconds) applied between retry attempts. |
 
 > **Note:** When `STT_ENGINE=deepgram` but the `DEEPGRAM_API_KEY` is omitted, the
 > backend falls back to a local `faster-whisper` model. Install it with `pip
@@ -192,7 +200,11 @@ operational guidance and tuning tips.
 The repository includes [`scripts/run_import.py`](scripts/run_import.py) for
 running imports from the command line. Pass a JSONL file (or storage key
 handled by your deployment) and the script will stream summaries to stdout while
-persisting the CSV audit trail.
+persisting the CSV audit trail. When `/v1/parse` is invoked with
+`{"import_mode": true, "batch": [...]}`, the endpoint returns an aggregated
+summary and optionally appends one-row metrics to
+`data/import_summary.csv`, capturing guardrail activity and latency percentiles
+alongside total successes/failures.
 
 ## Telemetry & guardrails
 
@@ -321,7 +333,7 @@ and Playwright suites live under [`frontend/tests`](frontend/tests).
 | Method & Path | Description |
 | --- | --- |
 | `GET /health` | Returns `{ "status": "ok" }` plus the active interaction mode for readiness checks. |
-| `POST /v1/parse` | Parses a natural-language utterance and responds with structured holiday parameters, validation metadata, and timing metrics. |
+| `POST /v1/parse` | Parses a natural-language utterance and responds with structured holiday parameters, validation metadata, and timing metrics; when `import_mode=true` with a `batch` payload, it returns aggregated import summaries instead. |
 | `POST /v1/dialog` | Maintains clarification sessions, returning prompts and accumulating transcript context when `INTERACTION_MODE=dialog`. |
 | `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, configuration defaults, enabled methods, and UI hints such as `voiceEnabled`/`showFailedOnly`. |
 | `POST /v1/voice` | Streams uploaded audio to the configured STT engine, returns the transcript with timing data, and forwards the utterance into the holiday search pipeline. |
