@@ -19,7 +19,6 @@ from ..config import Settings
 from ..dependencies import (
     get_csv_logger,
     get_dialog_orchestrator,
-    get_auto_completion_service,
     get_import_summary_logger,
     get_stt_client,
     get_pipeline,
@@ -29,12 +28,7 @@ from ..logging import CSVLogger, ImportSummaryLogger
 from ..pipeline.dialog import DialogOrchestrator
 from ..pipeline.pipeline import HolidaySearchPipeline
 from ..schemas import ImportSummary as ImportSummarySchema, build_import_summary
-from ..services import (
-    AutoCompletionService,
-    GuardrailOverloadError,
-    ImportJobRunner,
-    ImportSummary as ImportSummaryData,
-)
+from ..services import GuardrailOverloadError, ImportJobRunner, ImportSummary as ImportSummaryData
 from ..integrations.stt import (
     SpeechToTextClient,
     SpeechToTextError,
@@ -61,16 +55,6 @@ def _resolve_dependency(value: object) -> object:
         if resolver is not None:
             return resolver()
     return value
-
-
-def _resolve_suggestions_limit(settings: Settings) -> int:
-    """Return a sane suggestions limit based on configuration."""
-
-    try:
-        configured_limit = int(settings.suggestions_limit)
-    except (TypeError, ValueError):  # pragma: no cover - defensive fallback
-        return 1
-    return max(1, configured_limit)
 
 
 def _utc_timestamp() -> str:
@@ -893,35 +877,7 @@ async def fetch_fixtures(
             "importP95SampleSize": settings.import_p95_sample_size,
             "importP95Significance": settings.import_p95_significance,
         },
-        "suggestionsEnabled": settings.suggestions_enabled,
-        "suggestionsLimit": _resolve_suggestions_limit(settings),
     }
-
-
-@api_router.get("/suggestions")
-async def fetch_suggestions(
-    q: str,
-    limit: int = 3,
-    settings: Settings = Depends(get_settings),
-    service: AutoCompletionService = Depends(get_auto_completion_service),
-) -> dict[str, object]:
-    """Return auto-completion suggestions derived from popularity statistics."""
-
-    if not settings.suggestions_enabled:
-        return {"suggestions": {}}
-
-    normalized_query = (q or "").strip()
-    if not normalized_query:
-        return {"suggestions": {}}
-
-    configured_limit = _resolve_suggestions_limit(settings)
-    requested_limit = max(1, int(limit or 1))
-    safe_limit = min(requested_limit, configured_limit)
-
-    resolved_service = cast(AutoCompletionService, _resolve_dependency(service))
-    suggestions = resolved_service.suggest(normalized_query, safe_limit)
-    return {"suggestions": suggestions}
-
 
 @api_router.post("/voice", response_model=VoiceResponse)
 async def voice_endpoint(

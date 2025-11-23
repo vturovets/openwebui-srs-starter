@@ -93,8 +93,6 @@ export type Fixtures = {
   destinations: string[];
   durations?: Array<{ id: string; name: string }>;
   voiceEnabled: boolean;
-  suggestionsEnabled?: boolean;
-  suggestionsLimit?: number;
   showFailedOnly?: boolean;
   mode: string;
   llmMethod: string | null;
