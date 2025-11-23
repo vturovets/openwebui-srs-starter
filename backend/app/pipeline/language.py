@@ -87,6 +87,10 @@ class LanguageDetectionResult:
 class LanguageNotPermittedError(ValueError):
     """Raised when the detected language is outside the allow list."""
 
+    def __init__(self, language: str, message: str | None = None) -> None:
+        self.language = language
+        super().__init__(message or f"Detected language '{language}' is not permitted")
+
 
 class LanguageDetector:
     """Wrapper around ``langdetect`` that enforces pipeline constraints."""
@@ -124,9 +128,7 @@ class LanguageDetector:
 
         if candidates:
             best_overall = max(candidates, key=lambda item: float(getattr(item, "prob", 0.0)))
-            raise LanguageNotPermittedError(
-                f"Detected language '{best_overall.lang}' is not permitted"
-            )
+            raise LanguageNotPermittedError(best_overall.lang)
 
         raise ValueError("Language detector did not return any candidates")
 
@@ -165,9 +167,7 @@ class LanguageDetector:
             return LanguageDetectionResult(language=best_lang, confidence=confidence)
 
         best_lang, _ = max(scores.items(), key=lambda item: item[1])
-        raise LanguageNotPermittedError(
-            f"Detected language '{best_lang}' is not permitted"
-        )
+        raise LanguageNotPermittedError(best_lang)
 
     def detect(self, text: str) -> LanguageDetectionResult:
         """Detect the utterance language using a probabilistic model."""

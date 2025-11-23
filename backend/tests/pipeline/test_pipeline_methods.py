@@ -272,8 +272,12 @@ def test_pipeline_rules_success_with_french(pipeline_factory) -> None:
 def test_pipeline_rejects_language_outside_allow_list(pipeline_factory) -> None:
     pipeline = pipeline_factory(allowed_langs=["en"])
 
-    with pytest.raises(ValueError):
-        pipeline.run("Je cherche des vacances en Australie", method="rules")
+    result = pipeline.run("Je cherche des vacances en Australie", method="rules")
+
+    assert result.status == "error"
+    assert result.detection is None
+    assert result.error is not None
+    assert "Supported languages: en" in result.error
 
 
 def test_pipeline_imputer_enriches_missing_fields(pipeline_factory) -> None:
