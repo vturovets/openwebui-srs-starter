@@ -18,8 +18,8 @@ FIXTURES_DIR = REPO_ROOT / "fixtures"
 @pytest.mark.integration
 def test_run_import_cli_outputs_summary_and_logs(tmp_path: Path, monkeypatch, capsys) -> None:
     batch = [
-        {"text": "Book a trip from Amsterdam to Italy", "mode": "dialog"},
-        {"text": "Find holidays to Spain in October"},
+        {"text": "Book a trip from Amsterdam to Japan", "mode": "dialog"},
+        {"text": "Find holidays to Australia in October"},
     ]
     batch_path = tmp_path / "batch.json"
     batch_path.write_text(json.dumps(batch), encoding="utf-8")

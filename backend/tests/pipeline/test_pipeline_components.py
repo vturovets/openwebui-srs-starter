@@ -69,15 +69,15 @@ def app_dependencies(
 
 
 def test_language_detector_accepts_supported_language(pipeline: HolidaySearchPipeline) -> None:
-    detection = pipeline.language_detector.detect("I am looking for a holiday in Spain")
+    detection = pipeline.language_detector.detect("I am looking for a holiday in Japan")
 
     assert detection.language == "en"
     assert detection.confidence >= 0.5
 
 
 def test_language_detector_handles_dutch_and_french(pipeline: HolidaySearchPipeline) -> None:
-    dutch = pipeline.language_detector.detect("Ik zoek een vakantie naar Spanje in oktober.")
-    french = pipeline.language_detector.detect("Je cherche des vacances en Italie en octobre.")
+    dutch = pipeline.language_detector.detect("Ik zoek een vakantie naar Australie in oktober.")
+    french = pipeline.language_detector.detect("Je cherche des vacances en Australie en octobre.")
 
     assert dutch.language == "nl"
     assert french.language == "fr"
@@ -89,14 +89,14 @@ def test_language_detector_disallows_missing_english() -> None:
     detector = LanguageDetector(["es"])
 
     with pytest.raises(ValueError):
-        detector.detect("Looking for a holiday in Spain")
+        detector.detect("Looking for a holiday in Japan")
 
 
 def test_language_detector_rejects_disallowed_language() -> None:
     detector = LanguageDetector(["en", "nl"])
 
     with pytest.raises(ValueError):
-        detector.detect("Je voudrais des vacances en Italie")
+        detector.detect("Je voudrais des vacances en Australie")
 
 
 def test_language_detector_recovers_from_misclassified_lang(monkeypatch) -> None:
@@ -130,26 +130,26 @@ def test_language_detector_recovers_from_misclassified_lang(monkeypatch) -> None
     ),
     [
         (
-            "Need a family holiday from Amsterdam to Italy on 10 October 2025 for 7 nights",
+            "Need a family holiday from Amsterdam to Japan on 10 October 2025 for 7 nights",
             "en",
             {"AMS"},
-            {"d7b4bb39-123c-1234-b123-1234567i"},
+            {"d7b4bb39-2000-1234-aaac-1234567d"},
             "2007",
             None,
         ),
         (
-            "Ik zoek een vakantie vanuit Amsterdam naar Spanje op 10 oktober 2025 voor 7 nachten met +- 3 dagen flexibiliteit.",
+            "Ik zoek een vakantie vanuit Amsterdam naar Australie op 10 oktober 2025 voor 7 nachten met +- 3 dagen flexibiliteit.",
             "nl",
             {"AMS"},
-            {"d7b4bb39-123c-1234-1234-1234567s"},
+            {"d7b4bb39-2000-1234-aaaa-1234567a"},
             "2007",
             "3",
         ),
         (
-            "Je cherche des vacances au départ de Ostende vers l'Italie le 10 octobre 2025 pour 7 nuits avec +- 3 jours de flexibilité.",
+            "Je cherche des vacances au départ de Ostende vers la Nouvelle-Zélande le 10 octobre 2025 pour 7 nuits avec +- 3 jours de flexibilité.",
             "fr",
             {"OST"},
-            {"d7b4bb39-123c-1234-b123-1234567i"},
+            {"d7b4bb39-2000-1234-aaaa-1234567b"},
             "2007",
             "3",
         ),
@@ -230,7 +230,7 @@ def test_normalizer_preserves_iso_for_unavailable_date(pipeline: HolidaySearchPi
 
 
 def test_validator_accepts_required_field_combination(pipeline: HolidaySearchPipeline) -> None:
-    utterance = "Plan a trip from Amsterdam to Spain on 10 October 2025 for a week"
+    utterance = "Plan a trip from Amsterdam to Japan on 10 October 2025 for a week"
     extraction = pipeline.extractor.extract(utterance, language="en")
     normalized = pipeline.normalizer.normalize("en", extraction)
 
@@ -238,7 +238,7 @@ def test_validator_accepts_required_field_combination(pipeline: HolidaySearchPip
 
 
 def test_validator_requires_departure_date(pipeline: HolidaySearchPipeline) -> None:
-    utterance = "I am looking for a trip departing from Amsterdam or Ostend to Spain or Italy."
+    utterance = "I am looking for a trip departing from Amsterdam or Ostend to Japan or Australia."
     extraction = pipeline.extractor.extract(utterance, language="en")
     normalized = pipeline.normalizer.normalize("en", extraction)
 
@@ -329,7 +329,7 @@ def _call_parse(
 def test_parse_endpoint_success_logs_and_returns_payload(app_dependencies) -> None:
     settings, pipeline, logger, summary_logger = app_dependencies
     payload = ParseRequest(
-        text="Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
+        text="Book a trip from Amsterdam to Japan on 10 October 2025 for 7 nights",
         mode="dialog",
         method="sut",
     )
@@ -378,12 +378,12 @@ def test_parse_endpoint_import_mode_returns_summary(app_dependencies) -> None:
     settings, pipeline, logger, summary_logger = app_dependencies
     batch_payload = [
         {
-            "text": "Book a family trip from Amsterdam to Italy on 10 October 2025 for 7 nights",
+            "text": "Book a family trip from Amsterdam to Japan on 10 October 2025 for 7 nights",
             "mode": "dialog",
             "method": "sut",
         },
         {
-            "text": "Find holidays from Ostend to Spain in October",
+            "text": "Find holidays from Ostend to Australia in October",
             "mode": "direct-parse",
         },
     ]
@@ -419,7 +419,7 @@ def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
     settings, pipeline, logger, summary_logger = app_dependencies
     payload = ParseRequest(
         text=(
-            "Je cherche des vacances au départ de Ostende vers l'Italie le 10 octobre 2025 "
+            "Je cherche des vacances au départ de Ostende vers l'Australie le 10 octobre 2025 "
             "pour 7 nuits avec +- 3 jours de flexibilité."
         ),
         mode="dialog",

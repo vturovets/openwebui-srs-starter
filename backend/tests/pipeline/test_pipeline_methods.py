@@ -71,7 +71,7 @@ def pipeline_factory(tmp_path: Path):
 
 def test_pipeline_rules_only_success(pipeline_factory) -> None:
     pipeline = pipeline_factory()
-    utterance = "Book a trip from Amsterdam to Italy on 10 October 2025 for 7 nights"
+    utterance = "Book a trip from Amsterdam to Japan on 10 October 2025 for 7 nights"
 
     result = pipeline.run(utterance, method="rules")
 
@@ -86,15 +86,15 @@ def test_pipeline_rules_only_success(pipeline_factory) -> None:
 
 def test_pipeline_hybrid_fallback_success(pipeline_factory) -> None:
     llm_payloads = {
-        "Need a getaway from Amsterdam to Spain": {
+        "Need a getaway from Amsterdam to Japan": {
             "airports": ["AMS"],
-            "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+            "destinations": ["d7b4bb39-2000-1234-aaac-1234567d"],
             "dates": ["2025-11-25"],
         }
     }
     pipeline = pipeline_factory(llm_payloads, popularity_imputer_enabled=False)
 
-    result = pipeline.run("Need a getaway from Amsterdam to Spain", method="hybrid")
+    result = pipeline.run("Need a getaway from Amsterdam to Japan", method="hybrid")
 
     assert result.status == "success"
     assert result.method_requested == "hybrid-v1"
@@ -116,7 +116,7 @@ def test_pipeline_records_llm_network_latency(pipeline_factory) -> None:
         "Measure latency": (
             {
                 "airports": ["AMS"],
-                "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+                "destinations": ["d7b4bb39-2000-1234-aaac-1234567d"],
                 "dates": ["2025-11-25"],
             },
             0.05,
@@ -136,7 +136,7 @@ def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
     llm_payloads = {
         "Expose metadata": {
             "airports": ["AMS"],
-            "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+            "destinations": ["d7b4bb39-2000-1234-aaac-1234567d"],
             "dates": ["2025-11-25"],
             "metadata": {
                 "provider": "stub-llm",
@@ -161,7 +161,7 @@ def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
     llm_payloads = {
         "Fallback still missing data": {
             "airports": ["AMS"],
-            "destinations": ["d7b4bb39-123c-1234-b123-1234567i"],
+            "destinations": ["d7b4bb39-2000-1234-aaac-1234567d"],
             "dates": [],
         }
     }
@@ -240,7 +240,7 @@ def test_dependency_wiring_triggers_llm_when_configured(monkeypatch, tmp_path: P
 def test_pipeline_rules_success_with_dutch(pipeline_factory) -> None:
     pipeline = pipeline_factory()
     utterance = (
-        "Ik zoek een vakantie vanuit Amsterdam naar Spanje op 10 oktober 2025 "
+        "Ik zoek een vakantie vanuit Amsterdam naar Australie op 10 oktober 2025 "
         "voor 7 nachten met +- 3 dagen flexibiliteit."
     )
 
@@ -256,7 +256,7 @@ def test_pipeline_rules_success_with_dutch(pipeline_factory) -> None:
 def test_pipeline_rules_success_with_french(pipeline_factory) -> None:
     pipeline = pipeline_factory()
     utterance = (
-        "Je cherche des vacances au départ de Ostende vers l'Italie le 10 octobre 2025 "
+        "Je cherche des vacances au départ de Ostende vers l'Australie le 10 octobre 2025 "
         "pour 7 nuits avec +- 3 jours de flexibilité."
     )
 
@@ -273,7 +273,7 @@ def test_pipeline_rejects_language_outside_allow_list(pipeline_factory) -> None:
     pipeline = pipeline_factory(allowed_langs=["en"])
 
     with pytest.raises(ValueError):
-        pipeline.run("Je cherche des vacances en Italie", method="rules")
+        pipeline.run("Je cherche des vacances en Australie", method="rules")
 
 
 def test_pipeline_imputer_enriches_missing_fields(pipeline_factory) -> None:
