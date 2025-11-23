@@ -48,7 +48,7 @@ def build_transport():
         if path.endswith("v1/fixtures") and method == "GET":
             payload = {
                 "airports": ["AMS", "LGW"],
-                "destinations": ["Italy"],
+                "destinations": ["Japan"],
                 "llmMethod": "rules-basic",
                 "llmMethodAlias": "rules",
                 "availableMethods": [

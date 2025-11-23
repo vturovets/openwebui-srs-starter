@@ -54,8 +54,8 @@ def test_llm_client_success_payload_matches_extractor(tmp_path: Path) -> None:
     llm_content = {
         "airports": ["AMS", {"id": "ANR", "name": "Antwerp", "available": True}],
         "destinations": [
-            "d7b4bb39-123d-1234-123f-1234567f",
-            {"id": "d7b4bb39-123e-1234-123d-1234567g", "name": "Greece"},
+            "d7b4bb39-2000-1234-aaac-1234567d",
+            {"id": "d7b4bb39-2000-1234-aaaa-1234567a", "name": "Australia"},
         ],
         "duration": "2007",
         "flexibility": {"id": "3", "name": "+- 3 days"},
@@ -102,8 +102,8 @@ def test_llm_client_success_payload_matches_extractor(tmp_path: Path) -> None:
     extraction = extractor.extract("Plan a sunny holiday")
 
     assert [airport["id"] for airport in extraction.airports] == ["AMS", "ANR"]
-    assert extraction.destinations[0]["id"] == "d7b4bb39-123d-1234-123f-1234567f"
-    assert extraction.destinations[1]["name"] == "Greece"
+    assert extraction.destinations[0]["id"] == "d7b4bb39-2000-1234-aaac-1234567d"
+    assert extraction.destinations[1]["name"] == "Australia"
     assert extraction.duration and extraction.duration["id"] == "2007"
     assert extraction.flexibility and extraction.flexibility["id"] == "3"
     assert [iso.isoformat() for _, iso in extraction.dates] == ["2025-10-10T00:00:00", "2025-10-12T00:00:00"]
@@ -146,8 +146,8 @@ def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
     structured_response = {
         "airports": ["AMS", {"id": "ANR", "name": "Antwerp"}],
         "destinations": [
-            "d7b4bb39-123d-1234-123f-1234567f",
-            {"id": "d7b4bb39-123e-1234-123d-1234567g", "name": "Greece"},
+            "d7b4bb39-2000-1234-aaac-1234567d",
+            {"id": "d7b4bb39-2000-1234-aaaa-1234567a", "name": "Australia"},
         ],
         "duration": "2007",
         "flexibility": {"id": "3", "name": "+- 3 days"},
@@ -221,7 +221,7 @@ def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
     assert query_payload["metadata"]["flexibility"]["allowed"] is True
 
     assert payload["airports"][0] == "AMS"
-    assert payload["destinations"][1]["name"] == "Greece"
+    assert payload["destinations"][1]["name"] == "Australia"
 
     metadata = payload.get("_metadata")
     assert isinstance(metadata, dict)

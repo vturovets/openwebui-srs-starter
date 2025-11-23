@@ -32,18 +32,18 @@ def test_fixture_repository_loads_and_normalises_data() -> None:
     ams_by_id = repository.get_airport_by_id("ams")
     assert ams_by_id["name"] == "Amsterdam"
 
-    italy = repository.get_destination_by_name("ItALy")
-    assert italy["id"] == "d7b4bb39-123c-1234-b123-1234567i"
+    japan = repository.get_destination_by_name("japan")
+    assert japan["id"] == "d7b4bb39-2000-1234-aaac-1234567d"
 
-    italy_by_id = repository.get_destination_by_id("d7b4bb39-123c-1234-b123-1234567i")
-    assert italy_by_id["name"] == "Italy"
+    japan_by_id = repository.get_destination_by_id("d7b4bb39-2000-1234-aaac-1234567d")
+    assert japan_by_id["name"] == "Japan"
 
     dates = repository.list_checkin_dates()
     assert dates  # non-empty
     assert dates == sorted(dates, key=lambda value: datetime.strptime(value, "%d-%m-%Y"))
 
     destination_synonyms = repository.locale_synonyms("destinations")
-    assert destination_synonyms["nl"]["spanje"] == "d7b4bb39-123c-1234-1234-1234567s"
+    assert destination_synonyms["nl"]["australie"] == "d7b4bb39-2000-1234-aaaa-1234567a"
 
 
 def test_fixture_repository_missing_file(tmp_path: Path) -> None:
