@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import json
-import logging
-from pathlib import Path
 from functools import lru_cache
 from typing import Callable, Iterator, Mapping
 
 from .config import Settings
 from .pipeline.configuration import MethodsCatalog
-from .services.auto_completion import AutoCompletionService
 from .integrations.stt import (
     DeepgramSpeechToTextClient,
     FasterWhisperSpeechToTextClient,
@@ -47,8 +43,6 @@ CSV_LOG_FIELDS: tuple[str, ...] = (
 from .pipeline.dialog import DialogOrchestrator
 from .pipeline.pipeline import HolidaySearchPipeline
 
-logger = logging.getLogger(__name__)
-
 
 @lru_cache
 def get_settings() -> Settings:
@@ -84,22 +78,6 @@ def get_pipeline() -> HolidaySearchPipeline:
         fixtures_dir=settings.fixtures_dir,
         llm_client=get_llm_client(),
         methods_catalog=get_methods_catalog(),
-    )
-
-
-@lru_cache
-def get_auto_completion_service() -> AutoCompletionService:
-    """Instantiate the auto-completion service with shared resources."""
-
-    settings = get_settings()
-    pipeline = get_pipeline()
-    stats_path = settings.resolve_popularity_data_path()
-    stats_payload = _load_popularity_stats(str(stats_path))
-    return AutoCompletionService(
-        fixtures=pipeline.fixtures,
-        configuration=pipeline.configuration,
-        stats_payload=stats_payload,
-        stats_path=stats_path,
     )
 
 
@@ -187,7 +165,6 @@ __all__ = [
     "settings_dependency",
     "get_methods_catalog",
     "get_pipeline",
-    "get_auto_completion_service",
     "get_llm_client",
     "get_csv_logger",
     "get_import_summary_logger",
@@ -195,21 +172,3 @@ __all__ = [
     "get_stt_client",
     "IMPORT_SUMMARY_LOG_FIELDS",
 ]
-
-
-@lru_cache
-def _load_popularity_stats(path: str) -> Mapping[str, object] | None:
-    stats_path = Path(path)
-    if not stats_path.is_file():
-        logger.warning("Popularity statistics file '%s' not found", stats_path)
-        return None
-    try:
-        text = stats_path.read_text(encoding="utf-8")
-    except OSError as exc:  # pragma: no cover - filesystem dependent
-        logger.warning("Unable to read popularity statistics '%s': %s", stats_path, exc)
-        return None
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as exc:  # pragma: no cover - depends on fixture integrity
-        logger.warning("Invalid JSON in popularity statistics '%s': %s", stats_path, exc)
-        return None
