@@ -5,10 +5,28 @@
   export let entry: HolidayResultEntry;
 
   const metadata = entry.result.metadata ?? {};
+  const dataPayload = (entry.result.data ?? {}) as Record<string, unknown>;
   const timings = (metadata.timings ?? {}) as Record<string, unknown>;
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
   const mismatches = metadata.expectedValueMismatches ?? [];
+
+  const errorMessage = (() => {
+    const metadataMessage = typeof metadata.message === 'string' ? metadata.message.trim() : '';
+    if (metadataMessage) {
+      return metadataMessage;
+    }
+
+    const dataError = dataPayload.error;
+    if (typeof dataError === 'string') {
+      const trimmed = dataError.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+
+    return '';
+  })();
 
   function getNumericTiming(key: string): number | undefined {
     const value = timings[key];
@@ -96,6 +114,9 @@
   <section class="status">
     <strong>Status:</strong>
     <span data-testid="status-label">{entry.result.status}</span>
+    {#if errorMessage}
+      <p class="error-message" data-testid="error-message">{errorMessage}</p>
+    {/if}
     {#if entry.prompt}
       <div class="prompt" data-testid="clarification">
         <strong>Clarification needed:</strong>
@@ -294,6 +315,12 @@
     margin: 0;
     white-space: pre-wrap;
     font-size: 0.75rem;
+  }
+
+  .error-message {
+    margin: 0.35rem 0 0;
+    color: #fca5a5;
+    font-size: 0.9rem;
   }
 
   .mismatches ul {

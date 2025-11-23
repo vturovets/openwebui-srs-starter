@@ -29,11 +29,28 @@ function normaliseFixtureNames(value: unknown): string[] {
 }
 
 async function handleResponse(response: Response) {
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || 'Request failed');
+  if (response.ok) {
+    return response.json();
   }
-  return response.json();
+
+  const raw = await response.text();
+  let message = '';
+
+  if (raw) {
+    try {
+      const payload = JSON.parse(raw) as Record<string, unknown>;
+      const detail = payload?.detail ?? payload?.message ?? payload?.error;
+      if (typeof detail === 'string' && detail.trim()) {
+        message = detail.trim();
+      } else {
+        message = raw;
+      }
+    } catch {
+      message = raw;
+    }
+  }
+
+  throw new Error(message || 'Request failed');
 }
 
 type FixturesPayload = Omit<Fixtures, 'airports' | 'destinations'> & {
