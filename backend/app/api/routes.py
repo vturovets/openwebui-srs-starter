@@ -26,6 +26,7 @@ from ..dependencies import (
 )
 from ..logging import CSVLogger, ImportSummaryLogger
 from ..pipeline.dialog import DialogOrchestrator
+from ..pipeline.language import LanguageNotPermittedError
 from ..pipeline.pipeline import HolidaySearchPipeline
 from ..schemas import ImportSummary as ImportSummarySchema, build_import_summary
 from ..services import GuardrailOverloadError, ImportJobRunner, ImportSummary as ImportSummaryData
@@ -55,6 +56,17 @@ def _resolve_dependency(value: object) -> object:
         if resolver is not None:
             return resolver()
     return value
+
+
+def _format_language_error_message(
+    exc: LanguageNotPermittedError, allowed_languages: Iterable[str]
+) -> str:
+    """Attach supported language hints to a language validation error."""
+
+    allowed = sorted({code.lower() for code in allowed_languages if isinstance(code, str)})
+    suffix = f" Supported languages: {', '.join(allowed)}." if allowed else ""
+    message = str(exc).rstrip(". ")
+    return f"{message}.{suffix}" if suffix else message
 
 
 def _utc_timestamp() -> str:
@@ -662,7 +674,13 @@ async def parse_text(
             ) from exc
         return _summarise_import(summary, mode=payload.mode, summary_logger=summary_logger)
 
-    result = pipeline.run(payload.text, method=payload.method)
+    try:
+        result = pipeline.run(payload.text, method=payload.method)
+    except LanguageNotPermittedError as exc:
+        message = _format_language_error_message(exc, settings.allowed_langs)
+        raise HTTPException(status_code=400, detail=message) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     transcript_log = [{"role": "user", "text": payload.text}]
     (
@@ -1029,7 +1047,13 @@ async def voice_endpoint(
     if not transcript_text:
         raise HTTPException(status_code=422, detail="No speech detected in audio sample")
 
-    pipeline_result = pipeline.run(transcript_text)
+    try:
+        pipeline_result = pipeline.run(transcript_text)
+    except LanguageNotPermittedError as exc:
+        message = _format_language_error_message(exc, settings.allowed_langs)
+        raise HTTPException(status_code=400, detail=message) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     pipeline_total_ms = pipeline_result.timings.get("totalMs", 0.0)
     combined_total_ms = pipeline_total_ms + stt_ms
 

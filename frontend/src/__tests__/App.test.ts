@@ -260,6 +260,25 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('status-label')).toHaveTextContent('success');
   });
 
+  it('surfaces language support errors to the user', async () => {
+    parseTextMock.mockRejectedValueOnce(new Error("Language 'fr' is not supported"));
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'Bonjour le monde' } });
+    await fireEvent.submit(screen.getByTestId('parse-form'));
+
+    await waitFor(() => expect(screen.getByTestId('status-label')).toHaveTextContent('error'));
+    expect(screen.getByTestId('error-message')).toHaveTextContent('Language');
+  });
+
   it('surfaces clarification prompts when parse fails', async () => {
     parseTextMock.mockResolvedValueOnce(clone(PARSE_FAILED));
     const { component } = render(App);
