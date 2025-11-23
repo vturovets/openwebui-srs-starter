@@ -37,6 +37,8 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
         assert isinstance(payload["availableMethods"], list)
         assert payload["defaultMethod"] == "rules-basic"
         assert isinstance(payload["methodDefaults"], dict)
+        assert payload["suggestionsEnabled"] is True
+        assert payload["suggestionsLimit"] == 3
         performance_targets = payload["performanceTargets"]
         assert performance_targets == {
             "importP95ThresholdMs": 2500,
@@ -72,6 +74,33 @@ def test_fixtures_endpoint_uses_default_performance_targets(monkeypatch, tmp_pat
             "importP95SampleSize": 1000,
             "importP95Significance": 0.95,
         }
+    finally:
+        get_settings.cache_clear()
+        get_pipeline.cache_clear()
+        get_llm_client.cache_clear()
+        get_methods_catalog.cache_clear()
+
+
+def test_fixtures_endpoint_exposes_suggestions_configuration(monkeypatch, tmp_path) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    monkeypatch.setenv("FIXTURES_DIR", str(repo_root / "fixtures"))
+    monkeypatch.setenv("CSV_PATH", str(tmp_path / "import-log.csv"))
+    monkeypatch.setenv("SUGGESTIONS_ENABLED", "false")
+    monkeypatch.setenv("SUGGESTIONS_LIMIT", "5")
+
+    for cache in (get_settings, get_pipeline, get_llm_client, get_methods_catalog):
+        cache.cache_clear()
+
+    app = create_app()
+    client = TestClient(app)
+
+    try:
+        response = client.get("/v1/fixtures")
+        assert response.status_code == 200
+
+        payload = response.json()
+        assert payload["suggestionsEnabled"] is False
+        assert payload["suggestionsLimit"] == 5
     finally:
         get_settings.cache_clear()
         get_pipeline.cache_clear()
