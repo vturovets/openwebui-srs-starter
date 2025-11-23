@@ -42,32 +42,6 @@ export type VoiceResponse = HolidayResult & {
   words: VoiceWordTiming[];
 };
 
-export interface SuggestionValue<T = string> {
-  value: T;
-  source?: string;
-  label?: string;
-}
-
-export interface DateSuggestion {
-  start: string;
-  end: string;
-  source?: string;
-  label?: string;
-}
-
-export type SuggestionsByField = {
-  destinations?: SuggestionValue[];
-  departureDates?: DateSuggestion[];
-  durations?: SuggestionValue[];
-  party?: Array<SuggestionValue<{ adults: number; nonAdults: number }>>;
-  rooms?: SuggestionValue[];
-  from?: SuggestionValue[];
-};
-
-export type SuggestionsResponse = {
-  suggestions: SuggestionsByField | Record<string, never>;
-};
-
 export type HolidayResultEntry = {
   id: string;
   source: 'text' | 'voice';
