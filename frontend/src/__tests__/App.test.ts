@@ -26,6 +26,8 @@ const FIXTURE_RESPONSE = {
   airports: ['Amsterdam', 'London Gatwick'],
   destinations: ['Italy'],
   voiceEnabled: true,
+  suggestionsEnabled: true,
+  suggestionsLimit: 3,
   showFailedOnly: true,
   mode: 'dialog',
   llmMethod: 'rules-basic',
@@ -224,6 +226,27 @@ describe('Holiday search console', () => {
 
     const methodSelect = screen.getByTestId('method-select') as HTMLSelectElement;
     expect(methodSelect.value).toBe('rules-basic');
+  });
+
+  it('hides the auto-complete surface when suggestions are disabled', async () => {
+    fetchFixturesMock.mockResolvedValueOnce({
+      ...FIXTURE_RESPONSE,
+      suggestionsEnabled: false,
+    });
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'Kenya' } });
+    await tick();
+
+    expect(screen.queryByTestId('autocomplete')).not.toBeInTheDocument();
   });
 
   it('hides interaction mode selector when dialog mode is disabled', async () => {
