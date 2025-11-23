@@ -316,6 +316,10 @@ class GeminiStructuredLLMClient:
     def __call__(self, text: str) -> Mapping[str, Any]:
         request_payload = self._build_request_payload(text)
         params = {"key": self._api_key} if self._api_key else None
+        curl_command = self._format_curl_command(request_payload, params)
+
+        if self._show_curl:
+            print(curl_command)
 
         if self._show_curl:
             print(self._format_curl_command(request_payload, params))
@@ -328,6 +332,8 @@ class GeminiStructuredLLMClient:
                 params=params,
                 headers={"Content-Type": "application/json"},
             )
+            if response.status_code != httpx.codes.OK and not self._show_curl:
+                print(curl_command)
             response.raise_for_status()
         except httpx.HTTPError as exc:
             raise RuntimeError(f"Gemini provider request failed: {exc}") from exc

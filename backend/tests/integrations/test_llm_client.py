@@ -254,3 +254,33 @@ def test_gemini_client_raises_on_malformed_response(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="did not include any candidates"):
         llm_client("Malformed payload please")
+
+
+def test_gemini_client_prints_curl_on_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Gemini client should emit the cURL command when the provider errors."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"error": "unavailable"})
+
+    http_client = httpx.Client(
+        transport=httpx.MockTransport(handler),
+        base_url="https://generativelanguage.googleapis.com",
+    )
+
+    settings = _build_gemini_settings(tmp_path)
+    llm_client = GeminiStructuredLLMClient(
+        settings=settings,
+        fixtures_dir=settings.fixtures_dir,
+        http_client=http_client,
+    )
+
+    with pytest.raises(RuntimeError, match="Gemini provider request failed"):
+        llm_client("Please fail")
+
+    output = capsys.readouterr().out.strip().splitlines()
+    assert output, "Expected cURL command to be printed on non-200 response"
+
+    curl = output[-1]
+    assert curl.startswith("curl -X POST")
+    assert "generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent" in curl
+    assert "key=gemini-key" in curl
