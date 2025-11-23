@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import AutoComplete from './components/AutoComplete.svelte';
   import MicrophoneWidget from './components/MicrophoneWidget.svelte';
   import StructuredResult from './components/StructuredResult.svelte';
   import { fetchFixtures, parseText, postVoice } from './lib/api';
@@ -44,8 +43,6 @@
   let downloadUrl: string | null = null;
   let importInput: HTMLInputElement | null = null;
   let resettingHistory = false;
-  let suggestionsEnabled = true;
-  let suggestionsLimit = 3;
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const SUCCESS_STATUSES = new Set(['success', 'ok', 'passed']);
@@ -594,14 +591,6 @@
       showFailedOnly = typeof data.showFailedOnly === 'boolean' ? data.showFailedOnly : true;
       mode = data.mode;
       dialogOverrideAllowed = isDialogMode(data.mode);
-      suggestionsEnabled = typeof data.suggestionsEnabled === 'boolean' ? data.suggestionsEnabled : true;
-      const configuredLimit = toFiniteNumber(data.suggestionsLimit);
-      if (configuredLimit !== null) {
-        const normalizedLimit = Math.max(1, Math.floor(configuredLimit));
-        suggestionsLimit = normalizedLimit;
-      } else {
-        suggestionsLimit = 3;
-      }
       methodOptions = normaliseMethodOptions(data?.availableMethods);
       method = typeof data.llmMethod === 'string' ? data.llmMethod : '';
       if (method && !methodOptions.some((option) => option.id === method)) {
@@ -724,68 +713,6 @@
     }
 
     return '—';
-  }
-
-  const SUGGESTION_LABELS: Record<string, string> = {
-    destinations: 'Destination',
-    departureDates: 'Dates',
-    durations: 'Duration',
-    party: 'Party',
-    rooms: 'Rooms',
-    from: 'From',
-  };
-
-  function formatSuggestionHint(field: string, value: any): string {
-    const prefix = SUGGESTION_LABELS[field] ?? 'Suggestion';
-    if (!value) {
-      return '';
-    }
-
-    if (field === 'departureDates') {
-      const start = value.start ?? value?.value?.start;
-      const end = value.end ?? value?.value?.end;
-      if (start && end) {
-        const badge = value.label || value.source;
-        return `${prefix}: ${start} – ${end}${badge ? ` (${badge})` : ''}`;
-      }
-      return '';
-    }
-
-    if (field === 'party') {
-      const payload = value.value ?? value;
-      const adults = typeof payload?.adults === 'number' ? payload.adults : 0;
-      const kids = typeof payload?.nonAdults === 'number' ? payload.nonAdults : 0;
-      if (!adults && !kids) {
-        return '';
-      }
-      const parts: string[] = [];
-      if (adults) {
-        parts.push(`${adults} adult${adults === 1 ? '' : 's'}`);
-      }
-      if (kids) {
-        parts.push(`${kids} child${kids === 1 ? '' : 'ren'}`);
-      }
-      return `${prefix}: ${parts.join(', ')}`;
-    }
-
-    const suggestion = value as { label?: string; value?: unknown };
-    const hintValue =
-      typeof suggestion?.label !== 'undefined' && suggestion.label !== null && suggestion.label !== ''
-        ? suggestion.label
-        : suggestion?.value ?? value;
-    if (typeof hintValue === 'string' || typeof hintValue === 'number') {
-      return `${prefix}: ${hintValue}`;
-    }
-
-    return '';
-  }
-
-  function handleSuggestionSelect(event: CustomEvent<{ field: string; value: unknown }>) {
-    const hint = formatSuggestionHint(event.detail.field, event.detail.value);
-    if (!hint) {
-      return;
-    }
-    query = query.trim() ? `${query.trimEnd()}\n${hint}` : hint;
   }
 
   function trackEntry(
@@ -1119,16 +1046,6 @@
           data-testid="query-input"
         ></textarea>
       </label>
-
-      {#if suggestionsEnabled}
-        <AutoComplete
-          query={query}
-          baseUrl={baseUrl}
-          limit={suggestionsLimit}
-          disabled={busy || resettingHistory}
-          on:selectSuggestion={handleSuggestionSelect}
-        />
-      {/if}
 
       <div class="actions">
         <button type="submit" disabled={busy} data-testid="submit-button">{busy ? 'Parsing…' : 'Parse request'}</button>
