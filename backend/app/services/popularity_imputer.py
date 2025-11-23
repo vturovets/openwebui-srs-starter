@@ -89,7 +89,15 @@ class PopularityImputer:
         if not self._enabled or not self._stats:
             return payload, metadata
 
-        destinations, missing_destinations = self._extract_destinations(params.get("to"))
+        request_was_unpopulated = self._is_unpopulated_request(payload)
+
+        if request_was_unpopulated:
+            popular_destination = self._select_most_popular_destination()
+            if popular_destination:
+                payload["to"] = [popular_destination]
+                imputed_meta["to"] = {"source": "popularity", "value": popular_destination}
+
+        destinations, missing_destinations = self._extract_destinations(payload.get("to"))
         if missing_destinations:
             metadata["destinationsWithoutStats"] = missing_destinations
 
@@ -106,7 +114,9 @@ class PopularityImputer:
                 imputed_meta["party"] = {"source": source, "value": dict(party)}
 
         if self._needs_rooms(payload):
-            rooms, source = self._select_rooms(destinations)
+            rooms, source = self._select_rooms(
+                destinations, allow_auto_configuration=not request_was_unpopulated
+            )
             payload["rooms"] = rooms
             rooms_meta = {"source": source, "autoRoomAllocationSwitch": self._auto_room_enabled}
             rooms_meta["value"] = rooms
@@ -167,6 +177,23 @@ class PopularityImputer:
             return len(value) == 0
         return True
 
+    def _is_unpopulated_request(self, payload: Mapping[str, object]) -> bool:
+        def _missing(value: object) -> bool:
+            if value is None:
+                return True
+            if isinstance(value, str):
+                return not value.strip()
+            if isinstance(value, Mapping):
+                return len(value) == 0
+            if isinstance(value, Sequence):
+                return len(value) == 0
+            return False
+
+        return all(
+            _missing(payload.get(field))
+            for field in ("to", "from", "departureDate", "durationId", "party", "rooms")
+        )
+
     def _select_duration_id(self, destinations: Sequence[str]) -> tuple[str | None, str]:
         destination_mode = self._select_from_destinations(destinations, "duration")
         if destination_mode:
@@ -197,8 +224,10 @@ class PopularityImputer:
             "nonAdults": int(defaults.get("nonAdults", 0) or 0),
         }, "configuration"
 
-    def _select_rooms(self, destinations: Sequence[str]) -> tuple[int | None, str]:
-        if self._auto_room_enabled:
+    def _select_rooms(
+        self, destinations: Sequence[str], *, allow_auto_configuration: bool = True
+    ) -> tuple[int | None, str]:
+        if self._auto_room_enabled and allow_auto_configuration:
             return None, "configuration"
         destination_mode = self._select_from_destinations(destinations, "rooms")
         if destination_mode and self._is_valid_room_value(destination_mode[0]):
@@ -222,6 +251,51 @@ class PopularityImputer:
         if isinstance(global_mode, str) and global_mode.strip():
             return global_mode.strip(), "global"
         return None, "configuration"
+
+    def _select_most_popular_destination(self) -> str | None:
+        if not self._destination_stats:
+            return None
+
+        def _metric_total(summary: Mapping[str, object]) -> int:
+            if not isinstance(summary, Mapping):
+                return 0
+            value = summary.get("total")
+            try:
+                return int(value) if value is not None else 0
+            except (TypeError, ValueError):
+                return 0
+
+        best_label: str | None = None
+        best_total = -1
+        best_mode_count = -1
+
+        for key, summary in self._destination_stats.items():
+            duration_summary = summary.get("duration") if isinstance(summary, Mapping) else None
+            total = _metric_total(duration_summary or {})
+            mode_count = 0
+            if isinstance(duration_summary, Mapping):
+                mode_count_value = duration_summary.get("mode_count")
+                try:
+                    mode_count = int(mode_count_value) if mode_count_value is not None else 0
+                except (TypeError, ValueError):
+                    mode_count = 0
+
+            label = self._destination_names.get(key, key)
+            if (
+                total > best_total
+                or (total == best_total and mode_count > best_mode_count)
+                or (
+                    total == best_total
+                    and mode_count == best_mode_count
+                    and best_label is not None
+                    and label < best_label
+                )
+            ):
+                best_total = total
+                best_mode_count = mode_count
+                best_label = label
+
+        return best_label
 
     def _select_interval(self, destinations: Sequence[str]) -> tuple[tuple[str, str] | None, str]:
         if not destinations:

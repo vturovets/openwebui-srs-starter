@@ -501,6 +501,26 @@ class HolidaySearchPipeline:
             if airports:
                 extraction.airports = airports
 
+        if not extraction.destinations:
+            destinations: list[Dict[str, object]] = []
+            seen_destinations: set[str] = set()
+            for label in _coerce_strings(params.get("to")):
+                try:
+                    destination = self._fixtures.get_destination_by_name(label)
+                except KeyError:
+                    destination = {"id": label, "name": label, "available": True}
+                identifier = str(destination.get("id", "")).strip()
+                dest_type = str(destination.get("type", "")).strip()
+                key = f"{identifier}:{dest_type}" if dest_type else identifier
+                if not identifier or key in seen_destinations:
+                    continue
+                seen_destinations.add(key)
+                if "available" not in destination:
+                    destination["available"] = True
+                destinations.append(dict(destination))
+            if destinations:
+                extraction.destinations = destinations
+
         if not extraction.dates:
             dates: list[tuple[str, datetime]] = []
             for iso_value in _coerce_strings(params.get("departureDate")):

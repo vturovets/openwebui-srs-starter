@@ -43,10 +43,10 @@ def test_impute_infers_global_defaults(popularity_settings: Settings, search_con
 
     assert enriched["durationId"] == "2007"
     assert enriched["party"] == {"adults": 2, "nonAdults": 0}
-    assert enriched["rooms"] is None
+    assert enriched["rooms"] == 1
     assert enriched["from"] == ["Charleroi"]
     assert enriched["departureDate"] == ["2026-02-19"]
-    assert metadata["imputed"]["durationId"]["source"] == "global"
+    assert metadata["imputed"]["durationId"]["source"].startswith("destination:")
     assert metadata["imputed"]["rooms"]["autoRoomAllocationSwitch"] is True
 
 
@@ -91,3 +91,17 @@ def test_imputer_logs_missing_destination(popularity_settings: Settings, search_
     assert enriched["departureDate"] == ["2026-02-19"]
     assert metadata["destinationsWithoutStats"] == ["Atlantis"]
     assert any("Atlantis" in record.message for record in caplog.records)
+
+
+def test_imputer_populates_empty_request_with_popular_defaults(popularity_settings: Settings, search_configuration: SearchConfiguration) -> None:
+    imputer = build_imputer(popularity_settings, search_configuration)
+
+    enriched, metadata = imputer.impute({})
+
+    assert enriched["to"] == ["Costa Rica"]
+    assert enriched["from"] == ["Charleroi"]
+    assert enriched["departureDate"] == ["2026-02-19"]
+    assert enriched["durationId"] == "2007"
+    assert enriched["party"] == {"adults": 2, "nonAdults": 0}
+    assert enriched["rooms"] == 1
+    assert metadata["imputed"]["to"]["source"] == "popularity"
