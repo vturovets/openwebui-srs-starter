@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+import os
 from datetime import datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Set
 
 from ..config import Settings
+from ..integrations import GeminiStructuredLLMClient, HolidaySearchLLMClient
 from ..fixtures.repository import FixtureRepository
 from .configuration import (
     HybridMethodConfig,
@@ -102,9 +104,9 @@ class HolidaySearchPipeline:
         methods_catalog: MethodsCatalog | None = None,
     ) -> None:
         self._settings = settings or Settings()
-        fixtures_root = Path(fixtures_dir or self._settings.fixtures_dir)
-        self._fixtures = FixtureRepository(fixtures_root)
-        self._configuration = self._load_search_configuration(fixtures_root)
+        self._fixtures_root = Path(fixtures_dir or self._settings.fixtures_dir)
+        self._fixtures = FixtureRepository(self._fixtures_root)
+        self._configuration = self._load_search_configuration(self._fixtures_root)
         self._methods_catalog = methods_catalog or self._settings.load_methods_catalog()
 
         self._language = LanguageDetector(self._settings.allowed_langs)
@@ -114,6 +116,8 @@ class HolidaySearchPipeline:
             available_checkin_dates=self._fixtures.list_checkin_dates(),
         )
         self._validator = Validator(self._fixtures, self._configuration)
+        self._default_llm_client = llm_client
+        self._llm_clients: Dict[str, Callable[[str], Mapping[str, object]]] = {}
         self._llm_extractor = LLMExtractor(
             self._fixtures,
             self._configuration,
@@ -160,13 +164,17 @@ class HolidaySearchPipeline:
                 "type": runtime_kind,
             }
         ]
+
+        llm_extractor = self._llm_extractor
+        if runtime_kind == "llm":
+            llm_extractor = self._build_llm_extractor(method)
         try:
             extraction = self._measure(
                 "extractionMs",
                 timings,
                 (lambda: self._rules_extractor.extract(utterance, language=language))
                 if runtime_kind == "rules"
-                else (lambda: self._llm_extractor.extract(utterance)),
+                else (lambda: llm_extractor.extract(utterance)),
             )
         except ValueError as exc:
             detail = str(exc)
@@ -188,10 +196,10 @@ class HolidaySearchPipeline:
             )
 
         if runtime_kind == "llm":
-            network_ms = self._llm_extractor.last_network_latency_ms
+            network_ms = llm_extractor.last_network_latency_ms
             if network_ms is not None:
                 timings["llmNetworkMs"] = timings.get("llmNetworkMs", 0.0) + network_ms
-            llm_metadata = self._llm_extractor.last_metadata
+            llm_metadata = llm_extractor.last_metadata
             if isinstance(llm_metadata, Mapping):
                 metadata_payload["llm"] = dict(llm_metadata)
 
@@ -400,6 +408,60 @@ class HolidaySearchPipeline:
             timings=timings,
             error=outcome.detail if outcome.status == "error" else None,
         )
+
+    def _build_llm_extractor(self, method: MethodConfig) -> LLMExtractor:
+        client = self._get_llm_client_for_method(method)
+        return LLMExtractor(
+            self._fixtures,
+            self._configuration,
+            llm_client=client,
+        )
+
+    def _get_llm_client_for_method(
+        self, method: MethodConfig
+    ) -> Callable[[str], Mapping[str, object]]:
+        if self._default_llm_client is not None:
+            return self._default_llm_client
+
+        if method.id in self._llm_clients:
+            return self._llm_clients[method.id]
+
+        provider = str(method.config.get("provider", "")).strip().lower()
+        api_base = method.config.get("api_base", self._settings.llm_api_base)
+        model = method.config.get("model", self._settings.llm_model)
+        timeout = float(method.params.get("timeout_s", self._settings.llm_timeout))
+
+        api_key_env = str(method.config.get("api_key_env", "") or "").strip()
+        api_key = os.environ.get(api_key_env) if api_key_env else None
+        if not api_key:
+            api_key = self._settings.llm_api_key
+        if not api_key:
+            raise ValueError(
+                f"LLM method '{method.id}' is missing an API key; set {api_key_env or 'LLM_API_KEY'}"
+            )
+
+        override_settings = self._settings.model_copy(
+            update={
+                "llm_api_key": api_key,
+                "llm_api_base": api_base,
+                "llm_model": model,
+                "llm_timeout": timeout,
+            }
+        )
+
+        if provider == "google":
+            client: Callable[[str], Mapping[str, object]] = GeminiStructuredLLMClient(
+                settings=override_settings,
+                fixtures_dir=self._fixtures_root,
+            )
+        else:
+            client = HolidaySearchLLMClient(
+                settings=override_settings,
+                fixtures_dir=self._fixtures_root,
+            )
+
+        self._llm_clients[method.id] = client
+        return client
 
     @property
     def language_detector(self) -> LanguageDetector:
