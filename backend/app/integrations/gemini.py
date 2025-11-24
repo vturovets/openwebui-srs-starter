@@ -96,7 +96,7 @@ class GeminiStructuredLLMClient:
         )
 
         api_base = (settings.llm_api_base or DEFAULT_API_BASE).rstrip("/")
-        endpoint_path = f"/v1beta/models/{settings.llm_model}:generateContent"
+        endpoint_path = f"models/{settings.llm_model}:generateContent"
 
         self._model = settings.llm_model
         self._api_key = settings.llm_api_key
