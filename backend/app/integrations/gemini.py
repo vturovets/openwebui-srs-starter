@@ -21,6 +21,8 @@ from ..pipeline.configuration import SearchConfiguration
 
 DEFAULT_API_BASE = "https://generativelanguage.googleapis.com"
 CONFIGURATION_FILENAME = "configuration_search.json"
+SYSTEM_INSTRUCTION_FILENAME = "gemini_system_instructions.json"
+GENERATION_CONFIG_FILENAME = "gemini_generation_config.json"
 
 
 def _load_configuration(fixtures_dir: Path) -> SearchConfiguration:
@@ -36,6 +38,29 @@ def _load_configuration(fixtures_dir: Path) -> SearchConfiguration:
     if not isinstance(payload, Mapping):
         raise ValueError("Search configuration fixture must be a JSON object")
     return SearchConfiguration.from_fixture_payload(payload)
+
+
+def _load_json_object(fixtures_dir: Path, filename: str, payload_key: str) -> MutableMapping[str, Any]:
+    path = fixtures_dir / filename
+    if not path.is_file():
+        raise FileNotFoundError(f"Fixture '{filename}' not found in '{fixtures_dir}'")
+
+    try:
+        contents = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON content in fixture '{filename}'") from exc
+    except OSError as exc:  # pragma: no cover - filesystem errors are handled elsewhere
+        raise FileNotFoundError(f"Unable to read fixture '{filename}': {exc}") from exc
+
+    try:
+        payload = contents[payload_key]
+    except KeyError as exc:
+        raise ValueError(f"Fixture '{filename}' missing key '{payload_key}'") from exc
+
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"Fixture '{filename}.{payload_key}' must be a JSON object")
+
+    return dict(payload)
 
 
 class GeminiStructuredLLMClient:
@@ -63,16 +88,15 @@ class GeminiStructuredLLMClient:
             },
         }
 
-        self._system_prompt = (
-            "You analyse travel booking queries and extract parameters for the holiday search engine. "
-            "Respond with a JSON object containing these keys: 'airports' (list), 'destinations' (list), "
-            "'duration' (object or null), 'flexibility' (object or null), and 'dates' (list). Each airport and "
-            "destination should reference the provided identifiers when possible. Dates should be returned as "
-            "objects with 'phrase' and ISO8601 'iso' fields when detected."
+        self._system_instruction = _load_json_object(
+            fixtures_path, SYSTEM_INSTRUCTION_FILENAME, "system_instruction"
+        )
+        self._generation_config = _load_json_object(
+            fixtures_path, GENERATION_CONFIG_FILENAME, "generationConfig"
         )
 
         api_base = (settings.llm_api_base or DEFAULT_API_BASE).rstrip("/")
-        endpoint_path = f"models/{settings.llm_model}:generateContent"
+        endpoint_path = f"/v1beta/models/{settings.llm_model}:generateContent"
 
         self._model = settings.llm_model
         self._api_key = settings.llm_api_key
@@ -91,100 +115,17 @@ class GeminiStructuredLLMClient:
         self.close()
 
     def _build_generation_config(self) -> MutableMapping[str, Any]:
-        airports_schema: MutableMapping[str, Any] = {
-            "type": "object",
-            "properties": {"id": {"type": "string"}, "name": {"type": "string"}},
-            "additionalProperties": True,
-        }
-
-        return {
-            "temperature": 0,
-            "response_mime_type": "application/json",
-            "response_schema": {
-                "type": "object",
-                "properties": {
-                    "airports": {
-                        "type": "array",
-                        "items": {
-                            "anyOf": [
-                                {"type": "string"},
-                                airports_schema,
-                            ]
-                        },
-                        "default": [],
-                    },
-                    "destinations": {
-                        "type": "array",
-                        "items": {
-                            "anyOf": [
-                                {"type": "string"},
-                                airports_schema,
-                            ]
-                        },
-                        "default": [],
-                    },
-                    "duration": {
-                        "anyOf": [
-                            {"type": "string"},
-                            {"type": "object", "additionalProperties": True},
-                            {"type": "null"},
-                        ],
-                    },
-                    "flexibility": {
-                        "anyOf": [
-                            {"type": "string"},
-                            {"type": "object", "additionalProperties": True},
-                            {"type": "null"},
-                        ],
-                    },
-                    "dates": {
-                        "type": "array",
-                        "items": {
-                            "anyOf": [
-                                {"type": "string"},
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "phrase": {"type": "string"},
-                                        "iso": {"type": "string"},
-                                    },
-                                    "additionalProperties": True,
-                                },
-                            ]
-                        },
-                        "default": [],
-                    },
-                    "_metadata": {"type": "object", "additionalProperties": True},
-                },
-                "additionalProperties": True,
-            },
-        }
+        return dict(self._generation_config)
 
     def _build_request_payload(self, query: str) -> MutableMapping[str, Any]:
-        query_payload = {
-            "task": "extract_search_parameters",
-            "query": query,
-            "metadata": self._metadata,
-            "output": {
-                "airports": "List of airport identifiers or objects with id/name",
-                "destinations": "List of destination identifiers or objects with id/name",
-                "duration": "Identifier or object from the provided durations list",
-                "flexibility": "Identifier or object from the provided flexibility options",
-                "dates": "List of detected travel dates with 'phrase' and 'iso' fields",
-            },
-        }
-
         payload: MutableMapping[str, Any] = {
-            "system_instruction": {
-                "parts": [{"text": self._system_prompt}],
-            },
+            "system_instruction": self._system_instruction,
             "contents": [
                 {
                     "role": "user",
                     "parts": [
-                        {
-                            "text": json.dumps(query_payload, ensure_ascii=False),
-                        }
+                        {"text": query},
+                        {"text": json.dumps(self._metadata, ensure_ascii=False)},
                     ],
                 }
             ],

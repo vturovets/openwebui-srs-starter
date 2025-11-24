@@ -210,15 +210,15 @@ def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
 
     generation_config = request_payload.get("generation_config")
     assert isinstance(generation_config, dict)
-    assert generation_config.get("response_mime_type") == "application/json"
-    assert "response_schema" in generation_config
+    assert generation_config.get("responseMimeType") == "application/json"
+    assert "responseJsonSchema" in generation_config
 
     contents = request_payload.get("contents")
     assert isinstance(contents, list) and contents
-    user_part = contents[0]["parts"][0]["text"]
-    query_payload = json.loads(user_part)
-    assert query_payload["task"] == "extract_search_parameters"
-    assert query_payload["metadata"]["flexibility"]["allowed"] is True
+    user_parts = contents[0]["parts"]
+    assert user_parts[0]["text"] == "Plan a sunny holiday"
+    metadata_payload = json.loads(user_parts[1]["text"])
+    assert metadata_payload["flexibility"]["allowed"] is True
 
     assert payload["airports"][0] == "AMS"
     assert payload["destinations"][1]["name"] == "Australia"
