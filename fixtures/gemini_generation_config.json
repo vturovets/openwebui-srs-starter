@@ -1,8 +1,6 @@
 {
 	"generationConfig": {
-		"temperature": 1.0,
-		"topP": 0.8,
-		"topK": 10,
+		"temperature": 0.0,
 		"responseMimeType": "application/json",
 		"responseJsonSchema": {
 			"type": "object",
@@ -17,12 +15,15 @@
 							{
 								"type": "object",
 								"properties": {
-									"id": {
-										"type": "string"
-									},
-									"name": {
-										"type": "string"
-									}
+                                    "id": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "available": {
+                                        "type": "boolean"
+                                    }
 								}
 							}
 						]
@@ -39,12 +40,15 @@
 							{
 								"type": "object",
 								"properties": {
-									"id": {
-										"type": "string"
-									},
-									"name": {
-										"type": "string"
-									}
+                                    "id": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "available": {
+                                        "type": "boolean"
+                                    }
 								}
 							}
 						]
