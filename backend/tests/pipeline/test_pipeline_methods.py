@@ -98,17 +98,17 @@ def test_pipeline_hybrid_fallback_success(pipeline_factory) -> None:
 
     assert result.status == "success"
     assert result.method_requested == "hybrid-v1"
-    assert result.method_used == "gpt5-default"
+    assert result.method_used == "gemini-2.5-flash"
     assert result.validation["status"] == "passed"
     hybrid_meta = result.metadata.get("hybrid", {})
     assert hybrid_meta.get("methodId") == "hybrid-v1"
     assert hybrid_meta.get("fallbackTriggered") is False
     stages = hybrid_meta.get("stages", [])
     assert stages and stages[0]["id"] == "rules-basic" and stages[0]["status"] == "failed"
-    assert stages[-1]["id"] == "gpt5-default"
+    assert stages[-1]["id"] == "gemini-2.5-flash"
     attempts = result.attempts
     assert attempts[0]["method"] == "rules-basic"
-    assert attempts[-1]["method"] == "gpt5-default"
+    assert attempts[-1]["method"] == "gemini-2.5-flash"
 
 
 def test_pipeline_records_llm_network_latency(pipeline_factory) -> None:
@@ -129,7 +129,7 @@ def test_pipeline_records_llm_network_latency(pipeline_factory) -> None:
     latency_ms = result.timings.get("llmNetworkMs")
     assert latency_ms is not None
     assert latency_ms >= 40.0
-    assert result.method_used == "gpt5-default"
+    assert result.method_used == "gemini-2.5-flash"
 
 
 def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
@@ -154,7 +154,7 @@ def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
     assert llm_meta.get("provider") == "stub-llm"
     assert llm_meta.get("promptId") == "prompt-123"
     assert llm_meta.get("responseId") == "response-456"
-    assert result.method_used == "gpt5-default"
+    assert result.method_used == "gemini-2.5-flash"
 
 
 def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
@@ -171,7 +171,7 @@ def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
 
     assert result.status == "failed"
     assert result.method_requested == "hybrid-v1"
-    assert result.method_used == "gpt5-default"
+    assert result.method_used == "gemini-2.5-flash"
     assert result.validation["status"] == "failed"
     hybrid_meta = result.metadata.get("hybrid", {})
     assert hybrid_meta.get("fallbackTriggered") is True
@@ -231,9 +231,9 @@ def test_dependency_wiring_triggers_llm_when_configured(monkeypatch, tmp_path: P
         dependencies.get_llm_client.cache_clear()  # type: ignore[attr-defined]
         dependencies.get_methods_catalog.cache_clear()  # type: ignore[attr-defined]
 
-    assert result.method_requested == "gpt5-default"
+    assert result.method_requested == "gemini-2.5-flash"
     assert result.metadata.get("requestedAlias") == "llm"
-    assert result.method_used == "gpt5-default"
+    assert result.method_used == "gemini-2.5-flash"
     assert calls == ["Plan a weekend escape"]
 
 

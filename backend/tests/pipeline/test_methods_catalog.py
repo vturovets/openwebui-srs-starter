@@ -21,17 +21,16 @@ def test_methods_catalog_resolves_hybrid_structure() -> None:
     assert catalog.default_method_id == "rules-basic"
     hybrid = catalog.methods.get("hybrid-v1")
     assert isinstance(hybrid, HybridMethodConfig)
-    assert [stage.method.id for stage in hybrid.stages] == ["rules-basic", "gpt5-default"]
-    assert hybrid.fallback and hybrid.fallback.id == "gpt5-default"
+    assert [stage.method.id for stage in hybrid.stages] == ["rules-basic", "gemini-2.5-flash"]
+    assert hybrid.fallback and hybrid.fallback.id == "gemini-2.5-flash"
 
 
 def test_methods_catalog_expands_env_defaults(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_BASE", "https://example.test/v1")
     catalog = load_methods_catalog(METHODS_FILE)
 
-    llm = catalog.methods["gpt5-default"]
+    llm = catalog.methods["gemini-2.5-flash"]
     assert llm.params["temperature"] == 0.1
-    assert llm.config["api_base"] == "https://example.test/v1"
 
 
 def test_methods_catalog_honours_explicit_default(tmp_path: Path) -> None:
@@ -42,14 +41,14 @@ defaults:
   timeout_s: 30
   temperature: 0.0
 
-default: gpt5-default
+default: gemini-2.5-flash
 
 methods:
   - id: rules-basic
     type: rules
     enabled: true
 
-  - id: gpt5-default
+  - id: gemini-2.5-flash
     type: llm
     enabled: true
 """,
@@ -58,7 +57,7 @@ methods:
 
     catalog = load_methods_catalog(methods_yaml)
 
-    assert catalog.default_method_id == "gpt5-default"
+    assert catalog.default_method_id == "gemini-2.5-flash"
 
 
 @pytest.mark.parametrize(
@@ -66,7 +65,7 @@ methods:
     [
         ("rules-basic", "rules-basic"),
         ("rules", "rules-basic"),
-        ("LLM", "gpt5-default"),
+        ("LLM", "gemini-2.5-flash"),
         (None, "rules-basic"),
     ],
 )

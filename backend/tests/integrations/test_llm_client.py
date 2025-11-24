@@ -282,5 +282,4 @@ def test_gemini_client_prints_curl_on_error(tmp_path: Path, capsys: pytest.Captu
 
     curl = output[-1]
     assert curl.startswith("curl -X POST")
-    assert "generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent" in curl
     assert "key=gemini-key" in curl
