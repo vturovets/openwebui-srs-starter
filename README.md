@@ -1,32 +1,52 @@
 # OpenWebUI SRS Starter
 
-Prototype monorepo for the **NLP-Powered Holiday Request** project outlined in the
-accompanying Software Requirements Specification (SRS) and Software Design
+Prototype monorepo for the **NLP-Powered Holiday Request** project outlined in
+the accompanying Software Requirements Specification (SRS) and Software Design
 Description (SDD). It ships a deterministic FastAPI backend, a Vite + Svelte
-frontend, and supporting fixtures so teams can benchmark NLP strategies end-to-end.
+frontend, and supporting fixtures so teams can benchmark NLP strategies
+end-to-end.
 
 The backend accepts natural-language holiday requests, derives structured
-parameters through a transparent pipeline, and records every transaction to a CSV
-audit trail. Dialogue flows, voice transcription, import guardrails, and pluggable
-LLM strategies are implemented as explicit modules so alternative approaches can
-be swapped in while retaining comparable output for experiments.
+parameters through a transparent pipeline, and records every transaction to a
+CSV audit trail. Dialogue flows, voice transcription, import guardrails, and
+pluggable LLM strategies are implemented as explicit modules so alternative
+approaches can be swapped in while retaining comparable output for experiments.
 
 ### Highlights
 
 - **Deterministic NLP pipeline** – [`backend/app/pipeline`](backend/app/pipeline)
-  wires together language detection, rule/LLM extraction, data normalisation, and
-  validation. Every stage is observable for benchmarking and experimentation.
+  wires together language detection, rule/LLM extraction, data normalisation,
+  optional popularity-based imputation, and validation so every stage is
+  observable for benchmarking.【F:backend/app/pipeline/pipeline.py†L94-L200】
+- **Dialog-aware flow** – [`backend/app/pipeline/dialog.py`](backend/app/pipeline/dialog.py)
+  surfaces clarification prompts, tracks transcript state, and falls back to
+  single-turn parsing when `INTERACTION_MODE=direct-parse`.【F:backend/app/pipeline/dialog.py†L90-L199】
 - **Bulk import runner with guardrails** – [`backend/app/services/import_runner.py`](backend/app/services/import_runner.py)
-  powers CSV/backlog ingestion with retry, concurrency, and resource controls that
-  mirror the production expectations described in [`docs/imports.md`](docs/imports.md).
-- **Resource-aware telemetry** – [`backend/app/telemetry/resource_monitor.py`](backend/app/telemetry/resource_monitor.py)
-  samples CPU and memory usage so long-running imports can throttle themselves
-  before overwhelming shared environments.
+  powers CSV/backlog ingestion with retry, latency bucketing, and
+  CPU/RAM-aware throttling so imports stay within resource budgets.【F:backend/app/services/import_runner.py†L1-L199】
+- **Voice capture support** – `/v1/voice` streams uploads through Deepgram when
+  configured and automatically falls back to local `faster-whisper` to keep the
+  UI microphone usable in offline demos.【F:backend/app/api/routes.py†L900-L940】【F:backend/app/integrations/stt.py†L66-L200】
 - **CSV-backed observability** – [`backend/app/logging/csv_logger.py`](backend/app/logging/csv_logger.py)
   emits a stable schema that the frontend can replay for A/B comparisons and
-  regressions analysis.
-- **Frontend parity** – [`frontend/`](frontend) reproduces the OpenWebUI flow with
-  component tests (Vitest) and Playwright E2E coverage for interactive journeys.
+  regression analysis.
+- **Frontend parity** – [`frontend/`](frontend) reproduces the OpenWebUI flow
+  with component tests (Vitest) and Playwright E2E coverage for interactive
+  journeys.
+
+### API surface
+
+- `GET /health` – readiness probe returning the active interaction mode.
+- `POST /v1/parse` – runs the holiday search pipeline, returning structured
+  fields plus timing metadata; switch to bulk import execution with
+  `import_mode=true`.【F:backend/app/api/routes.py†L656-L707】
+- `POST /v1/dialog` – multi-turn orchestrator that injects clarification prompts
+  while preserving session transcripts and timing data.【F:backend/app/api/routes.py†L709-L852】
+- `GET /v1/fixtures` – exposes airports, destinations, configuration defaults,
+  and method catalog metadata for the frontend UI.【F:backend/app/api/routes.py†L855-L898】
+- `POST /v1/voice` – transcribes audio, routes the transcript through the NLP
+  pipeline, and mirrors the same logging/validation payloads as `/v1/parse`.
+  【F:backend/app/api/routes.py†L900-L940】
 
 ## Project structure
 
