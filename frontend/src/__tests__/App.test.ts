@@ -126,6 +126,20 @@ const PARSE_WITH_USAGE_METADATA = {
   },
 };
 
+const PARSE_WITH_RESOURCE_METRICS = {
+  ...PARSE_SUCCESS,
+  metadata: {
+    ...PARSE_SUCCESS.metadata,
+    usage: undefined,
+    usageMetadata: undefined,
+    resources: {
+      apiCalls: 3,
+      cpuTimeMs: 18.5,
+      ramFootprintMbSeconds: 9.25,
+    },
+  },
+};
+
 const PARSE_FAILED = {
   status: 'failed',
   data: {},
@@ -391,6 +405,40 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('usage-api-calls')).toHaveTextContent('—');
     expect(screen.getByTestId('usage-cpu')).toHaveTextContent('—');
     expect(screen.getByTestId('usage-ram')).toHaveTextContent('—');
+
+    component.$destroy();
+  });
+
+  it('derives usage summary values from resource metrics during import', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_WITH_RESOURCE_METRICS));
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const csvContent = 'User input,Expected values\n"Find a trip",""\n';
+    const file = {
+      name: 'requests.csv',
+      type: 'text/csv',
+      text: () => Promise.resolve(csvContent),
+    } as unknown as File;
+
+    const importInput = screen.getByTestId('import-input') as HTMLInputElement;
+    Object.defineProperty(importInput, 'files', {
+      value: [file],
+      configurable: true,
+    });
+
+    await fireEvent.change(importInput);
+
+    await waitFor(() => expect(screen.getByTestId('usage-summary')).toBeInTheDocument());
+    expect(screen.getByTestId('usage-tokens-in')).toHaveTextContent('—');
+    expect(screen.getByTestId('usage-tokens-out')).toHaveTextContent('—');
+    expect(screen.getByTestId('usage-api-calls')).toHaveTextContent('3');
+    expect(screen.getByTestId('usage-cpu')).toHaveTextContent('18.5 ms');
+    expect(screen.getByTestId('usage-ram')).toHaveTextContent('9.25 MB·s');
 
     component.$destroy();
   });
