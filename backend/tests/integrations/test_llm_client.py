@@ -39,7 +39,7 @@ def _build_settings(tmp_path: Path) -> Settings:
 
 def _build_gemini_settings(tmp_path: Path) -> Settings:
     return Settings(
-        llm_api_base="https://generativelanguage.googleapis.com",
+        llm_api_base="https://generativelanguage.googleapis.com/v1beta",
         llm_api_key="gemini-key",
         llm_model="gemini-1.5-flash",
         llm_timeout=5,
@@ -191,7 +191,7 @@ def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
 
     http_client = httpx.Client(
         transport=httpx.MockTransport(handler),
-        base_url="https://generativelanguage.googleapis.com",
+        base_url="https://generativelanguage.googleapis.com/v1beta",
     )
 
     settings = _build_gemini_settings(tmp_path)
@@ -229,7 +229,7 @@ def test_gemini_client_builds_structured_payload(tmp_path: Path) -> None:
     assert metadata["requestId"] == "req-123"
     assert metadata["traceId"] == "trace-456"
     assert metadata["finishReason"] == "STOP"
-    assert metadata["usageMetadata"] == {"promptTokenCount": 42}
+    assert metadata["usageMetadata"] == {"promptTokenCount": 42, "requestcount": 1}
 
 
 def test_gemini_client_raises_on_malformed_response(tmp_path: Path) -> None:

@@ -288,6 +288,16 @@ class GeminiStructuredLLMClient:
         if not isinstance(response_body, Mapping):
             raise ValueError("Gemini provider response body must be a JSON object")
 
+        usage_metadata: MutableMapping[str, Any]
+        existing_usage = response_body.get("usageMetadata")
+        if isinstance(existing_usage, Mapping):
+            usage_metadata = dict(existing_usage)
+        else:
+            usage_metadata = {}
+        usage_metadata.setdefault("requestcount", 1)
+        response_body = dict(response_body)
+        response_body["usageMetadata"] = usage_metadata
+
         payload = self._extract_structured_payload(response_body)
         self._merge_metadata(payload, response_body, response)
         return payload
