@@ -277,12 +277,18 @@
 
   function identifyUsageMetric(key: string): UsageMetricKey | null {
     if (key.includes('token')) {
-      if (key.includes('out') || key.includes('output') || key.includes('completion') || key.includes('response')) {
-        return 'tokensOut';
-      }
-      if (key.includes('in') || key.includes('input') || key.includes('prompt')) {
-        return 'tokensIn';
-      }
+      if (
+        key.includes('out') ||
+        key.includes('output') ||
+        key.includes('completion') ||
+        key.includes('response') ||
+        key.includes('candidate')
+      ) {
+      return 'tokensOut';
+    }
+    if (key.includes('in') || key.includes('input') || key.includes('prompt')) {
+      return 'tokensIn';
+    }
     }
 
     if (key.includes('api') && (key.includes('call') || key.includes('request'))) {
@@ -454,6 +460,9 @@
       components.push(usage.components);
     }
 
+    const usageMetadata = isRecord(metadata.usageMetadata) ? metadata.usageMetadata : null;
+    let llmUsageMetadata: Record<string, unknown> | null = null;
+
     const llm = isRecord(metadata.llm) ? metadata.llm : null;
     if (llm) {
       if (Array.isArray(llm.components)) {
@@ -462,6 +471,9 @@
       const llmUsage = isRecord(llm.usage) ? llm.usage : null;
       if (llmUsage && Array.isArray(llmUsage.components)) {
         components.push(llmUsage.components);
+      }
+      if (!usageMetadata) {
+        llmUsageMetadata = isRecord(llm.usageMetadata) ? llm.usageMetadata : null;
       }
     }
 
@@ -496,7 +508,7 @@
       }
     }
 
-    const containers = [usage, usageFootprint, metrics, llm?.usage];
+    const containers = [usage, usageMetadata, llmUsageMetadata, usageFootprint, metrics, llm?.usage];
     for (const container of containers) {
       if (isRecord(container) && processUsageObject(container, aggregate, visited, true)) {
         updated = true;
