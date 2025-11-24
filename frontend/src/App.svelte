@@ -508,7 +508,15 @@
       }
     }
 
-    const containers = [usage, usageMetadata, llmUsageMetadata, usageFootprint, metrics, llm?.usage];
+    const containers = [
+      usage,
+      usageMetadata,
+      llmUsageMetadata,
+      usageFootprint,
+      metrics,
+      llm?.usage,
+      resources,
+    ];
     for (const container of containers) {
       if (isRecord(container) && processUsageObject(container, aggregate, visited, true)) {
         updated = true;
