@@ -113,6 +113,19 @@ const PARSE_SUCCESS = {
   },
 };
 
+const PARSE_WITH_USAGE_METADATA = {
+  ...PARSE_SUCCESS,
+  metadata: {
+    ...PARSE_SUCCESS.metadata,
+    usage: undefined,
+    usageMetadata: {
+      promptTokenCount: 120,
+      candidatesTokenCount: 45,
+      totalTokenCount: 165,
+    },
+  },
+};
+
 const PARSE_FAILED = {
   status: 'failed',
   data: {},
@@ -344,6 +357,40 @@ describe('Holiday search console', () => {
     await fireEvent.click(resetButton);
     await waitFor(() => expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument());
     expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
+
+    component.$destroy();
+  });
+
+  it('derives usage summary values from usage metadata during import', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_WITH_USAGE_METADATA));
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const csvContent = 'User input,Expected values\n"Find a trip",""\n';
+    const file = {
+      name: 'requests.csv',
+      type: 'text/csv',
+      text: () => Promise.resolve(csvContent),
+    } as unknown as File;
+
+    const importInput = screen.getByTestId('import-input') as HTMLInputElement;
+    Object.defineProperty(importInput, 'files', {
+      value: [file],
+      configurable: true,
+    });
+
+    await fireEvent.change(importInput);
+
+    await waitFor(() => expect(screen.getByTestId('usage-summary')).toBeInTheDocument());
+    expect(screen.getByTestId('usage-tokens-in')).toHaveTextContent('120');
+    expect(screen.getByTestId('usage-tokens-out')).toHaveTextContent('45');
+    expect(screen.getByTestId('usage-api-calls')).toHaveTextContent('—');
+    expect(screen.getByTestId('usage-cpu')).toHaveTextContent('—');
+    expect(screen.getByTestId('usage-ram')).toHaveTextContent('—');
 
     component.$destroy();
   });
