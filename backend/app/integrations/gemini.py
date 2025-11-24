@@ -72,7 +72,7 @@ class GeminiStructuredLLMClient:
         )
 
         api_base = (settings.llm_api_base or DEFAULT_API_BASE).rstrip("/")
-        endpoint_path = f"/v1beta/models/{settings.llm_model}:generateContent"
+        endpoint_path = f"models/{settings.llm_model}:generateContent"
 
         self._model = settings.llm_model
         self._api_key = settings.llm_api_key
@@ -301,7 +301,7 @@ class GeminiStructuredLLMClient:
         header_mappings = {
             "x-request-id": "requestId",
             "x-response-id": "responseId",
-            "x-trace-id": "traceId",
+            "x-trace-id": "traceId"
         }
         for header, key in header_mappings.items():
             value = response.headers.get(header)

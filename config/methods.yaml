@@ -15,7 +15,7 @@ methods:
 
   - id: gpt5-default
     type: llm
-    enabled: true
+    enabled: false
     provider: openai
     model: gpt-5-chat-latest
     api_base: ${OPENAI_BASE:-https://api.openai.com/v1}   # env-substitution
@@ -40,14 +40,14 @@ methods:
     strategy: cascade              # cascade | vote | weight
     stages:
       - ref: rules-basic
-      - ref: gpt5-default
-    fallback: gpt5-default
+      - ref: gemini-2.5-flash
+    fallback: gemini-2.5-flash
 
-  - id: gemini-2_5-pro
+  - id: gemini-2.5-flash
     type: llm
-    enabled: false
+    enabled: true
     provider: google
-    model: gemini-2.5-pro
+    model: gemini-2.5-flash
     api_base: ${GOOGLE_API_BASE:-https://generativelanguage.googleapis.com/v1beta}
     api_key_env: GOOGLE_API_KEY    # keep the key in env/.env, not here
     params:

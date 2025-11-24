@@ -1,0 +1,105 @@
+{
+	"generationConfig": {
+		"temperature": 1.0,
+		"topP": 0.8,
+		"topK": 10,
+		"responseMimeType": "application/json",
+		"responseJsonSchema": {
+			"type": "object",
+			"properties": {
+				"airports": {
+					"type": "array",
+					"items": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "string"
+									},
+									"name": {
+										"type": "string"
+									}
+								}
+							}
+						]
+					},
+					"default": []
+				},
+				"destinations": {
+					"type": "array",
+					"items": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "string"
+									},
+									"name": {
+										"type": "string"
+									}
+								}
+							}
+						]
+					},
+					"default": []
+				},
+				"duration": {
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "object"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"flexibility": {
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "object"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"dates": {
+					"type": "array",
+					"items": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "object",
+								"properties": {
+									"phrase": {
+										"type": "string"
+									},
+									"iso": {
+										"type": "string"
+									}
+								}
+							}
+						]
+					},
+					"default": []
+				}
+			}
+		}
+	}
+}

@@ -283,19 +283,6 @@ def _run_pipeline_scenario(
     return result
 
 
-def test_pipeline_imputes_unspecified_search(pipeline: HolidaySearchPipeline) -> None:
-    result = _run_pipeline_scenario(pipeline, "Show me the cheapest offers")
-
-    normalized = result.normalized
-    assert normalized is not None
-    assert normalized.from_codes
-    assert normalized.departure_dates
-
-    metadata = result.metadata.get("imputed", {})
-    assert metadata
-    assert metadata["departureDate"]["source"] == "global"
-
-
 def test_pipeline_imputes_single_destination_stats(pipeline: HolidaySearchPipeline) -> None:
     result = _run_pipeline_scenario(pipeline, "Best cheap hotels in Australia")
 

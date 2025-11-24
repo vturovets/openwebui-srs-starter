@@ -1383,7 +1383,7 @@
         "total": 6
       }
     },
-    "Latvia": {
+    "Austria": {
       "duration": {
         "mode": 7,
         "mode_count": 3,
@@ -1729,7 +1729,7 @@
       "unique_intervals": 1,
       "total": 1
     },
-    "Australia||Columbia||Costa Rica||Japan||Kenya||Kuwait||Latvia||New Zealand": {
+    "Australia||Columbia||Costa Rica||Japan||Kenya||Kuwait||Austria||New Zealand": {
       "destinations": [
         "Australia",
         "Columbia",
@@ -1737,7 +1737,7 @@
         "Japan",
         "Kenya",
         "Kuwait",
-        "Latvia",
+        "Austria",
         "New Zealand"
       ],
       "mode": {
@@ -1757,7 +1757,7 @@
       "unique_intervals": 1,
       "total": 1
     },
-    "Australia||Chile||Columbia||Costa Rica||Japan||Kenya||Korea||Kuwait||Latvia||New Zealand": {
+    "Australia||Chile||Columbia||Costa Rica||Japan||Kenya||Korea||Kuwait||Austria||New Zealand": {
       "destinations": [
         "Australia",
         "Chile",
@@ -1767,7 +1767,7 @@
         "Kenya",
         "Korea",
         "Kuwait",
-        "Latvia",
+        "Austria",
         "New Zealand"
       ],
       "mode": {
