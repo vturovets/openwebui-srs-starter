@@ -1,0 +1,34 @@
+---
+title: OpenWebUI SRS Starter Architecture
+config:
+  layout: dagre
+---
+architecture-beta
+  group client("Client", "users")
+    component browser("Browser", "browser", "End users initiate holiday requests")
+  group frontend("Frontend", "svelte")
+    component web("Vite + Svelte SPA", "vite", "Collects inputs and replays audit logs")
+  group backend("Backend", "fastapi")
+    component api("FastAPI App", "api", "REST endpoints for parse, dialog, fixtures, voice")
+    component pipeline("NLP Pipeline", "workflow", "Language detection, extraction, validation")
+    component services("Services", "settings", "Import runner, configuration, health checks")
+    component logging("CSV Logger", "storage", "Structured audit trail writer")
+  group data("Data & Fixtures", "storage")
+    component fixtures("Fixtures", "file", "Airports, destinations, durations")
+    component configs("Config Catalog", "gear", "Method catalog, defaults, env settings")
+    component audit("Audit CSV", "database", "Append-only processing history")
+  group external("External Integrations", "cloud")
+    component llm("LLM Provider", "llm", "OpenAI-compatible structured parsing")
+    component stt("Speech-to-Text", "mic", "Deepgram or local faster-whisper")
+
+  browser -> web : "User interactions"
+  web -> api : "API calls (/v1/parse, /v1/dialog, /v1/voice, /v1/fixtures)"
+  api -> pipeline : "Dispatch NLP flow"
+  api -> services : "Bulk import orchestration"
+  services -> pipeline : "Execute queued parse jobs"
+  pipeline -> logging : "Emit structured events"
+  logging -> audit : "Persist CSV logs"
+  pipeline -> fixtures : "Load reference data"
+  pipeline -> configs : "Read method catalog"
+  pipeline <- llm : "Structured extraction when enabled"
+  pipeline <- stt : "Transcripts for voice requests"
