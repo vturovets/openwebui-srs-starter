@@ -1,6 +1,4 @@
-Error rendering embedded code
-
-Parsing failed: unexpected character: ->[<- at offset: 221, skipped 2 characters.
+Error: MermaidError: Parsing failed: unexpected character: ->[<- at offset: 221, skipped 2 characters.
 unexpected character: ->]<- at offset: 229, skipped 1 characters.
 unexpected character: ->[<- at offset: 260, skipped 2 characters.
 unexpected character: ->/<- at offset: 264, skipped 1 characters.
@@ -21,162 +19,163 @@ unexpected character: ->&<- at offset: 1517, skipped 1 characters.
 unexpected character: ->]<- at offset: 1527, skipped 1 characters.
 unexpected character: ->[<- at offset: 1910, skipped 1 characters.
 unexpected character: ->]<- at offset: 1931, skipped 1 characters. Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'health'
 Expecting token of type ':' but found `in`.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: 'in'
 Expecting token of type 'ID' but found `in`.
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'v1'
 Expecting token of type ':' but found `parse`.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: 'parse'
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'in'
 Expecting token of type 'EOF' but found `in`.
 Expecting token of type ':' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: '
 '
 Expecting token of type 'ID' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'v1'
 Expecting token of type ':' but found `dialog`.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: 'dialog'
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'in'
 Expecting token of type 'EOF' but found `in`.
 Expecting token of type ':' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: '
 '
 Expecting token of type 'ID' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'v1'
 Expecting token of type ':' but found `voice`.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: 'voice'
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'in'
 Expecting token of type 'EOF' but found `in`.
 Expecting token of type ':' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: '
 '
 Expecting token of type 'ID' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'v1'
 Expecting token of type ':' but found `fixtures`.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: 'fixtures'
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'in'
 Expecting token of type 'EOF' but found `in`.
 Expecting token of type ':' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: '
 '
 Expecting token of type 'ID' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'Speech-to-Text'
 Expecting token of type ':' but found `Client`.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: 'Client'
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'in'
 Expecting token of type 'EOF' but found `in`.
 Expecting token of type ':' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: '
 '
 Expecting token of type 'ID' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'Data'
 Expecting token of type ':' but found `Fixtures`.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: 'Fixtures'
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'L'
 Expecting token of type 'EOF' but found `L`.
 Expecting token of type ':' but found `Faster-Whisper`.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: 'Faster-Whisper'
 Expecting: one of these possible Token sequences:
-1. [NEWLINE]
-2. [EOF]
+  1. [NEWLINE]
+  2. [EOF]
 but found: 'in'
 Expecting token of type 'EOF' but found `in`.
 Expecting token of type ':' but found `
 `.
 Expecting: one of these possible Token sequences:
-1. [--]
-2. [-]
+  1. [--]
+  2. [-]
 but found: '
 '
 Expecting token of type 'ID' but found `
 `.
+Need help fixing syntax errors?
 
-For more information, see https://docs.github.com/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams
+
