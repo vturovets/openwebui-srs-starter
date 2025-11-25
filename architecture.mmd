@@ -1,34 +1,80 @@
----
-title: OpenWebUI SRS Starter Architecture
-config:
-  layout: dagre
----
 architecture-beta
-  group client("Client", "users")
-    component browser("Browser", "browser", "End users initiate holiday requests")
-  group frontend("Frontend", "svelte")
-    component web("Vite + Svelte SPA", "vite", "Collects inputs and replays audit logs")
-  group backend("Backend", "fastapi")
-    component api("FastAPI App", "api", "REST endpoints for parse, dialog, fixtures, voice")
-    component pipeline("NLP Pipeline", "workflow", "Language detection, extraction, validation")
-    component services("Services", "settings", "Import runner, configuration, health checks")
-    component logging("CSV Logger", "storage", "Structured audit trail writer")
-  group data("Data & Fixtures", "storage")
-    component fixtures("Fixtures", "file", "Airports, destinations, durations")
-    component configs("Config Catalog", "gear", "Method catalog, defaults, env settings")
-    component audit("Audit CSV", "database", "Append-only processing history")
-  group external("External Integrations", "cloud")
-    component llm("LLM Provider", "llm", "OpenAI-compatible structured parsing")
-    component stt("Speech-to-Text", "mic", "Deepgram or local faster-whisper")
+    group api(cloud)[API Layer]
+    
+    service fastapi(server)[FastAPI Backend] in api
+    service health(internet)[Health Check] in api
+    service parse(internet)[Parse Endpoint] in api
+    service dialog(internet)[Dialog Endpoint] in api
+    service voice(internet)[Voice Endpoint] in api
+    service fixtures(internet)[Fixtures Endpoint] in api
 
-  browser -> web : "User interactions"
-  web -> api : "API calls (/v1/parse, /v1/dialog, /v1/voice, /v1/fixtures)"
-  api -> pipeline : "Dispatch NLP flow"
-  api -> services : "Bulk import orchestration"
-  services -> pipeline : "Execute queued parse jobs"
-  pipeline -> logging : "Emit structured events"
-  logging -> audit : "Persist CSV logs"
-  pipeline -> fixtures : "Load reference data"
-  pipeline -> configs : "Read method catalog"
-  pipeline <- llm : "Structured extraction when enabled"
-  pipeline <- stt : "Transcripts for voice requests"
+    group frontend(cloud)[Frontend Layer]
+    
+    service svelte(disk)[Svelte SPA] in frontend
+    service vite(disk)[Vite Build] in frontend
+
+    group pipeline(server)[NLP Pipeline]
+    
+    service langdetect(disk)[Language Detector] in pipeline
+    service extractor(disk)[Extractors] in pipeline
+    service normalizer(disk)[Normalizer] in pipeline
+    service validator(disk)[Validator] in pipeline
+    service dialogorch(disk)[Dialog Orchestrator] in pipeline
+
+    group extractors(server)[Extraction Methods]
+    
+    service rules(disk)[Rules Extractor] in extractors
+    service llm(disk)[LLM Extractor] in extractors
+    service hybrid(disk)[Hybrid Extractor] in extractors
+
+    group integrations(cloud)[External Services]
+    
+    service openai(internet)[OpenAI API] in integrations
+    service deepgram(internet)[Deepgram STT] in integrations
+    service whisper(disk)[Faster Whisper] in integrations
+
+    group data(database)[Data Layer]
+    
+    service csvlog(disk)[CSV Logger] in data
+    service fixturedata(disk)[Fixture Repository] in data
+    service popularity(disk)[Popularity Stats] in data
+
+    group services(server)[Services]
+    
+    service importrunner(disk)[Import Job Runner] in services
+    service resourcemon(disk)[Resource Monitor] in services
+    service sttclient(disk)[STT Client] in services
+
+    svelte:R --> L:fastapi
+    fastapi:B --> T:health
+    fastapi:B --> T:parse
+    fastapi:B --> T:dialog
+    fastapi:B --> T:voice
+    fastapi:B --> T:fixtures
+
+    parse:R --> L:langdetect
+    dialog:R --> L:dialogorch
+    voice:R --> L:sttclient
+
+    langdetect:B --> T:extractor
+    extractor:R --> L:normalizer
+    normalizer:R --> L:validator
+
+    extractor:B --> T:rules
+    extractor:B --> T:llm
+    extractor:B --> T:hybrid
+
+    llm:R --> L:openai
+    sttclient:R --> L:deepgram
+    sttclient:R --> L:whisper
+
+    parse:B --> T:csvlog
+    dialog:B --> T:csvlog
+    voice:B --> T:csvlog
+
+    normalizer:B --> T:fixturedata
+    validator:B --> T:fixturedata
+    validator:B --> T:popularity
+
+    parse:L --> R:importrunner
+    importrunner:R --> L:resourcemon
