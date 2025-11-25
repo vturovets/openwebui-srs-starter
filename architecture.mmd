@@ -1,64 +1,78 @@
+```mermaid
 architecture-beta
-    group api(cloud)[API Layer]
-    
-    service fastapi(server)[FastAPI Backend] in api
-    service health(internet)[Health Check] in api
-    service parse(internet)[Parse Endpoint] in api
-    service dialog(internet)[Dialog Endpoint] in api
-    service voice(internet)[Voice Endpoint] in api
-    service fixtures(internet)[Fixtures Endpoint] in api
+    title OpenWebUI AI Search
 
-    group frontend(cloud)[Frontend Layer]
-    
-    service svelte(disk)[Svelte SPA] in frontend
-    service vite(disk)[Vite Build] in frontend
+    group client(browser)[Client] {
+        service webui(browser)[Svelte Frontend]
+    }
 
-    group pipeline(server)[NLP Pipeline]
-    
-    service langdetect(disk)[Language Detector] in pipeline
-    service extractor(disk)[Extractors] in pipeline
-    service normalizer(disk)[Normalizer] in pipeline
-    service validator(disk)[Validator] in pipeline
-    service dialogorch(disk)[Dialog Orchestrator] in pipeline
+    group api(server)[API Layer] {
+        service fastapi(server)[FastAPI Application]
+        service health(api)[/health]
+        service parse(api)[/v1/parse]
+        service dialog(api)[/v1/dialog]
+        service voice(api)[/v1/voice]
+        service fixtures(api)[/v1/fixtures]
+    }
 
-    group extractors(server)[Extraction Methods]
-    
-    service rules(disk)[Rules Extractor] in extractors
-    service llm(disk)[LLM Extractor] in extractors
-    service hybrid(disk)[Hybrid Extractor] in extractors
+    group pipeline(server)[NLP Pipeline] {
+        service orchestrator(service)[Pipeline Orchestrator]
+        service langdetect(service)[Language Detector]
+        service methodcatalog(service)[Method Catalogue]
+        service extractor(service)[Extractor Dispatcher]
+        service normalizer(service)[Normalizer]
+        service validator(service)[Validator]
+        service dialogorch(service)[Dialog Orchestrator]
+    }
 
-    group integrations(cloud)[External Services]
-    
-    service openai(internet)[OpenAI API] in integrations
-    service deepgram(internet)[Deepgram STT] in integrations
-    service whisper(disk)[Faster Whisper] in integrations
+    group extraction(server)[Extraction Methods] {
+        service rules(service)[Rules Extractor]
+        service llm(service)[LLM Extractor]
+        service hybrid(service)[Hybrid Strategy]
+    }
 
-    group data(database)[Data Layer]
-    
-    service csvlog(disk)[CSV Logger] in data
-    service fixturedata(disk)[Fixture Repository] in data
-    service popularity(disk)[Popularity Stats] in data
+    group services(server)[Supporting Services] {
+        service csvlogger(storage)[CSV Logger]
+        service importrunner(worker)[Import Job Runner]
+        service importsummary(service)[Import Summary Reporter]
+        service resourcemonitor(monitor)[Resource Monitor]
+        service sttclient(service)[Speech-to-Text Client]
+    }
 
-    group services(server)[Services]
-    
-    service importrunner(disk)[Import Job Runner] in services
-    service resourcemon(disk)[Resource Monitor] in services
-    service sttclient(disk)[STT Client] in services
+    group data(database)[Data & Fixtures] {
+        service fixturesrepo(storage)[Fixture Repository]
+        service popularity(storage)[Popularity Stats]
+        service methodsconfig(storage)[Methods Configuration]
+    }
 
-    svelte:R --> L:fastapi
+    group integrations(cloud)[External Providers] {
+        service openai(internet)[OpenAI API]
+        service deepgram(internet)[Deepgram STT]
+        service whisper(cpu)[Local Faster-Whisper]
+    }
+
+    webui:R --> L:fastapi
+
     fastapi:B --> T:health
     fastapi:B --> T:parse
     fastapi:B --> T:dialog
     fastapi:B --> T:voice
     fastapi:B --> T:fixtures
 
-    parse:R --> L:langdetect
+    parse:R --> L:orchestrator
     dialog:R --> L:dialogorch
     voice:R --> L:sttclient
 
-    langdetect:B --> T:extractor
+    orchestrator:R --> L:langdetect
+    orchestrator:R --> L:methodcatalog
+    langdetect:R --> L:extractor
     extractor:R --> L:normalizer
     normalizer:R --> L:validator
+
+    methodcatalog:B --> T:methodsconfig
+    normalizer:B --> T:fixturesrepo
+    validator:B --> T:fixturesrepo
+    validator:B --> T:popularity
 
     extractor:B --> T:rules
     extractor:B --> T:llm
@@ -68,13 +82,12 @@ architecture-beta
     sttclient:R --> L:deepgram
     sttclient:R --> L:whisper
 
-    parse:B --> T:csvlog
-    dialog:B --> T:csvlog
-    voice:B --> T:csvlog
+    parse:B --> T:csvlogger
+    dialog:B --> T:csvlogger
+    voice:B --> T:csvlogger
 
-    normalizer:B --> T:fixturedata
-    validator:B --> T:fixturedata
-    validator:B --> T:popularity
-
-    parse:L --> R:importrunner
-    importrunner:R --> L:resourcemon
+    importrunner:R --> L:parse
+    importrunner:R --> L:resourcemonitor
+    importrunner:R --> L:importsummary
+    importsummary:R --> L:csvlogger
+```
