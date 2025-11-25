@@ -1,52 +1,53 @@
 architecture-beta
-    group client(browser)[Client]
-
-    service webui(browser)[Svelte Frontend] in client
-
+    group client(cloud)[Client]
+    
+    service webui(server)[Svelte Frontend] in client
+    
     group api(server)[API Layer]
 
     service fastapi(server)[FastAPI Application] in api
-    service health(api)[/health] in api
-    service parse(api)[/v1/parse] in api
-    service dialog(api)[/v1/dialog] in api
-    service voice(api)[/v1/voice] in api
-    service fixtures(api)[/v1/fixtures] in api
+    service health(server)[health] in api
+    service parse(server)[parse] in api
+    service dialog(server)[dialog] in api
+    service voice(server)[voice] in api
+    service fixtures(server)[fixtures] in api
 
     group pipeline(server)[NLP Pipeline]
 
-    service orchestrator(service)[Pipeline Orchestrator] in pipeline
-    service langdetect(service)[Language Detector] in pipeline
-    service methodcatalog(service)[Method Catalogue] in pipeline
-    service extractor(service)[Extractor Dispatcher] in pipeline
-    service normalizer(service)[Normalizer] in pipeline
-    service validator(service)[Validator] in pipeline
-    service dialogorch(service)[Dialog Orchestrator] in pipeline
+    service orchestrator(server)[Pipeline Orchestrator] in pipeline
+    service langdetect(server)[Language Detector] in pipeline
+    service methodcatalog(server)[Method Catalogue] in pipeline
+    service extractor(server)[Extractor Dispatcher] in pipeline
+    service normalizer(server)[Normalizer] in pipeline
+    service validator(server)[Validator] in pipeline
+    service dialogorch(server)[Dialog Orchestrator] in pipeline
 
     group extraction(server)[Extraction Methods]
 
-    service rules(service)[Rules Extractor] in extraction
-    service llm(service)[LLM Extractor] in extraction
-    service hybrid(service)[Hybrid Strategy] in extraction
+    service rules(server)[Rules Extractor] in extraction
+    service llm(server)[LLM Extractor] in extraction
+    service hybrid(server)[Hybrid Strategy] in extraction
 
     group services(server)[Supporting Services]
 
-    service csvlogger(storage)[CSV Logger] in services
-    service importrunner(worker)[Import Job Runner] in services
-    service importsummary(service)[Import Summary Reporter] in services
-    service resourcemonitor(monitor)[Resource Monitor] in services
-    service sttclient(service)[Speech-to-Text Client] in services
+    service csvlogger(disk)[CSV Logger] in services
+    service importrunner(server)[Import Job Runner] in services
+    service importsummary(server)[Import Summary Reporter] in services
+    service resourcemonitor(server)[Resource Monitor] in services
+    service sttclient(server)[Speech to Text Client] in services
 
-    group data(database)[Data & Fixtures]
-
-    service fixturesrepo(storage)[Fixture Repository] in data
-    service popularity(storage)[Popularity Stats] in data
-    service methodsconfig(storage)[Methods Configuration] in data
+    group data(database)[Data and Fixtures]
+    
+    service fixturesrepo(database)[Fixture Repository] in data
+    service popularity(database)[Popularity Stats] in data
+    service methodsconfig(database)[Methods Configuration] in data
 
     group integrations(cloud)[External Providers]
 
     service openai(internet)[OpenAI API] in integrations
     service deepgram(internet)[Deepgram STT] in integrations
-    service whisper(cpu)[Local Faster-Whisper] in integrations
+    service whisper(server)[Local Faster Whisper] in integrations
+    service gemini(internet)[Google Gemini] in integrations
 
     webui:R --> L:fastapi
 
@@ -76,6 +77,7 @@ architecture-beta
     extractor:B --> T:hybrid
 
     llm:R --> L:openai
+    llm:R --> L:gemini
     sttclient:R --> L:deepgram
     sttclient:R --> L:whisper
 
