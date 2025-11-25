@@ -1,0 +1,89 @@
+architecture-beta
+    group client(browser)[Client]
+
+    service webui(browser)[Svelte Frontend] in client
+
+    group api(server)[API Layer]
+
+    service fastapi(server)[FastAPI Application] in api
+    service health(api)[/health] in api
+    service parse(api)[/v1/parse] in api
+    service dialog(api)[/v1/dialog] in api
+    service voice(api)[/v1/voice] in api
+    service fixtures(api)[/v1/fixtures] in api
+
+    group pipeline(server)[NLP Pipeline]
+
+    service orchestrator(service)[Pipeline Orchestrator] in pipeline
+    service langdetect(service)[Language Detector] in pipeline
+    service methodcatalog(service)[Method Catalogue] in pipeline
+    service extractor(service)[Extractor Dispatcher] in pipeline
+    service normalizer(service)[Normalizer] in pipeline
+    service validator(service)[Validator] in pipeline
+    service dialogorch(service)[Dialog Orchestrator] in pipeline
+
+    group extraction(server)[Extraction Methods]
+
+    service rules(service)[Rules Extractor] in extraction
+    service llm(service)[LLM Extractor] in extraction
+    service hybrid(service)[Hybrid Strategy] in extraction
+
+    group services(server)[Supporting Services]
+
+    service csvlogger(storage)[CSV Logger] in services
+    service importrunner(worker)[Import Job Runner] in services
+    service importsummary(service)[Import Summary Reporter] in services
+    service resourcemonitor(monitor)[Resource Monitor] in services
+    service sttclient(service)[Speech-to-Text Client] in services
+
+    group data(database)[Data & Fixtures]
+
+    service fixturesrepo(storage)[Fixture Repository] in data
+    service popularity(storage)[Popularity Stats] in data
+    service methodsconfig(storage)[Methods Configuration] in data
+
+    group integrations(cloud)[External Providers]
+
+    service openai(internet)[OpenAI API] in integrations
+    service deepgram(internet)[Deepgram STT] in integrations
+    service whisper(cpu)[Local Faster-Whisper] in integrations
+
+    webui:R --> L:fastapi
+
+    fastapi:B --> T:health
+    fastapi:B --> T:parse
+    fastapi:B --> T:dialog
+    fastapi:B --> T:voice
+    fastapi:B --> T:fixtures
+
+    parse:R --> L:orchestrator
+    dialog:R --> L:dialogorch
+    voice:R --> L:sttclient
+
+    orchestrator:R --> L:langdetect
+    orchestrator:R --> L:methodcatalog
+    langdetect:R --> L:extractor
+    extractor:R --> L:normalizer
+    normalizer:R --> L:validator
+
+    methodcatalog:B --> T:methodsconfig
+    normalizer:B --> T:fixturesrepo
+    validator:B --> T:fixturesrepo
+    validator:B --> T:popularity
+
+    extractor:B --> T:rules
+    extractor:B --> T:llm
+    extractor:B --> T:hybrid
+
+    llm:R --> L:openai
+    sttclient:R --> L:deepgram
+    sttclient:R --> L:whisper
+
+    parse:B --> T:csvlogger
+    dialog:B --> T:csvlogger
+    voice:B --> T:csvlogger
+
+    importrunner:R --> L:parse
+    importrunner:R --> L:resourcemonitor
+    importrunner:R --> L:importsummary
+    importsummary:R --> L:csvlogger
