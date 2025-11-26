@@ -1,13 +1,25 @@
-export type PerformanceInference = 'meets-target' | 'violates-target' | 'inconclusive';
+export type InferenceOutcome = 'meets-target' | 'above-target' | 'below-target' | 'insufficient-data';
 
-export type ThresholdAssessment = {
-  sampleP95: number;
-  standardErrorMs: number | null;
+export type MetricInference = {
+  outcome: InferenceOutcome;
+  confidence: number | null;
+  pValue: number | null;
+};
+
+export type P95Assessment = {
+  sampleP95: number | null;
   thresholdMs: number;
-  thresholdBreached: boolean;
-  significantBreach: boolean | null;
-  zScore: number | null;
-  inference: PerformanceInference;
+  sampleSize: number;
+  successes: number;
+  inference: MetricInference;
+};
+
+export type AccuracyAssessment = {
+  accuracy: number;
+  threshold: number;
+  sampleSize: number;
+  successes: number;
+  inference: MetricInference;
 };
 
 function cloneAndSort(values: number[]): number[] {
@@ -39,178 +51,116 @@ export function calculatePercentile(values: number[], percentile: number): numbe
   return getQuantile(cloneAndSort(values), percentile);
 }
 
-function estimateQuantileDerivative(sorted: number[], percentile: number): number | null {
-  const n = sorted.length;
-  if (n < 2) {
-    return null;
-  }
-
-  const delta = Math.min(0.5, Math.max(1 / n, 0.5 / Math.sqrt(n)));
-  const lowerP = Math.max(0, percentile - delta);
-  const upperP = Math.min(1, percentile + delta);
-  const probabilitySpan = upperP - lowerP;
-
-  if (probabilitySpan <= 0) {
-    return null;
-  }
-
-  const lowerQuantile = getQuantile(sorted, lowerP);
-  const upperQuantile = getQuantile(sorted, upperP);
-
-  if (upperQuantile === lowerQuantile) {
-    return 0;
-  }
-
-  return (upperQuantile - lowerQuantile) / probabilitySpan;
+export function filterResponseTimes(values: number[], outlierThresholdMs: number): number[] {
+  return values.filter((value) => Number.isFinite(value) && value >= 0 && value <= outlierThresholdMs);
 }
 
-function clampAlpha(alpha: number): number {
-  if (!Number.isFinite(alpha)) {
-    return 0.05;
+function binomialCdf(successes: number, trials: number, probability: number): number {
+  if (trials === 0) {
+    return 1;
   }
-  const clamped = Math.min(Math.max(alpha, 1e-6), 0.5);
-  return clamped;
+  if (probability === 0) {
+    return successes === 0 ? 1 : 0;
+  }
+  if (probability === 1) {
+    return successes === trials ? 1 : 0;
+  }
+  if (successes >= trials) {
+    return 1;
+  }
+
+  const failureProbability = 1 - probability;
+  let probabilityMass = failureProbability ** trials;
+  let cumulative = probabilityMass;
+
+  for (let i = 1; i <= successes; i += 1) {
+    probabilityMass *= (probability / failureProbability) * ((trials - i + 1) / i);
+    cumulative += probabilityMass;
+  }
+
+  return Math.min(1, cumulative);
 }
 
-function normalQuantile(p: number): number {
-  // Acklam's approximation for the inverse normal CDF
-  const a = [
-    -3.969683028665376e1,
-    2.209460984245205e2,
-    -2.759285104469687e2,
-    1.38357751867269e2,
-    -3.066479806614716e1,
-    2.506628277459239e0,
-  ];
-  const b = [
-    -5.447609879822406e1,
-    1.615858368580409e2,
-    -1.556989798598866e2,
-    6.680131188771972e1,
-    -1.328068155288572e1,
-  ];
-  const c = [
-    -7.784894002430293e-3,
-    -3.223964580411365e-1,
-    -2.400758277161838e0,
-    -2.549732539343734e0,
-    4.374664141464968e0,
-    2.938163982698783e0,
-  ];
-  const d = [
-    7.784695709041462e-3,
-    3.224671290700398e-1,
-    2.445134137142996e0,
-    3.754408661907416e0,
-  ];
-
-  if (p <= 0) {
-    return -Infinity;
-  }
-  if (p >= 1) {
-    return Infinity;
-  }
-
-  const plow = 0.02425;
-  const phigh = 1 - plow;
-
-  let q: number;
-  let r: number;
-
-  if (p < plow) {
-    q = Math.sqrt(-2 * Math.log(p));
-    return (
-      (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
-      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
-    );
-  }
-
-  if (phigh < p) {
-    q = Math.sqrt(-2 * Math.log(1 - p));
-    return -(
-      (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
-      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
-    );
-  }
-
-  q = p - 0.5;
-  r = q * q;
-
-  return (
-    (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
-    (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
-  );
+function buildInference(outcome: InferenceOutcome, pValue: number | null): MetricInference {
+  const confidence = pValue === null ? null : Math.max(0, Math.min(1, 1 - pValue));
+  return { outcome, pValue, confidence };
 }
 
-export function assessP95Threshold({
+export function evaluateP95Performance({
   values,
-  requestCount,
   thresholdMs,
-  sampleSize,
+  minSampleSize,
   alpha,
   percentile = 0.95,
 }: {
   values: number[];
-  requestCount: number;
   thresholdMs: number;
-  sampleSize: number;
+  minSampleSize: number;
   alpha: number;
   percentile?: number;
-}): ThresholdAssessment | null {
-  const validValues = values.filter((value) => Number.isFinite(value));
-  const n = validValues.length;
+}): P95Assessment {
+  const sampleSize = values.length;
+  const sampleP95 = sampleSize ? getQuantile(cloneAndSort(values), percentile) : null;
+  const successes = values.filter((value) => value <= thresholdMs).length;
 
-  if (!n) {
-    return null;
+  if (sampleSize < minSampleSize) {
+    return {
+      sampleP95,
+      thresholdMs,
+      sampleSize,
+      successes,
+      inference: buildInference('insufficient-data', null),
+    };
   }
 
-  const minimumSample = Math.max(0, Math.floor(sampleSize));
-  if (minimumSample > 0 && requestCount < minimumSample) {
-    return null;
-  }
-
-  const sorted = cloneAndSort(validValues);
-  const sampleP95 = getQuantile(sorted, percentile);
-  const derivative = estimateQuantileDerivative(sorted, percentile);
-
-  let standardErrorMs: number | null = null;
-  if (derivative !== null) {
-    const variance = (percentile * (1 - percentile)) / n * derivative * derivative;
-    standardErrorMs = variance >= 0 ? Math.sqrt(variance) : null;
-  }
-
-  const thresholdBreached = sampleP95 > thresholdMs;
-  const alphaClamped = clampAlpha(alpha);
-  const criticalZ = normalQuantile(1 - alphaClamped);
-
-  let zScore: number | null = null;
-  let significantBreach: boolean | null = null;
-
-  if (standardErrorMs === 0) {
-    zScore = sampleP95 === thresholdMs ? 0 : sampleP95 > thresholdMs ? Infinity : -Infinity;
-    significantBreach = thresholdBreached ? true : false;
-  } else if (standardErrorMs !== null && Number.isFinite(standardErrorMs) && standardErrorMs > 0) {
-    zScore = (sampleP95 - thresholdMs) / standardErrorMs;
-    if (thresholdBreached) {
-      significantBreach = zScore >= criticalZ;
-    } else {
-      significantBreach = false;
-    }
-  }
-
-  const inference: PerformanceInference = thresholdBreached
-    ? significantBreach
-      ? 'violates-target'
-      : 'inconclusive'
-    : 'meets-target';
+  const pValue = binomialCdf(successes, sampleSize, percentile);
+  const outcome: InferenceOutcome = pValue < alpha ? 'above-target' : 'meets-target';
 
   return {
     sampleP95,
-    standardErrorMs,
     thresholdMs,
-    thresholdBreached,
-    significantBreach,
-    zScore,
-    inference,
+    sampleSize,
+    successes,
+    inference: buildInference(outcome, pValue),
+  };
+}
+
+export function evaluateAccuracy({
+  successes,
+  trials,
+  target,
+  minSampleSize,
+  alpha,
+}: {
+  successes: number;
+  trials: number;
+  target: number;
+  minSampleSize: number;
+  alpha: number;
+}): AccuracyAssessment {
+  if (trials < 0 || successes < 0 || successes > trials) {
+    throw new Error('Invalid accuracy sample sizes');
+  }
+  const accuracy = trials > 0 ? successes / trials : 0;
+
+  if (trials < minSampleSize) {
+    return {
+      accuracy,
+      threshold: target,
+      sampleSize: trials,
+      successes,
+      inference: buildInference('insufficient-data', null),
+    };
+  }
+
+  const pValue = binomialCdf(successes, trials, target);
+  const outcome: InferenceOutcome = pValue < alpha ? 'below-target' : 'meets-target';
+
+  return {
+    accuracy,
+    threshold: target,
+    sampleSize: trials,
+    successes,
+    inference: buildInference(outcome, pValue),
   };
 }

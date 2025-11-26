@@ -15,8 +15,10 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
     monkeypatch.setenv("INTERACTION_MODE", "dialog")
     monkeypatch.setenv("LLM_METHOD", "rules")
     monkeypatch.setenv("IMPORT_P95_THRESHOLD_MS", "2500")
-    monkeypatch.setenv("IMPORT_P95_SAMPLE_SIZE", "1500")
-    monkeypatch.setenv("IMPORT_P95_SIGNIFICANCE", "0.9")
+    monkeypatch.setenv("MIN_SAMPLE_SIZE", "1500")
+    monkeypatch.setenv("ALPHA", "0.1")
+    monkeypatch.setenv("IMPORT_ACCURACY_THRESHOLD", "0.9")
+    monkeypatch.setenv("P95_OUTLIERS_THRESHOLD", "15000")
 
     for cache in (get_settings, get_pipeline, get_llm_client, get_methods_catalog):
         cache.cache_clear()
@@ -40,8 +42,10 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
         performance_targets = payload["performanceTargets"]
         assert performance_targets == {
             "importP95ThresholdMs": 2500,
-            "importP95SampleSize": 1500,
-            "importP95Significance": 0.9,
+            "p95OutliersThresholdMs": 15000,
+            "importAccuracyThreshold": 0.9,
+            "minSampleSize": 1500,
+            "alpha": 0.1,
         }
     finally:
         get_settings.cache_clear()
@@ -69,8 +73,10 @@ def test_fixtures_endpoint_uses_default_performance_targets(monkeypatch, tmp_pat
         performance_targets = payload["performanceTargets"]
         assert performance_targets == {
             "importP95ThresholdMs": 1000,
-            "importP95SampleSize": 1000,
-            "importP95Significance": 0.95,
+            "p95OutliersThresholdMs": 10000,
+            "importAccuracyThreshold": 0.85,
+            "minSampleSize": 1000,
+            "alpha": 0.05,
         }
     finally:
         get_settings.cache_clear()
