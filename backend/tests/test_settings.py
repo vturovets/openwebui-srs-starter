@@ -48,3 +48,12 @@ def test_resolve_popularity_data_path_absolute(tmp_path: Path) -> None:
     )
 
     assert settings.resolve_popularity_data_path() == absolute_path
+
+
+def test_default_statistical_configuration() -> None:
+    settings = Settings()
+
+    assert settings.p95_outliers_threshold_ms == 10_000
+    assert settings.min_sample_size == 1000
+    assert settings.import_accuracy_threshold == 0.85
+    assert settings.alpha == 0.05
