@@ -64,6 +64,7 @@
   };
 
   type PerformanceSummary = {
+    method: string | null;
     requestCount: number;
     meanResponseMs: number;
     p95ResponseMs: number | null;
@@ -92,6 +93,7 @@
 
   let importPerformanceSummary: PerformanceSummary | null = null;
   let importUsageSummary: UsageSummary | null = null;
+  let importMethod: string | null = null;
   let importProgress: { processed: number; total: number } | null = null;
 
   function toFiniteNumber(value: unknown): number | null {
@@ -173,12 +175,14 @@
   }
 
   function calculatePerformanceSummary({
+    method,
     requestCount,
     mismatchCount,
     totalValues,
     totalSum,
     targets,
   }: {
+    method: string | null;
     requestCount: number;
     mismatchCount: number;
     totalValues: number[];
@@ -232,6 +236,7 @@
       standardErrorMs,
       significantBreach,
       zScore,
+      method,
     };
   }
 
@@ -792,6 +797,7 @@
 
     const [file] = target.files;
     busy = true;
+    importMethod = method?.trim() ? method.trim() : null;
     const totalValues: number[] = [];
     let totalSum = 0;
     let processedCount = 0;
@@ -900,6 +906,7 @@
       target.value = '';
       if (processedCount > 0) {
         importPerformanceSummary = calculatePerformanceSummary({
+          method: importMethod,
           requestCount: processedCount,
           mismatchCount,
           totalValues,
@@ -910,6 +917,7 @@
       } else {
         importPerformanceSummary = null;
         importUsageSummary = null;
+        importMethod = null;
       }
       importProgress = null;
     }
@@ -1118,6 +1126,10 @@
           <h2>Performance summary</h2>
           <dl>
             <div class="metric-row">
+              <dt>Method</dt>
+              <dd data-testid="performance-method">{importPerformanceSummary?.method ?? '—'}</dd>
+            </div>
+            <div class="metric-row">
               <dt>Requests processed</dt>
               <dd data-testid="performance-requests">
                 {#if importPerformanceSummary}
@@ -1187,6 +1199,10 @@
         <section class="summary-card usage-summary" data-testid="usage-summary">
           <h2>Usage footprint summary</h2>
           <dl>
+            <div class="metric-row">
+              <dt>Method</dt>
+              <dd data-testid="usage-method">{importMethod ?? '—'}</dd>
+            </div>
             <div class="metric-row">
               <dt>Total tokens in</dt>
               <dd data-testid="usage-tokens-in">{formatUsageValue(importUsageSummary?.tokensIn, 0)}</dd>
@@ -1314,17 +1330,17 @@
     background: #1e293b;
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 16px;
-    padding: 2rem 2.25rem;
+    padding: 1.5rem 1.75rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1.1rem;
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.4);
   }
 
   .summary-card h2 {
     margin: 0;
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     text-align: center;
     letter-spacing: 0.02em;
   }
@@ -1333,18 +1349,18 @@
     margin: 0;
     width: 100%;
     display: grid;
-    gap: 1rem;
+    gap: 0.75rem;
   }
 
   .summary-card .metric-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.75rem;
+    gap: 0.6rem;
     align-items: baseline;
   }
 
   .summary-card dt {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #94a3b8;
@@ -1353,7 +1369,7 @@
 
   .summary-card dd {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: 600;
     text-align: right;
   }
