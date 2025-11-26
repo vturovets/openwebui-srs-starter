@@ -1,80 +1,67 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateAccuracy, evaluateP95Performance, filterResponseTimes } from '../performance';
+import { assessP95Threshold } from '../performance';
 
 function repeat(value: number, count: number): number[] {
   return Array.from({ length: count }, () => value);
 }
 
-describe('filterResponseTimes', () => {
-  it('filters out non-numeric, negative and outlier values', () => {
-    const cleaned = filterResponseTimes([120, null as unknown as number, -5, 10_500, 750], 10_000);
-
-    expect(cleaned).toEqual([120, 750]);
-  });
-});
-
-describe('evaluateP95Performance', () => {
-  it('returns insufficient data when below the minimum sample size', () => {
-    const result = evaluateP95Performance({
-      values: repeat(120, 40),
+describe('assessP95Threshold', () => {
+  it('returns null when below the minimum sample size', () => {
+    const values = repeat(120, 40);
+    const result = assessP95Threshold({
+      values,
+      requestCount: 40,
       thresholdMs: 150,
-      minSampleSize: 100,
+      sampleSize: 100,
       alpha: 0.05,
     });
 
-    expect(result.inference.outcome).toBe('insufficient-data');
-    expect(result.sampleP95).toBe(120);
+    expect(result).toBeNull();
   });
 
-  it('labels performance as meeting the target when below the threshold', () => {
+  it('labels performance as meeting the target when comfortably below the threshold', () => {
     const values = [...repeat(120, 950), ...repeat(150, 50)];
-    const result = evaluateP95Performance({
+    const result = assessP95Threshold({
       values,
+      requestCount: values.length,
       thresholdMs: 200,
-      minSampleSize: 100,
+      sampleSize: 100,
       alpha: 0.05,
     });
 
-    expect(result.inference.outcome).toBe('meets-target');
+    expect(result).not.toBeNull();
+    expect(result!.thresholdBreached).toBe(false);
+    expect(result!.inference).toBe('meets-target');
   });
 
-  it('flags regressions when the P95 clearly exceeds the target', () => {
-    const values = Array.from({ length: 400 }, (_, index) => 150 + index);
-    const result = evaluateP95Performance({
+  it('marks breaches as inconclusive when the threshold is only marginally exceeded', () => {
+    const values = Array.from({ length: 200 }, (_, index) => 100 + index);
+    const result = assessP95Threshold({
       values,
-      thresholdMs: 250,
-      minSampleSize: 200,
+      requestCount: values.length,
+      thresholdMs: 288,
+      sampleSize: 50,
       alpha: 0.05,
     });
 
-    expect(result.inference.outcome).toBe('above-target');
-    expect(result.inference.confidence).not.toBeNull();
-  });
-});
-
-describe('evaluateAccuracy', () => {
-  it('detects accuracy drops below the threshold', () => {
-    const result = evaluateAccuracy({
-      successes: 820,
-      trials: 1000,
-      target: 0.9,
-      minSampleSize: 500,
-      alpha: 0.05,
-    });
-
-    expect(result.inference.outcome).toBe('below-target');
-    expect(result.inference.confidence).toBeGreaterThan(0.9);
+    expect(result).not.toBeNull();
+    expect(result!.thresholdBreached).toBe(true);
+    expect(result!.inference).toBe('inconclusive');
   });
 
-  it('reports insufficient data for small samples', () => {
-    const result = evaluateAccuracy({
-      successes: 9,
-      trials: 10,
-      target: 0.85,
-      minSampleSize: 100,
+  it('flags statistically significant breaches', () => {
+    const values = [...repeat(120, 800), ...repeat(220, 200)];
+    const result = assessP95Threshold({
+      values,
+      requestCount: values.length,
+      thresholdMs: 180,
+      sampleSize: 100,
       alpha: 0.05,
     });
 
-    expect(result.inference.outcome).toBe('insufficient-data');
+    expect(result).not.toBeNull();
+    expect(result!.thresholdBreached).toBe(true);
+    expect(result!.inference).toBe('violates-target');
+    expect(result!.significantBreach).toBe(true);
   });
 });

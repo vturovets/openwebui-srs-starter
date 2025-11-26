@@ -892,10 +892,8 @@ async def fetch_fixtures(
         "methodDefaults": dict(methods_catalog.defaults),
         "performanceTargets": {
             "importP95ThresholdMs": settings.import_p95_threshold_ms,
-            "p95OutliersThresholdMs": settings.p95_outliers_threshold_ms,
-            "importAccuracyThreshold": settings.import_accuracy_threshold,
-            "minSampleSize": settings.min_sample_size,
-            "alpha": settings.alpha,
+            "importP95SampleSize": settings.import_p95_sample_size,
+            "importP95Significance": settings.import_p95_significance,
         },
     }
 
