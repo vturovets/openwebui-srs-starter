@@ -34,7 +34,6 @@ be swapped in while retaining comparable output for experiments.
 .
 ├── backend/
 │   ├── app/                    # FastAPI application, API routes, pipeline stages, services, integrations
-│   ├── openai.yaml             # Docker Compose example pairing the backend with OpenWebUI
 │   └── tests/                  # Pytest coverage for API contracts, pipeline flows, and fixtures
 ├── config/                     # Method catalogue and supporting YAML
 ├── docs/                       # SRS, SDD, and integration reference material
@@ -90,7 +89,7 @@ serving traffic. Key options mirror the SRS:
 | `LLM_METHOD` | _(unset)_ | Optional identifier for the NLP technique under evaluation (e.g., `rules`, `llm`, `hybrid`). |
 | `LLM_API_BASE` | _(unset)_ | Override the LLM provider base URL when using a proxy or self-hosted gateway. |
 | `LLM_API_KEY` | _(unset)_ | Credential passed to the structured LLM client when `LLM_METHOD=llm` or `hybrid`. |
-| `LLM_MODEL` | `gpt-3.5-turbo` | Model identifier requested from the LLM provider. |
+| `LLM_MODEL` | `gemini-2.5-flash` | Model identifier requested from the LLM provider. |
 | `LLM_TIMEOUT` | `30` | Client-side timeout (seconds) for outbound LLM requests. |
 | `STT_ENGINE` | _(unset)_ | Speech-to-text engine label when voice capture is enabled (e.g., `deepgram`). |
 | `DEEPGRAM_API_KEY` | _(unset)_ | API key for Deepgram when `STT_ENGINE=deepgram`. |
@@ -133,9 +132,9 @@ CSV_DELIMITER=;
 # Enable the structured LLM path
 LLM_METHOD=llm
 LLM_API_KEY=sk-your-key
-LLM_MODEL=gpt-4o
+LLM_MODEL=gemini-2.5-flash
 # Optional when routing through a proxy/self-hosted gateway
-# LLM_API_BASE=https://your-proxy.example.com/v1
+# LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta
 # Enable the popularity imputer and override the stats filename (relative to FIXTURES_DIR)
 POPULARITY_IMPUTER_ENABLED=true
 POPULARITY_DATA_PATH=popularity_stats.json
@@ -146,9 +145,9 @@ IMPORT_P95_SIGNIFICANCE=0.9
 ```
 
 When deploying with Docker Compose, mirror the same environment variables in the
-service definition so the backend receives the credentials at startup. The
-repository includes [`backend/openai.yaml`](backend/openai.yaml), which spins up
-OpenWebUI and the FastAPI service side-by-side for rapid prototyping:
+service definition so the backend receives the credentials at startup. Bind-mount
+a `.env` file or rely on Compose variable substitution to keep secrets out of
+version control. A minimal service definition looks like:
 
 ```yaml
 services:
@@ -158,12 +157,9 @@ services:
       - INTERACTION_MODE=${INTERACTION_MODE:-direct-parse}
       - CSV_PATH=/logs/transactions.csv
       - LLM_METHOD=${LLM_METHOD:-rules}
-      - LLM_API_BASE=${LLM_API_BASE:-https://api.openai.com/v1}
-      - LLM_MODEL=${LLM_MODEL:-gpt-3.5-turbo}
+      - LLM_API_BASE=${LLM_API_BASE:-https://generativelanguage.googleapis.com/v1beta}
+      - LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash}
 ```
-
-Bind-mount a `.env` file or rely on Compose variable substitution to keep
-secrets out of version control.
 
 ### Method catalog
 
@@ -405,18 +401,20 @@ Content-Type: application/json
         }
       },
       {
-        "id": "gpt5-default",
+        "id": "gemini-2.5-flash",
         "type": "llm",
-        "label": "gpt5-default",
+        "label": "gemini-2.5-flash",
         "params": {
           "timeout_s": 30,
           "temperature": 0.1,
-          "max_tokens": 512
+          "max_output_tokens": 1024,
+          "top_p": 0.95,
+          "top_k": 40
         },
-        "provider": "openai",
-        "model": "gpt-5-chat-latest",
-        "api_base": "https://api.openai.com/v1",
-        "api_key_env": "OPENAI_API_KEY"
+        "provider": "google",
+        "model": "gemini-2.5-flash",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env": "GOOGLE_API_KEY"
       },
       {
         "id": "hybrid-v1",
@@ -427,8 +425,8 @@ Content-Type: application/json
           "temperature": 0.0
         },
         "strategy": "cascade",
-        "stages": ["rules-basic", "gpt5-default"],
-        "fallback": "gpt5-default"
+        "stages": ["rules-basic", "gemini-2.5-flash"],
+        "fallback": "gemini-2.5-flash"
       }
     ],
     "defaultMethod": "rules-basic",

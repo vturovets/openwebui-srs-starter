@@ -72,7 +72,7 @@ class Settings(BaseSettings):
         description="API token for authenticating with the configured LLM provider.",
     )
     llm_model: str = Field(
-        default="gpt-3.5-turbo",
+        default="gemini-2.5-flash",
         alias="LLM_MODEL",
         description="Model identifier to request from the LLM provider.",
     )

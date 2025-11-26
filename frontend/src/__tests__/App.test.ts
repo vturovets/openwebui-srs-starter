@@ -84,7 +84,7 @@ const PARSE_SUCCESS = {
     transcript: [{ role: 'user', text: 'Find a trip' }],
     language: { code: 'en', confidence: 0.92 },
     llm: {
-      provider: 'openai',
+      provider: 'google',
       promptId: 'prompt-1',
       requestId: 'req-1',
       responseId: 'res-1',

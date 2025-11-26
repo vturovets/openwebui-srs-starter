@@ -14,7 +14,6 @@ from ..fixtures.repository import FixtureRepository
 from ..pipeline.configuration import SearchConfiguration
 
 
-DEFAULT_API_BASE = "https://api.openai.com/v1"
 CONFIGURATION_FILENAME = "configuration_search.json"
 
 
@@ -31,7 +30,10 @@ class StructuredLLMClient:
         endpoint: str = "/chat/completions",
         http_client: httpx.Client | None = None,
     ) -> None:
-        base = (api_base or DEFAULT_API_BASE).rstrip("/")
+        base = (api_base or "").rstrip("/")
+        if not base:
+            raise ValueError("LLM provider base URL must be configured")
+
         self._endpoint = endpoint if endpoint.startswith("/") else f"/{endpoint}"
         self._model = model
         self._api_key = api_key
@@ -67,12 +69,7 @@ class StructuredLLMClient:
     def _supports_json_mode(self) -> bool:
         """Return ``True`` when the configured model supports JSON mode."""
 
-        # The OpenAI API only supports the structured ``response_format`` flag on
-        # newer "o"/"4" model families. Older deployments (such as ``gpt-3.5``)
-        # reject the parameter with a ``400`` response which previously bubbled
-        # up as a hard failure in production (see docs/log-001.txt).
-        name = self._model.lower()
-        return name.startswith("gpt-4") or "-4o" in name or name.startswith("o1")
+        return False
 
     def _headers(self) -> Mapping[str, str]:
         headers = {"Content-Type": "application/json"}

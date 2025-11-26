@@ -15,9 +15,9 @@ below. 【F:backend/app/config.py†L18-L158】
 | `csv_path` | `CSV_PATH` | `data/log.csv` | Location of the CSV audit log written by the API. Directories are created automatically. |
 | `csv_delimiter` | `CSV_DELIMITER` | `","` | Delimiter character applied to rows written to the audit log. |
 | `llm_method` | `LLM_METHOD` | `None` | Preferred extraction method: `rules`, `llm`, or `hybrid`. Unknown values fall back to `rules`. |
-| `llm_api_base` | `LLM_API_BASE` | `None` | Base URL for the LLM provider. Defaults to `https://api.openai.com/v1` when unset. |
+| `llm_api_base` | `LLM_API_BASE` | `None` | Base URL for the LLM provider. |
 | `llm_api_key` | `LLM_API_KEY` | `None` | Credential supplied to the structured LLM client when the LLM path is active. |
-| `llm_model` | `LLM_MODEL` | `"gpt-3.5-turbo"` | Model identifier requested from the provider. |
+| `llm_model` | `LLM_MODEL` | `"gemini-2.5-flash"` | Model identifier requested from the provider. |
 | `llm_timeout` | `LLM_TIMEOUT` | `30.0` | HTTP client timeout (seconds) enforced for LLM calls. |
 | `stt_engine` | `STT_ENGINE` | `None` | Speech-to-text provider identifier. Currently `deepgram` is supported. |
 | `deepgram_api_key` | `DEEPGRAM_API_KEY` | `None` | API key required when `STT_ENGINE=deepgram`. |
@@ -53,9 +53,9 @@ Populate a `.env` file with the following keys to run the backend locally:
 ```
 LLM_METHOD=llm
 LLM_API_KEY=sk-your-key
-LLM_MODEL=gpt-4o
+LLM_MODEL=gemini-2.5-flash
 # Optional when routing through a proxy/self-hosted gateway
-# LLM_API_BASE=https://your-proxy.example.com/v1
+# LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta
 ```
 
 When deploying via Docker Compose, mirror the same settings in the service
@@ -67,8 +67,8 @@ services:
     environment:
       - LLM_METHOD=llm
       - LLM_API_KEY=${LLM_API_KEY}
-      - LLM_MODEL=${LLM_MODEL:-gpt-3.5-turbo}
-      - LLM_API_BASE=${LLM_API_BASE:-https://api.openai.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash}
+      - LLM_API_BASE=${LLM_API_BASE:-https://generativelanguage.googleapis.com/v1beta}
 ```
 
 Compose can read the values from a shared `.env` file or secrets manager, keeping
