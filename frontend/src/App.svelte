@@ -14,10 +14,8 @@
   } from './lib/types';
   import { CSV_LOG_FIELDS } from './lib/types';
   import {
-    binomialAccuracyTest,
-    bootstrapP95Delta,
-    filterResponseTimes,
-    type AccuracyAssessment,
+    assessP95Threshold,
+    calculatePercentile,
     type PerformanceInference,
     type ThresholdAssessment,
   } from './lib/performance';
@@ -51,18 +49,14 @@
 
   type ImportPerformanceTargets = {
     thresholdMs: number;
-    outliersThresholdMs: number;
-    accuracyThreshold: number;
-    minSampleSize: number;
-    alpha: number;
+    sampleSize: number;
+    significance: number;
   };
 
   const DEFAULT_IMPORT_PERFORMANCE_TARGETS: ImportPerformanceTargets = {
     thresholdMs: 1000,
-    outliersThresholdMs: 10000,
-    accuracyThreshold: 0.85,
-    minSampleSize: 1000,
-    alpha: 0.05,
+    sampleSize: 1000,
+    significance: 0.95,
   };
 
   let importPerformanceTargets: ImportPerformanceTargets = {
@@ -72,17 +66,18 @@
   type PerformanceSummary = {
     method: string | null;
     requestCount: number;
-    evaluatedSamples: number;
-    meanResponseMs: number | null;
+    meanResponseMs: number;
     p95ResponseMs: number | null;
     accuracy: number;
-    p95ThresholdMs: number;
-    accuracyThreshold: number;
-    p95Inference: PerformanceInference;
-    accuracyInference: PerformanceInference;
-    p95Interval: { low: number | null; high: number | null } | null;
-    confidenceLevel: number;
-    minSampleSize: number;
+    thresholdMs: number;
+    thresholdBreached: boolean;
+    sampleSize: number;
+    significance: number;
+    inference: PerformanceInference | null;
+    assessment: ThresholdAssessment | null;
+    standardErrorMs: number | null;
+    significantBreach: boolean | null;
+    zScore: number | null;
   };
 
   type UsageMetricKey = 'tokensIn' | 'tokensOut' | 'apiCalls' | 'cpuMs' | 'ramMbSeconds';
@@ -132,24 +127,14 @@
       resolved.thresholdMs = Math.max(0, threshold);
     }
 
-    const outliersThreshold = toFiniteNumber(targets.p95OutliersThresholdMs);
-    if (outliersThreshold !== null) {
-      resolved.outliersThresholdMs = Math.max(0, outliersThreshold);
+    const sampleSize = toFiniteNumber(targets.importP95SampleSize);
+    if (sampleSize !== null) {
+      resolved.sampleSize = Math.max(0, Math.floor(sampleSize));
     }
 
-    const accuracyThreshold = toFiniteNumber(targets.importAccuracyThreshold);
-    if (accuracyThreshold !== null && accuracyThreshold > 0 && accuracyThreshold <= 1) {
-      resolved.accuracyThreshold = accuracyThreshold;
-    }
-
-    const minSampleSize = toFiniteNumber(targets.minSampleSize);
-    if (minSampleSize !== null) {
-      resolved.minSampleSize = Math.max(0, Math.floor(minSampleSize));
-    }
-
-    const alpha = toFiniteNumber(targets.alpha);
-    if (alpha !== null && alpha > 0 && alpha < 1) {
-      resolved.alpha = alpha;
+    const significance = toFiniteNumber(targets.importP95Significance);
+    if (significance !== null && significance > 0 && significance <= 1) {
+      resolved.significance = significance;
     }
 
     return resolved;
@@ -193,99 +178,92 @@
     method,
     requestCount,
     mismatchCount,
-    responseTimes,
+    totalValues,
+    totalSum,
     targets,
   }: {
     method: string | null;
     requestCount: number;
     mismatchCount: number;
-    responseTimes: number[];
+    totalValues: number[];
+    totalSum: number;
     targets: ImportPerformanceTargets;
   }): PerformanceSummary {
-    const cleanedValues = filterResponseTimes(responseTimes, targets.outliersThresholdMs);
-    const evaluatedSamples = cleanedValues.length;
-    const meanResponseMs = evaluatedSamples > 0 ? cleanedValues.reduce((sum, value) => sum + value, 0) / evaluatedSamples : null;
+    const meanResponseMs = requestCount > 0 ? totalSum / requestCount : 0;
+    const sampleSize = Math.max(0, Math.floor(targets.sampleSize));
+    const significance =
+      targets.significance > 0 && targets.significance <= 1
+        ? targets.significance
+        : DEFAULT_IMPORT_PERFORMANCE_TARGETS.significance;
+    const alpha = 1 - significance;
+
+    const p95ResponseMs =
+      totalValues.length > 0 && requestCount > 0 ? calculatePercentile(totalValues, 0.95) : null;
+    const rawAccuracy = requestCount > 0 ? (1 - mismatchCount / requestCount) * 100 : 0;
+    const accuracy = Math.min(100, Math.max(0, rawAccuracy));
     const thresholdMs = Math.max(0, targets.thresholdMs);
-    const minSampleSize = Math.max(0, Math.floor(targets.minSampleSize));
-    const alpha = targets.alpha > 0 && targets.alpha < 1 ? targets.alpha : DEFAULT_IMPORT_PERFORMANCE_TARGETS.alpha;
-    const confidenceLevel = 1 - alpha;
 
-    const p95Assessment: ThresholdAssessment = bootstrapP95Delta({
-      values: cleanedValues,
-      thresholdMs,
-      alpha,
-      minSampleSize,
-      outlierThresholdMs: targets.outliersThresholdMs,
-      resamples: 400,
-    });
+    const assessment: ThresholdAssessment | null =
+      p95ResponseMs !== null
+        ? assessP95Threshold({
+            values: totalValues,
+            requestCount,
+            thresholdMs,
+            sampleSize,
+            alpha,
+            percentile: 0.95,
+          })
+        : null;
 
-    const accurateCount = Math.max(0, requestCount - mismatchCount);
-    const accuracyAssessment: AccuracyAssessment = binomialAccuracyTest({
-      successes: accurateCount,
-      total: requestCount,
-      threshold: targets.accuracyThreshold,
-      alpha,
-      minSampleSize,
-    });
-
-    const accuracyPercentage = Math.min(100, Math.max(0, accuracyAssessment.accuracy !== null ? accuracyAssessment.accuracy * 100 : 0));
+    const thresholdBreached =
+      assessment?.thresholdBreached ?? (typeof p95ResponseMs === 'number' ? p95ResponseMs > thresholdMs : false);
+    const inference: PerformanceInference | null = assessment?.inference ?? null;
+    const standardErrorMs = assessment?.standardErrorMs ?? null;
+    const significantBreach = assessment?.significantBreach ?? null;
+    const zScore = assessment?.zScore ?? null;
 
     return {
       requestCount,
-      evaluatedSamples,
       meanResponseMs,
-      p95ResponseMs: p95Assessment.sampleP95,
-      accuracy: accuracyPercentage,
-      p95ThresholdMs: thresholdMs,
-      accuracyThreshold: targets.accuracyThreshold,
-      p95Inference: p95Assessment.inference,
-      accuracyInference: accuracyAssessment.inference,
-      p95Interval: { low: p95Assessment.deltaLow, high: p95Assessment.deltaHigh },
-      confidenceLevel,
-      minSampleSize,
+      p95ResponseMs,
+      accuracy,
+      thresholdMs,
+      thresholdBreached,
+      sampleSize,
+      significance,
+      inference,
+      assessment,
+      standardErrorMs,
+      significantBreach,
+      zScore,
       method,
     };
   }
 
   const INFERENCE_LABELS: Record<PerformanceInference, string> = {
-    'meet-target': 'Meet target',
-    'above-target': 'Above target',
-    'below-target': 'Below target',
-    'insufficient-data': 'Insufficient data',
+    'meets-target': 'Meets target',
+    'violates-target': 'Violates target',
+    inconclusive: 'Inconclusive',
   };
 
-  function formatConfidenceLevel(confidenceLevel: number | null | undefined): string {
-    if (typeof confidenceLevel !== 'number' || !Number.isFinite(confidenceLevel)) {
-      return '';
-    }
-    const percentage = Math.max(0, Math.min(100, confidenceLevel * 100));
-    return `${percentage.toFixed(1)}% CI`;
-  }
-
-  function formatInferenceText(inference: PerformanceInference, confidenceLevel: number): string {
-    if (inference === 'insufficient-data') {
-      return INFERENCE_LABELS[inference];
-    }
-    const suffix = formatConfidenceLevel(confidenceLevel);
-    return suffix ? `${INFERENCE_LABELS[inference]} (${suffix})` : INFERENCE_LABELS[inference];
-  }
-
-  function formatMetric(value: number | null | undefined, decimals = 2): string {
-    if (value === null || value === undefined) {
+  function formatInference(summary: PerformanceSummary | null): string {
+    if (!summary) {
       return '—';
     }
+    if (summary.inference) {
+      return INFERENCE_LABELS[summary.inference];
+    }
+    if (summary.sampleSize > 0 && summary.requestCount < summary.sampleSize) {
+      return 'Insufficient data';
+    }
+    return 'Unavailable';
+  }
+
+  function formatMetric(value: number, decimals = 2): string {
     if (!Number.isFinite(value)) {
       return value.toString();
     }
     return Number(value.toFixed(decimals)).toString();
-  }
-
-  function formatPercentage(value: number | null | undefined, decimals = 1): string {
-    if (value === null || value === undefined) {
-      return '—';
-    }
-    const clamped = Math.max(0, Math.min(100, value));
-    return `${Number(clamped.toFixed(decimals))}`;
   }
 
   function createUsageAggregate(): UsageAggregate {
@@ -821,12 +799,12 @@
     busy = true;
     importMethod = method?.trim() ? method.trim() : null;
     const totalValues: number[] = [];
+    let totalSum = 0;
     let processedCount = 0;
     let mismatchCount = 0;
     const usageAggregate = createUsageAggregate();
     let usageDetected = false;
     let totalRecords = 0;
-    const outlierLimit = importPerformanceTargets.outliersThresholdMs;
 
     const recordImportedEntry = (entry: HolidayResultEntry) => {
       processedCount += 1;
@@ -835,9 +813,8 @@
       }
       const totalTiming = getTotalTimingMs(entry.result);
       if (typeof totalTiming === 'number' && Number.isFinite(totalTiming)) {
-        if (totalTiming >= 0 && totalTiming <= outlierLimit) {
-          totalValues.push(totalTiming);
-        }
+        totalValues.push(totalTiming);
+        totalSum += totalTiming;
       }
       if (
         accumulateUsageFromMetadata(
@@ -932,7 +909,8 @@
           method: importMethod,
           requestCount: processedCount,
           mismatchCount,
-          responseTimes: totalValues,
+          totalValues,
+          totalSum,
           targets: importPerformanceTargets,
         });
         importUsageSummary = usageDetected ? finaliseUsageSummary(usageAggregate) : null;
@@ -1162,16 +1140,6 @@
               </dd>
             </div>
             <div class="metric-row">
-              <dt>Response samples</dt>
-              <dd data-testid="performance-samples">
-                {#if importPerformanceSummary}
-                  {importPerformanceSummary.evaluatedSamples}
-                {:else}
-                  —
-                {/if}
-              </dd>
-            </div>
-            <div class="metric-row">
               <dt>Mean response time</dt>
               <dd data-testid="performance-mean">
                 {#if importPerformanceSummary}
@@ -1196,10 +1164,10 @@
               </dd>
             </div>
             <div class="metric-row">
-              <dt>P95 threshold</dt>
+              <dt>Threshold</dt>
               <dd data-testid="performance-threshold">
                 {#if importPerformanceSummary}
-                  {formatMetric(importPerformanceSummary.p95ThresholdMs)} ms
+                  {formatMetric(importPerformanceSummary.thresholdMs)} ms
                 {:else}
                   —
                 {/if}
@@ -1209,10 +1177,7 @@
               <dt>Inference</dt>
               <dd data-testid="performance-inference">
                 {#if importPerformanceSummary}
-                  {formatInferenceText(
-                    importPerformanceSummary.p95Inference,
-                    importPerformanceSummary.confidenceLevel
-                  )}
+                  {formatInference(importPerformanceSummary)}
                 {:else}
                   —
                 {/if}
@@ -1222,30 +1187,7 @@
               <dt>Accuracy</dt>
               <dd data-testid="performance-accuracy">
                 {#if importPerformanceSummary}
-                  {formatPercentage(importPerformanceSummary.accuracy)}%
-                {:else}
-                  —
-                {/if}
-              </dd>
-            </div>
-            <div class="metric-row">
-              <dt>Accuracy threshold</dt>
-              <dd data-testid="performance-accuracy-threshold">
-                {#if importPerformanceSummary}
-                  {formatPercentage(importPerformanceSummary.accuracyThreshold * 100)}%
-                {:else}
-                  —
-                {/if}
-              </dd>
-            </div>
-            <div class="metric-row">
-              <dt>Accuracy inference</dt>
-              <dd data-testid="performance-accuracy-inference">
-                {#if importPerformanceSummary}
-                  {formatInferenceText(
-                    importPerformanceSummary.accuracyInference,
-                    importPerformanceSummary.confidenceLevel
-                  )}
+                  {formatMetric(importPerformanceSummary.accuracy)}%
                 {:else}
                   —
                 {/if}
@@ -1388,17 +1330,17 @@
     background: #1e293b;
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 16px;
-    padding: 1.1rem 1.3rem;
+    padding: 1.5rem 1.75rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.8rem;
+    gap: 1.1rem;
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.4);
   }
 
   .summary-card h2 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     text-align: center;
     letter-spacing: 0.02em;
   }
@@ -1407,18 +1349,18 @@
     margin: 0;
     width: 100%;
     display: grid;
-    gap: 0.55rem;
+    gap: 0.75rem;
   }
 
   .summary-card .metric-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.5rem;
+    gap: 0.6rem;
     align-items: baseline;
   }
 
   .summary-card dt {
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #94a3b8;
@@ -1427,7 +1369,7 @@
 
   .summary-card dd {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1.35rem;
     font-weight: 600;
     text-align: right;
   }
