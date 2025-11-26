@@ -107,8 +107,10 @@ serving traffic. Key options mirror the SRS:
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 | `SHOW_FAILED_ONLY` | `true` | When importing CSV logs into the UI, hide successful runs unless explicitly requested. |
 | `IMPORT_P95_THRESHOLD_MS` | `1000` | Target P95 latency (ms) used when flagging slow imported runs in the performance summary. |
-| `IMPORT_P95_SAMPLE_SIZE` | `1000` | Minimum number of imported rows required before computing a P95 value. |
-| `IMPORT_P95_SIGNIFICANCE` | `0.95` | Percentile (0–1) applied when calculating the imported response-time P95 metric. |
+| `P95_OUTLIERS_THRESHOLD` | `10000` | Maximum response time (ms) considered before treating a value as an outlier when computing imported P95. |
+| `MIN_SAMPLE_SIZE` | `1000` | Minimum number of imported observations required before computing P95 or accuracy inferences. |
+| `IMPORT_ACCURACY_THRESHOLD` | `0.85` | Baseline accuracy (0–1) checked via a one-sided binomial test during imports. |
+| `ALPHA` | `0.05` | Significance level (0–1) applied to import performance statistical tests. |
 | `IMPORT_MAX_CONCURRENCY` | `32` | Hard ceiling for concurrent import worker tasks, even when overrides request more parallelism. |
 | `IMPORT_BATCH_SIZE` | `64` | Number of queued requests submitted before awaiting completion to avoid overwhelming the runtime. |
 | `IMPORT_CPU_THRESHOLD` | `90` | Pause scheduling when the 1-minute CPU load estimate exceeds this percentage. |
@@ -140,8 +142,10 @@ POPULARITY_IMPUTER_ENABLED=true
 POPULARITY_DATA_PATH=popularity_stats.json
 PROCESSING_THRESHOLD_MS=750
 IMPORT_P95_THRESHOLD_MS=1250
-IMPORT_P95_SAMPLE_SIZE=2000
-IMPORT_P95_SIGNIFICANCE=0.9
+P95_OUTLIERS_THRESHOLD=9000
+MIN_SAMPLE_SIZE=1500
+IMPORT_ACCURACY_THRESHOLD=0.9
+ALPHA=0.1
 ```
 
 When deploying with Docker Compose, mirror the same environment variables in the
