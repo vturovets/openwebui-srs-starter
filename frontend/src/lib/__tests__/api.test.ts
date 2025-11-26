@@ -47,10 +47,8 @@ describe('fetchFixtures', () => {
       llmMethod: 'rules',
       performanceTargets: {
         importP95ThresholdMs: '1500',
-        p95OutliersThresholdMs: '20000',
-        importAccuracyThreshold: '0.82',
-        minSampleSize: '500',
-        alpha: '0.1',
+        importP95SampleSize: '500',
+        importP95Significance: '0.9',
       },
     };
 
@@ -64,10 +62,8 @@ describe('fetchFixtures', () => {
     const fixtures = await fetchFixtures('http://localhost:8000/');
     expect(fixtures.performanceTargets).toEqual({
       importP95ThresholdMs: 1500,
-      p95OutliersThresholdMs: 20000,
-      importAccuracyThreshold: 0.82,
-      minSampleSize: 500,
-      alpha: 0.1,
+      importP95SampleSize: 500,
+      importP95Significance: 0.9,
     });
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/v1/fixtures');
   });

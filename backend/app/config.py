@@ -195,14 +195,6 @@ class Settings(BaseSettings):
             "log performance summaries."
         ),
     )
-    p95_outliers_threshold_ms: int = Field(
-        default=10_000,
-        alias="P95_OUTLIERS_THRESHOLD",
-        description=(
-            "Any response time above this value (milliseconds) is treated as an "
-            "outlier and excluded from P95 calculations."
-        ),
-    )
     import_p95_sample_size: int = Field(
         default=1000,
         alias="IMPORT_P95_SAMPLE_SIZE",
@@ -218,21 +210,6 @@ class Settings(BaseSettings):
             "Significance level expressed as a percentile (0-1) when evaluating "
             "imported performance data."
         ),
-    )
-    min_sample_size: int = Field(
-        default=1000,
-        alias="MIN_SAMPLE_SIZE",
-        description="Minimum sample size required before statistical inference is attempted.",
-    )
-    import_accuracy_threshold: float = Field(
-        default=0.85,
-        alias="IMPORT_ACCURACY_THRESHOLD",
-        description="Target minimum accuracy (0-1) for imported records.",
-    )
-    alpha: float = Field(
-        default=0.05,
-        alias="ALPHA",
-        description="Significance level (0-1) used for statistical tests.",
     )
     voice_max_bytes: int = Field(
         default=10_000_000,
@@ -446,21 +423,6 @@ class Settings(BaseSettings):
             raise ValueError("IMPORT_P95_THRESHOLD_MS must be greater than zero")
         return threshold
 
-    @field_validator("p95_outliers_threshold_ms", mode="before")
-    @classmethod
-    def _validate_p95_outliers_threshold(cls, value: object) -> int:
-        if value is PydanticUndefined:
-            return value  # type: ignore[return-value]
-        if value in (None, ""):
-            return 10_000
-        try:
-            threshold = int(value)
-        except (TypeError, ValueError) as exc:
-            raise TypeError("P95_OUTLIERS_THRESHOLD must be a positive integer") from exc
-        if threshold <= 0:
-            raise ValueError("P95_OUTLIERS_THRESHOLD must be greater than zero")
-        return threshold
-
     @field_validator("import_p95_sample_size", mode="before")
     @classmethod
     def _validate_import_p95_sample_size(cls, value: object) -> int:
@@ -490,51 +452,6 @@ class Settings(BaseSettings):
         if not 0 < significance < 1:
             raise ValueError("IMPORT_P95_SIGNIFICANCE must be greater than 0 and less than 1")
         return significance
-
-    @field_validator("min_sample_size", mode="before")
-    @classmethod
-    def _validate_min_sample_size(cls, value: object) -> int:
-        if value is PydanticUndefined:
-            return value  # type: ignore[return-value]
-        if value in (None, ""):
-            return 1000
-        try:
-            sample_size = int(value)
-        except (TypeError, ValueError) as exc:
-            raise TypeError("MIN_SAMPLE_SIZE must be a positive integer") from exc
-        if sample_size <= 0:
-            raise ValueError("MIN_SAMPLE_SIZE must be greater than zero")
-        return sample_size
-
-    @field_validator("import_accuracy_threshold", mode="before")
-    @classmethod
-    def _validate_import_accuracy_threshold(cls, value: object) -> float:
-        if value is PydanticUndefined:
-            return value  # type: ignore[return-value]
-        if value in (None, ""):
-            return 0.85
-        try:
-            threshold = float(value)
-        except (TypeError, ValueError) as exc:
-            raise TypeError("IMPORT_ACCURACY_THRESHOLD must be a numeric value between 0 and 1") from exc
-        if not 0 < threshold <= 1:
-            raise ValueError("IMPORT_ACCURACY_THRESHOLD must be greater than 0 and at most 1")
-        return threshold
-
-    @field_validator("alpha", mode="before")
-    @classmethod
-    def _validate_alpha(cls, value: object) -> float:
-        if value is PydanticUndefined:
-            return value  # type: ignore[return-value]
-        if value in (None, ""):
-            return 0.05
-        try:
-            alpha = float(value)
-        except (TypeError, ValueError) as exc:
-            raise TypeError("ALPHA must be a numeric value between 0 and 1") from exc
-        if not 0 < alpha < 1:
-            raise ValueError("ALPHA must be greater than 0 and less than 1")
-        return alpha
 
     @field_validator("csv_delimiter", mode="before")
     @classmethod

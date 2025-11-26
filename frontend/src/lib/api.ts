@@ -93,24 +93,14 @@ function normalisePerformanceTargets(
     targets.importP95ThresholdMs = threshold;
   }
 
-  const outlierThreshold = toFiniteNumber(record.p95OutliersThresholdMs);
-  if (outlierThreshold !== null) {
-    targets.p95OutliersThresholdMs = Math.max(0, Math.floor(outlierThreshold));
+  const sampleSize = toFiniteNumber(record.importP95SampleSize);
+  if (sampleSize !== null) {
+    targets.importP95SampleSize = Math.max(0, Math.floor(sampleSize));
   }
 
-  const accuracyThreshold = toFiniteNumber(record.importAccuracyThreshold);
-  if (accuracyThreshold !== null) {
-    targets.importAccuracyThreshold = accuracyThreshold;
-  }
-
-  const minSampleSize = toFiniteNumber(record.minSampleSize);
-  if (minSampleSize !== null) {
-    targets.minSampleSize = Math.max(0, Math.floor(minSampleSize));
-  }
-
-  const alpha = toFiniteNumber(record.alpha);
-  if (alpha !== null) {
-    targets.alpha = alpha;
+  const significance = toFiniteNumber(record.importP95Significance);
+  if (significance !== null) {
+    targets.importP95Significance = significance;
   }
 
   return Object.keys(targets).length > 0 ? targets : undefined;

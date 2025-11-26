@@ -19,10 +19,8 @@ test.beforeEach(async ({ page }) => {
         defaultMethod: 'rules-basic',
         performanceTargets: {
           importP95ThresholdMs: 1000,
-          p95OutliersThresholdMs: 10_000,
-          importAccuracyThreshold: 0.85,
-          minSampleSize: 1000,
-          alpha: 0.05,
+          importP95SampleSize: 1000,
+          importP95Significance: 0.95,
         },
       }),
     });
