@@ -84,10 +84,8 @@ export type FixturesConfiguration = {
 
 export type FixturesPerformanceTargets = {
   importP95ThresholdMs?: number;
-  p95OutliersThresholdMs?: number;
-  importAccuracyThreshold?: number;
-  minSampleSize?: number;
-  alpha?: number;
+  importP95SampleSize?: number;
+  importP95Significance?: number;
 };
 
 export type Fixtures = {

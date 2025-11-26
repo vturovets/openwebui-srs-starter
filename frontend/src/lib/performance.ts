@@ -1,28 +1,17 @@
-export type PerformanceInference = 'meet-target' | 'above-target' | 'below-target' | 'insufficient-data';
+export type PerformanceInference = 'meets-target' | 'violates-target' | 'inconclusive';
 
 export type ThresholdAssessment = {
-  sampleP95: number | null;
-  deltaLow: number | null;
-  deltaHigh: number | null;
+  sampleP95: number;
+  standardErrorMs: number | null;
+  thresholdMs: number;
+  thresholdBreached: boolean;
+  significantBreach: boolean | null;
+  zScore: number | null;
   inference: PerformanceInference;
-  confidenceLevel: number;
-  sampleSize: number;
-};
-
-export type AccuracyAssessment = {
-  accuracy: number | null;
-  pValue: number | null;
-  inference: PerformanceInference;
-  confidenceLevel: number;
-  sampleSize: number;
 };
 
 function cloneAndSort(values: number[]): number[] {
   return [...values].sort((a, b) => a - b);
-}
-
-export function filterResponseTimes(values: number[], outlierThresholdMs: number): number[] {
-  return values.filter((value) => Number.isFinite(value) && value >= 0 && value <= outlierThresholdMs);
 }
 
 function getQuantile(sorted: number[], percentile: number): number {
@@ -50,129 +39,178 @@ export function calculatePercentile(values: number[], percentile: number): numbe
   return getQuantile(cloneAndSort(values), percentile);
 }
 
-function sampleWithReplacement(values: number[], count: number, randomFn: () => number): number[] {
-  const sampled: number[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const index = Math.floor(randomFn() * values.length);
-    sampled.push(values[index]);
+function estimateQuantileDerivative(sorted: number[], percentile: number): number | null {
+  const n = sorted.length;
+  if (n < 2) {
+    return null;
   }
-  return sampled;
+
+  const delta = Math.min(0.5, Math.max(1 / n, 0.5 / Math.sqrt(n)));
+  const lowerP = Math.max(0, percentile - delta);
+  const upperP = Math.min(1, percentile + delta);
+  const probabilitySpan = upperP - lowerP;
+
+  if (probabilitySpan <= 0) {
+    return null;
+  }
+
+  const lowerQuantile = getQuantile(sorted, lowerP);
+  const upperQuantile = getQuantile(sorted, upperP);
+
+  if (upperQuantile === lowerQuantile) {
+    return 0;
+  }
+
+  return (upperQuantile - lowerQuantile) / probabilitySpan;
 }
 
-export function bootstrapP95Delta({
+function clampAlpha(alpha: number): number {
+  if (!Number.isFinite(alpha)) {
+    return 0.05;
+  }
+  const clamped = Math.min(Math.max(alpha, 1e-6), 0.5);
+  return clamped;
+}
+
+function normalQuantile(p: number): number {
+  // Acklam's approximation for the inverse normal CDF
+  const a = [
+    -3.969683028665376e1,
+    2.209460984245205e2,
+    -2.759285104469687e2,
+    1.38357751867269e2,
+    -3.066479806614716e1,
+    2.506628277459239e0,
+  ];
+  const b = [
+    -5.447609879822406e1,
+    1.615858368580409e2,
+    -1.556989798598866e2,
+    6.680131188771972e1,
+    -1.328068155288572e1,
+  ];
+  const c = [
+    -7.784894002430293e-3,
+    -3.223964580411365e-1,
+    -2.400758277161838e0,
+    -2.549732539343734e0,
+    4.374664141464968e0,
+    2.938163982698783e0,
+  ];
+  const d = [
+    7.784695709041462e-3,
+    3.224671290700398e-1,
+    2.445134137142996e0,
+    3.754408661907416e0,
+  ];
+
+  if (p <= 0) {
+    return -Infinity;
+  }
+  if (p >= 1) {
+    return Infinity;
+  }
+
+  const plow = 0.02425;
+  const phigh = 1 - plow;
+
+  let q: number;
+  let r: number;
+
+  if (p < plow) {
+    q = Math.sqrt(-2 * Math.log(p));
+    return (
+      (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    );
+  }
+
+  if (phigh < p) {
+    q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(
+      (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    );
+  }
+
+  q = p - 0.5;
+  r = q * q;
+
+  return (
+    (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+    (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+  );
+}
+
+export function assessP95Threshold({
   values,
+  requestCount,
   thresholdMs,
+  sampleSize,
   alpha,
-  minSampleSize,
-  outlierThresholdMs,
-  resamples = 500,
-  randomFn = Math.random,
+  percentile = 0.95,
 }: {
   values: number[];
+  requestCount: number;
   thresholdMs: number;
+  sampleSize: number;
   alpha: number;
-  minSampleSize: number;
-  outlierThresholdMs: number;
-  resamples?: number;
-  randomFn?: () => number;
-}): ThresholdAssessment {
-  const confidenceLevel = 1 - alpha;
-  const cleaned = filterResponseTimes(values, outlierThresholdMs);
-  const sampleSize = cleaned.length;
+  percentile?: number;
+}): ThresholdAssessment | null {
+  const validValues = values.filter((value) => Number.isFinite(value));
+  const n = validValues.length;
 
-  if (sampleSize === 0 || sampleSize < minSampleSize) {
-    return {
-      sampleP95: null,
-      deltaLow: null,
-      deltaHigh: null,
-      inference: 'insufficient-data',
-      confidenceLevel,
-      sampleSize,
-    };
+  if (!n) {
+    return null;
   }
 
-  const sorted = cloneAndSort(cleaned);
-  const sampleP95 = getQuantile(sorted, 0.95);
-
-  const deltas: number[] = [];
-  for (let i = 0; i < resamples; i += 1) {
-    const resample = sampleWithReplacement(sorted, sampleSize, randomFn).sort((a, b) => a - b);
-    const resampleP95 = getQuantile(resample, 0.95);
-    deltas.push(resampleP95 - thresholdMs);
+  const minimumSample = Math.max(0, Math.floor(sampleSize));
+  if (minimumSample > 0 && requestCount < minimumSample) {
+    return null;
   }
 
-  deltas.sort((a, b) => a - b);
-  const deltaLow = getQuantile(deltas, alpha / 2);
-  const deltaHigh = getQuantile(deltas, 1 - alpha / 2);
+  const sorted = cloneAndSort(validValues);
+  const sampleP95 = getQuantile(sorted, percentile);
+  const derivative = estimateQuantileDerivative(sorted, percentile);
 
-  let inference: PerformanceInference;
-  if (deltaHigh <= 0) {
-    inference = 'meet-target';
-  } else if (deltaLow > 0) {
-    inference = 'above-target';
-  } else {
-    inference = 'insufficient-data';
+  let standardErrorMs: number | null = null;
+  if (derivative !== null) {
+    const variance = (percentile * (1 - percentile)) / n * derivative * derivative;
+    standardErrorMs = variance >= 0 ? Math.sqrt(variance) : null;
   }
 
-  return { sampleP95, deltaLow, deltaHigh, inference, confidenceLevel, sampleSize };
-}
+  const thresholdBreached = sampleP95 > thresholdMs;
+  const alphaClamped = clampAlpha(alpha);
+  const criticalZ = normalQuantile(1 - alphaClamped);
 
-function binomialCdf(k: number, n: number, p: number): number {
-  if (k < 0 || k > n) {
-    throw new Error('k must be between 0 and n inclusive');
-  }
-  if (p < 0 || p > 1) {
-    throw new Error('p must be between 0 and 1');
-  }
+  let zScore: number | null = null;
+  let significantBreach: boolean | null = null;
 
-  if (n === 0) {
-    return 1;
-  }
-  if (p === 0) {
-    return k === 0 ? 1 : 0;
-  }
-  if (p === 1) {
-    return k === n ? 1 : 0;
+  if (standardErrorMs === 0) {
+    zScore = sampleP95 === thresholdMs ? 0 : sampleP95 > thresholdMs ? Infinity : -Infinity;
+    significantBreach = thresholdBreached ? true : false;
+  } else if (standardErrorMs !== null && Number.isFinite(standardErrorMs) && standardErrorMs > 0) {
+    zScore = (sampleP95 - thresholdMs) / standardErrorMs;
+    if (thresholdBreached) {
+      significantBreach = zScore >= criticalZ;
+    } else {
+      significantBreach = false;
+    }
   }
 
-  let probability = (1 - p) ** n;
-  let cumulative = probability;
+  const inference: PerformanceInference = thresholdBreached
+    ? significantBreach
+      ? 'violates-target'
+      : 'inconclusive'
+    : 'meets-target';
 
-  for (let i = 1; i <= k; i += 1) {
-    probability *= ((n - i + 1) / i) * (p / (1 - p));
-    cumulative += probability;
-  }
-
-  return cumulative;
-}
-
-export function binomialAccuracyTest({
-  successes,
-  total,
-  threshold,
-  alpha,
-  minSampleSize,
-}: {
-  successes: number;
-  total: number;
-  threshold: number;
-  alpha: number;
-  minSampleSize: number;
-}): AccuracyAssessment {
-  const confidenceLevel = 1 - alpha;
-
-  if (total <= 0) {
-    return { accuracy: null, pValue: null, inference: 'insufficient-data', confidenceLevel, sampleSize: total };
-  }
-
-  const accuracy = successes / total;
-
-  if (total < minSampleSize) {
-    return { accuracy, pValue: null, inference: 'insufficient-data', confidenceLevel, sampleSize: total };
-  }
-
-  const pValue = binomialCdf(successes, total, threshold);
-  const inference: PerformanceInference = pValue < alpha ? 'below-target' : 'meet-target';
-
-  return { accuracy, pValue, inference, confidenceLevel, sampleSize: total };
+  return {
+    sampleP95,
+    standardErrorMs,
+    thresholdMs,
+    thresholdBreached,
+    significantBreach,
+    zScore,
+    inference,
+  };
 }
