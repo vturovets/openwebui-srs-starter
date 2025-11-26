@@ -44,7 +44,7 @@ architecture-beta
 
     group integrations(cloud)[External Providers]
 
-    service openai(internet)[OpenAI API] in integrations
+    service llmprovider(internet)[Hosted LLM API] in integrations
     service deepgram(internet)[Deepgram STT] in integrations
     service whisper(server)[Local Faster Whisper] in integrations
     service gemini(internet)[Google Gemini] in integrations
@@ -76,7 +76,7 @@ architecture-beta
     extractor:B --> T:llm
     extractor:B --> T:hybrid
 
-    llm:R --> L:openai
+    llm:R --> L:llmprovider
     llm:R --> L:gemini
     sttclient:R --> L:deepgram
     sttclient:R --> L:whisper

@@ -13,17 +13,6 @@ methods:
       dictionary_filename: data/dictionary.csv
       configuration_filename: configs/rules.conf
 
-  - id: gpt5-default
-    type: llm
-    enabled: false
-    provider: openai
-    model: gpt-5-chat-latest
-    api_base: ${OPENAI_BASE:-https://api.openai.com/v1}   # env-substitution
-    api_key_env: OPENAI_API_KEY
-    params:
-      temperature: 0.1
-      max_tokens: 512
-
   - id: sonnet-4.5
     type: llm
     enabled: false
