@@ -104,3 +104,55 @@ export type Fixtures = {
   performanceTargets?: FixturesPerformanceTargets;
 };
 
+export type ImportOperationPayload = {
+  status?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type ImportSummaryRequest = {
+  method?: string | null;
+  operations: ImportOperationPayload[];
+};
+
+export type P95Summary = {
+  valueMs: number | null;
+  ciLowMs: number | null;
+  ciHighMs: number | null;
+  thresholdMs: number;
+  inference: 'meet-target' | 'above-target' | 'insufficient-data';
+  confidenceLevel: number;
+  sampleSize: number;
+  consideredCount: number;
+};
+
+export type AccuracySummary = {
+  value: number | null;
+  threshold: number;
+  pValue: number | null;
+  inference: 'meet-target' | 'below-target' | 'insufficient-data';
+  confidenceLevel: number;
+  sampleSize: number;
+  successCount: number;
+};
+
+export type ImportPerformanceSummary = {
+  method: string | null;
+  requestCount: number;
+  meanResponseMs: number | null;
+  p95: P95Summary;
+  accuracy: AccuracySummary;
+};
+
+export type UsageSummary = {
+  tokensIn?: number;
+  tokensOut?: number;
+  apiCalls?: number;
+  cpuMs?: number;
+  ramMbSeconds?: number;
+};
+
+export type ImportSummaryResponse = {
+  performance: ImportPerformanceSummary;
+  usage: UsageSummary;
+};
+

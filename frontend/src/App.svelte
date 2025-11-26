@@ -2,23 +2,20 @@
   import { onMount } from 'svelte';
   import MicrophoneWidget from './components/MicrophoneWidget.svelte';
   import StructuredResult from './components/StructuredResult.svelte';
-  import { fetchFixtures, parseText, postVoice } from './lib/api';
+  import { fetchFixtures, parseText, postVoice, summarizeImport } from './lib/api';
   import type {
     Fixtures,
     FixturesConfigurationDefaults,
     FixturesConfigurationFlexibility,
-    FixturesPerformanceTargets,
     HolidayResult,
     HolidayResultEntry,
+    ImportOperationPayload,
+    ImportSummaryRequest,
+    ImportSummaryResponse,
+    UsageSummary as ImportUsageSummary,
     VoiceResponse,
   } from './lib/types';
   import { CSV_LOG_FIELDS } from './lib/types';
-  import {
-    assessP95Threshold,
-    calculatePercentile,
-    type PerformanceInference,
-    type ThresholdAssessment,
-  } from './lib/performance';
   import { getExtractedValueRows } from './lib/extractedValues';
   import { parseCsv } from './lib/csv';
   import { compareExpectedValues, parseExpectedValues } from './lib/importUtils';
@@ -47,504 +44,53 @@
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const SUCCESS_STATUSES = new Set(['success', 'ok', 'passed']);
 
-  type ImportPerformanceTargets = {
-    thresholdMs: number;
-    sampleSize: number;
-    significance: number;
-  };
-
-  const DEFAULT_IMPORT_PERFORMANCE_TARGETS: ImportPerformanceTargets = {
-    thresholdMs: 1000,
-    sampleSize: 1000,
-    significance: 0.95,
-  };
-
-  let importPerformanceTargets: ImportPerformanceTargets = {
-    ...DEFAULT_IMPORT_PERFORMANCE_TARGETS,
-  };
-
-  type PerformanceSummary = {
-    method: string | null;
-    requestCount: number;
-    meanResponseMs: number;
-    p95ResponseMs: number | null;
-    accuracy: number;
-    thresholdMs: number;
-    thresholdBreached: boolean;
-    sampleSize: number;
-    significance: number;
-    inference: PerformanceInference | null;
-    assessment: ThresholdAssessment | null;
-    standardErrorMs: number | null;
-    significantBreach: boolean | null;
-    zScore: number | null;
-  };
-
-  type UsageMetricKey = 'tokensIn' | 'tokensOut' | 'apiCalls' | 'cpuMs' | 'ramMbSeconds';
-
-  type UsageAggregateField = {
-    total: number;
-    seen: boolean;
-  };
-
-  type UsageAggregate = Record<UsageMetricKey, UsageAggregateField>;
-
-  type UsageSummary = Partial<Record<UsageMetricKey, number>>;
+  type PerformanceSummary = ImportSummaryResponse['performance'];
+  type UsageSummary = ImportUsageSummary;
 
   let importPerformanceSummary: PerformanceSummary | null = null;
   let importUsageSummary: UsageSummary | null = null;
   let importMethod: string | null = null;
   let importProgress: { processed: number; total: number } | null = null;
 
-  function toFiniteNumber(value: unknown): number | null {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return null;
-      }
-      const parsed = Number(trimmed);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-    return null;
-  }
-
-  function sanitiseImportPerformanceTargets(
-    targets: FixturesPerformanceTargets | undefined
-  ): ImportPerformanceTargets {
-    const resolved: ImportPerformanceTargets = { ...DEFAULT_IMPORT_PERFORMANCE_TARGETS };
-
-    if (!targets) {
-      return resolved;
-    }
-
-    const threshold = toFiniteNumber(targets.importP95ThresholdMs);
-    if (threshold !== null) {
-      resolved.thresholdMs = Math.max(0, threshold);
-    }
-
-    const sampleSize = toFiniteNumber(targets.importP95SampleSize);
-    if (sampleSize !== null) {
-      resolved.sampleSize = Math.max(0, Math.floor(sampleSize));
-    }
-
-    const significance = toFiniteNumber(targets.importP95Significance);
-    if (significance !== null && significance > 0 && significance <= 1) {
-      resolved.significance = significance;
-    }
-
-    return resolved;
-  }
-
-  function getTotalTimingMs(result: HolidayResult): number | null {
-    const timings = result?.metadata?.timings;
-    if (!timings || typeof timings !== 'object') {
-      return null;
-    }
-
-    const timingRecord = timings as Record<string, unknown>;
-    const candidateKeys = ['totalMs', 'pipelineTotalMs', 'total', 'totalMilliseconds'];
-
-    for (const key of candidateKeys) {
-      const numericValue = toFiniteNumber(timingRecord[key]);
-      if (numericValue !== null) {
-        return numericValue;
-      }
-    }
-
-    for (const [key, value] of Object.entries(timingRecord)) {
-      if (!/total/i.test(key)) {
-        continue;
-      }
-      const numericValue = toFiniteNumber(value);
-      if (numericValue !== null) {
-        return numericValue;
-      }
-    }
-
-    return null;
-  }
-
-  function hasExpectedValueMismatches(result: HolidayResult): boolean {
-    const mismatches = result?.metadata?.expectedValueMismatches;
-    return Array.isArray(mismatches) && mismatches.length > 0;
-  }
-
-  function calculatePerformanceSummary({
-    method,
-    requestCount,
-    mismatchCount,
-    totalValues,
-    totalSum,
-    targets,
-  }: {
-    method: string | null;
-    requestCount: number;
-    mismatchCount: number;
-    totalValues: number[];
-    totalSum: number;
-    targets: ImportPerformanceTargets;
-  }): PerformanceSummary {
-    const meanResponseMs = requestCount > 0 ? totalSum / requestCount : 0;
-    const sampleSize = Math.max(0, Math.floor(targets.sampleSize));
-    const significance =
-      targets.significance > 0 && targets.significance <= 1
-        ? targets.significance
-        : DEFAULT_IMPORT_PERFORMANCE_TARGETS.significance;
-    const alpha = 1 - significance;
-
-    const p95ResponseMs =
-      totalValues.length > 0 && requestCount > 0 ? calculatePercentile(totalValues, 0.95) : null;
-    const rawAccuracy = requestCount > 0 ? (1 - mismatchCount / requestCount) * 100 : 0;
-    const accuracy = Math.min(100, Math.max(0, rawAccuracy));
-    const thresholdMs = Math.max(0, targets.thresholdMs);
-
-    const assessment: ThresholdAssessment | null =
-      p95ResponseMs !== null
-        ? assessP95Threshold({
-            values: totalValues,
-            requestCount,
-            thresholdMs,
-            sampleSize,
-            alpha,
-            percentile: 0.95,
-          })
-        : null;
-
-    const thresholdBreached =
-      assessment?.thresholdBreached ?? (typeof p95ResponseMs === 'number' ? p95ResponseMs > thresholdMs : false);
-    const inference: PerformanceInference | null = assessment?.inference ?? null;
-    const standardErrorMs = assessment?.standardErrorMs ?? null;
-    const significantBreach = assessment?.significantBreach ?? null;
-    const zScore = assessment?.zScore ?? null;
-
-    return {
-      requestCount,
-      meanResponseMs,
-      p95ResponseMs,
-      accuracy,
-      thresholdMs,
-      thresholdBreached,
-      sampleSize,
-      significance,
-      inference,
-      assessment,
-      standardErrorMs,
-      significantBreach,
-      zScore,
-      method,
-    };
-  }
-
-  const INFERENCE_LABELS: Record<PerformanceInference, string> = {
-    'meets-target': 'Meets target',
-    'violates-target': 'Violates target',
-    inconclusive: 'Inconclusive',
-  };
-
-  function formatInference(summary: PerformanceSummary | null): string {
-    if (!summary) {
+  function formatMetric(value: number | null | undefined, decimals = 2): string {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
       return '—';
-    }
-    if (summary.inference) {
-      return INFERENCE_LABELS[summary.inference];
-    }
-    if (summary.sampleSize > 0 && summary.requestCount < summary.sampleSize) {
-      return 'Insufficient data';
-    }
-    return 'Unavailable';
-  }
-
-  function formatMetric(value: number, decimals = 2): string {
-    if (!Number.isFinite(value)) {
-      return value.toString();
     }
     return Number(value.toFixed(decimals)).toString();
   }
 
-  function createUsageAggregate(): UsageAggregate {
-    return {
-      tokensIn: { total: 0, seen: false },
-      tokensOut: { total: 0, seen: false },
-      apiCalls: { total: 0, seen: false },
-      cpuMs: { total: 0, seen: false },
-      ramMbSeconds: { total: 0, seen: false },
-    };
+  function formatConfidence(confidenceLevel: number | null | undefined): string {
+    if (typeof confidenceLevel !== 'number' || !Number.isFinite(confidenceLevel)) {
+      return '';
+    }
+    return ` (${formatMetric(confidenceLevel * 100, 0)}% CI)`;
   }
 
-  function normaliseKey(value: string): string {
-    return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  function formatP95Inference(summary: PerformanceSummary | null): string {
+    if (!summary) {
+      return '—';
+    }
+    const inference = summary.p95.inference;
+    if (inference === 'insufficient-data') {
+      return 'Insufficient data';
+    }
+    const label = inference === 'meet-target' ? 'Meets target' : 'Above target';
+    return `${label}${formatConfidence(summary.p95.confidenceLevel)}`;
   }
 
-  function identifyUsageMetric(key: string): UsageMetricKey | null {
-    if (key.includes('token')) {
-      if (
-        key.includes('out') ||
-        key.includes('output') ||
-        key.includes('completion') ||
-        key.includes('response') ||
-        key.includes('candidate')
-      ) {
-      return 'tokensOut';
+  function formatAccuracyInference(summary: PerformanceSummary | null): string {
+    if (!summary) {
+      return '—';
     }
-    if (key.includes('in') || key.includes('input') || key.includes('prompt')) {
-      return 'tokensIn';
+    const inference = summary.accuracy.inference;
+    if (inference === 'insufficient-data') {
+      return 'Insufficient data';
     }
-    }
-
-    if (key.includes('api') && (key.includes('call') || key.includes('request'))) {
-      return 'apiCalls';
-    }
-    if (key === 'requests' || key.endsWith('requestcount')) {
-      return 'apiCalls';
-    }
-
-    if (
-      key.includes('cpu') &&
-      (key.includes('ms') ||
-        key.includes('millisecond') ||
-        key.includes('time') ||
-        key.includes('duration') ||
-        key.endsWith('cpu'))
-    ) {
-      return 'cpuMs';
-    }
-
-    const ramIndicator = key.includes('ram') || key.includes('memory') || key.includes('mem');
-    const sizeIndicator = key.includes('mb') || key.includes('megabyte') || key.includes('byte');
-    const durationIndicator = key.includes('sec') || key.includes('time') || key.includes('duration');
-
-    if (
-      ramIndicator &&
-      (sizeIndicator || key.includes('footprint')) &&
-      (durationIndicator || key.includes('footprint') || key.includes('usage'))
-    ) {
-      return 'ramMbSeconds';
-    }
-
-    return null;
+    const label = inference === 'meet-target' ? 'Meets target' : 'Below target';
+    return `${label}${formatConfidence(summary.accuracy.confidenceLevel)}`;
   }
 
-  function recordUsageValue(aggregate: UsageAggregate, metric: UsageMetricKey, value: unknown): boolean {
-    const numericValue = toFiniteNumber(value);
-    if (numericValue === null) {
-      return false;
-    }
-    aggregate[metric].total += numericValue;
-    aggregate[metric].seen = true;
-    return true;
-  }
-
-  function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
-  }
-
-  function shouldDescend(normalisedKey: string): boolean {
-    return (
-      normalisedKey.includes('usage') ||
-      normalisedKey.includes('metric') ||
-      normalisedKey.includes('footprint') ||
-      normalisedKey.includes('resource') ||
-      normalisedKey.includes('component') ||
-      normalisedKey.includes('summary') ||
-      normalisedKey.includes('total') ||
-      normalisedKey.includes('aggregate')
-    );
-  }
-
-  function processUsageObject(
-    record: Record<string, unknown>,
-    aggregate: UsageAggregate,
-    visited: Set<object>,
-    allowNested: boolean
-  ): boolean {
-    if (visited.has(record)) {
-      return false;
-    }
-    visited.add(record);
-
-    let updated = false;
-
-    for (const [key, rawValue] of Object.entries(record)) {
-      const normalisedKey = normaliseKey(key);
-      const metric = identifyUsageMetric(normalisedKey);
-      if (metric && recordUsageValue(aggregate, metric, rawValue)) {
-        updated = true;
-        continue;
-      }
-
-      if (!allowNested) {
-        continue;
-      }
-
-      if (Array.isArray(rawValue)) {
-        for (const item of rawValue) {
-          if (isRecord(item) && processUsageObject(item, aggregate, visited, true)) {
-            updated = true;
-          }
-        }
-        continue;
-      }
-
-      if (isRecord(rawValue) && shouldDescend(normalisedKey)) {
-        if (processUsageObject(rawValue, aggregate, visited, true)) {
-          updated = true;
-        }
-      }
-    }
-
-    return updated;
-  }
-
-  function processUsageArray(
-    entries: unknown[],
-    aggregate: UsageAggregate,
-    visited: Set<object>
-  ): boolean {
-    let updated = false;
-
-    for (const entry of entries) {
-      if (!isRecord(entry)) {
-        continue;
-      }
-      if (visited.has(entry)) {
-        continue;
-      }
-      visited.add(entry);
-
-      let componentUpdated = false;
-
-      if (isRecord(entry.usage)) {
-        if (processUsageObject(entry.usage, aggregate, visited, true)) {
-          componentUpdated = true;
-        }
-      }
-
-      if (isRecord(entry.metrics)) {
-        if (processUsageObject(entry.metrics, aggregate, visited, true)) {
-          componentUpdated = true;
-        }
-      }
-
-      if (!componentUpdated) {
-        if (processUsageObject(entry, aggregate, visited, false)) {
-          componentUpdated = true;
-        }
-      }
-
-      if (componentUpdated) {
-        updated = true;
-      }
-    }
-
-    return updated;
-  }
-
-  function accumulateUsageFromMetadata(
-    metadata: Record<string, unknown> | null | undefined,
-    aggregate: UsageAggregate
-  ): boolean {
-    if (!isRecord(metadata)) {
-      return false;
-    }
-
-    const visited = new Set<object>();
-    let updated = false;
-    const components: unknown[] = [];
-
-    if (Array.isArray(metadata.components)) {
-      components.push(metadata.components);
-    }
-
-    const usage = isRecord(metadata.usage) ? metadata.usage : null;
-    if (usage && Array.isArray(usage.components)) {
-      components.push(usage.components);
-    }
-
-    const usageMetadata = isRecord(metadata.usageMetadata) ? metadata.usageMetadata : null;
-    let llmUsageMetadata: Record<string, unknown> | null = null;
-
-    const llm = isRecord(metadata.llm) ? metadata.llm : null;
-    if (llm) {
-      if (Array.isArray(llm.components)) {
-        components.push(llm.components);
-      }
-      const llmUsage = isRecord(llm.usage) ? llm.usage : null;
-      if (llmUsage && Array.isArray(llmUsage.components)) {
-        components.push(llmUsage.components);
-      }
-      if (!usageMetadata) {
-        llmUsageMetadata = isRecord(llm.usageMetadata) ? llm.usageMetadata : null;
-      }
-    }
-
-    const usageFootprint = isRecord(metadata.usageFootprint) ? metadata.usageFootprint : null;
-    if (usageFootprint && Array.isArray(usageFootprint.components)) {
-      components.push(usageFootprint.components);
-    }
-
-    const metrics = isRecord(metadata.metrics) ? metadata.metrics : null;
-    if (metrics && Array.isArray(metrics.components)) {
-      components.push(metrics.components);
-    }
-
-    const pipeline = isRecord(metadata.pipeline) ? metadata.pipeline : null;
-    if (pipeline && Array.isArray(pipeline.components)) {
-      components.push(pipeline.components);
-    }
-
-    const resources = isRecord(metadata.resources) ? metadata.resources : null;
-    if (resources && Array.isArray(resources.components)) {
-      components.push(resources.components);
-    }
-
-    const details = isRecord(metadata.details) ? metadata.details : null;
-    if (details && Array.isArray(details.components)) {
-      components.push(details.components);
-    }
-
-    for (const array of components) {
-      if (Array.isArray(array) && processUsageArray(array, aggregate, visited)) {
-        updated = true;
-      }
-    }
-
-    const containers = [
-      usage,
-      usageMetadata,
-      llmUsageMetadata,
-      usageFootprint,
-      metrics,
-      llm?.usage,
-      resources,
-    ];
-    for (const container of containers) {
-      if (isRecord(container) && processUsageObject(container, aggregate, visited, true)) {
-        updated = true;
-      }
-    }
-
-    return updated;
-  }
-
-  function finaliseUsageSummary(aggregate: UsageAggregate): UsageSummary | null {
-    const summary: UsageSummary = {};
-    let hasValue = false;
-    (Object.keys(aggregate) as UsageMetricKey[]).forEach((key) => {
-      const entry = aggregate[key];
-      if (entry.seen) {
-        summary[key] = entry.total;
-        hasValue = true;
-      }
-    });
-    return hasValue ? summary : null;
-  }
-
-  function formatUsageValue(value: number | undefined, decimals = 2): string {
+  function formatUsageValue(value: number | null | undefined, decimals = 2): string {
     if (typeof value !== 'number') {
       return '—';
     }
@@ -552,7 +98,7 @@
   }
 
   function formatUsageValueWithUnit(
-    value: number | undefined,
+    value: number | null | undefined,
     unit: string,
     decimals = 2
   ): string {
@@ -612,7 +158,6 @@
     try {
       const data = await fetchFixtures(baseUrl);
       fixtures = data;
-      importPerformanceTargets = sanitiseImportPerformanceTargets(data.performanceTargets);
       showFailedOnly = typeof data.showFailedOnly === 'boolean' ? data.showFailedOnly : true;
       mode = data.mode;
       dialogOverrideAllowed = isDialogMode(data.mode);
@@ -798,32 +343,17 @@
     const [file] = target.files;
     busy = true;
     importMethod = method?.trim() ? method.trim() : null;
-    const totalValues: number[] = [];
-    let totalSum = 0;
     let processedCount = 0;
-    let mismatchCount = 0;
-    const usageAggregate = createUsageAggregate();
-    let usageDetected = false;
     let totalRecords = 0;
+    const operationsForSummary: ImportSummaryRequest['operations'] = [];
 
     const recordImportedEntry = (entry: HolidayResultEntry) => {
       processedCount += 1;
-      if (hasExpectedValueMismatches(entry.result)) {
-        mismatchCount += 1;
-      }
-      const totalTiming = getTotalTimingMs(entry.result);
-      if (typeof totalTiming === 'number' && Number.isFinite(totalTiming)) {
-        totalValues.push(totalTiming);
-        totalSum += totalTiming;
-      }
-      if (
-        accumulateUsageFromMetadata(
-          entry.result.metadata as Record<string, unknown> | null | undefined,
-          usageAggregate
-        )
-      ) {
-        usageDetected = true;
-      }
+      const operation: ImportOperationPayload = {
+        status: entry.result?.status,
+        metadata: entry.result?.metadata ?? null,
+      };
+      operationsForSummary.push(operation);
       if (shouldDisplayImportedEntry(entry)) {
         addEntry(entry);
       }
@@ -905,15 +435,19 @@
       busy = false;
       target.value = '';
       if (processedCount > 0) {
-        importPerformanceSummary = calculatePerformanceSummary({
-          method: importMethod,
-          requestCount: processedCount,
-          mismatchCount,
-          totalValues,
-          totalSum,
-          targets: importPerformanceTargets,
-        });
-        importUsageSummary = usageDetected ? finaliseUsageSummary(usageAggregate) : null;
+        try {
+          const payload: ImportSummaryRequest = {
+            method: importMethod,
+            operations: operationsForSummary,
+          };
+          const summary = await summarizeImport(baseUrl, payload);
+          importPerformanceSummary = summary.performance;
+          importUsageSummary = summary.usage;
+        } catch (error) {
+          console.error(error);
+          importPerformanceSummary = null;
+          importUsageSummary = null;
+        }
       } else {
         importPerformanceSummary = null;
         importUsageSummary = null;
@@ -1153,8 +687,8 @@
               <dt>P95 response time</dt>
               <dd data-testid="performance-p95">
                 {#if importPerformanceSummary}
-                  {#if importPerformanceSummary.p95ResponseMs !== null}
-                    {formatMetric(importPerformanceSummary.p95ResponseMs)} ms
+                  {#if importPerformanceSummary.p95.valueMs !== null}
+                    {formatMetric(importPerformanceSummary.p95.valueMs)} ms
                   {:else}
                     —
                   {/if}
@@ -1164,10 +698,10 @@
               </dd>
             </div>
             <div class="metric-row">
-              <dt>Threshold</dt>
+              <dt>P95 threshold</dt>
               <dd data-testid="performance-threshold">
                 {#if importPerformanceSummary}
-                  {formatMetric(importPerformanceSummary.thresholdMs)} ms
+                  {formatMetric(importPerformanceSummary.p95.thresholdMs)} ms
                 {:else}
                   —
                 {/if}
@@ -1175,22 +709,36 @@
             </div>
             <div class="metric-row">
               <dt>Inference</dt>
-              <dd data-testid="performance-inference">
+              <dd data-testid="performance-inference">{formatP95Inference(importPerformanceSummary)}</dd>
+            </div>
+            <div class="metric-row">
+              <dt>Accuracy</dt>
+              <dd data-testid="performance-accuracy">
                 {#if importPerformanceSummary}
-                  {formatInference(importPerformanceSummary)}
+                  {#if typeof importPerformanceSummary.accuracy.value === 'number'}
+                    {formatMetric(importPerformanceSummary.accuracy.value * 100)}%
+                  {:else}
+                    —
+                  {/if}
                 {:else}
                   —
                 {/if}
               </dd>
             </div>
             <div class="metric-row">
-              <dt>Accuracy</dt>
-              <dd data-testid="performance-accuracy">
+              <dt>Accuracy threshold</dt>
+              <dd data-testid="performance-accuracy-threshold">
                 {#if importPerformanceSummary}
-                  {formatMetric(importPerformanceSummary.accuracy)}%
+                  {formatMetric(importPerformanceSummary.accuracy.threshold * 100)}%
                 {:else}
                   —
                 {/if}
+              </dd>
+            </div>
+            <div class="metric-row">
+              <dt>Accuracy inference</dt>
+              <dd data-testid="performance-accuracy-inference">
+                {formatAccuracyInference(importPerformanceSummary)}
               </dd>
             </div>
           </dl>
@@ -1330,17 +878,17 @@
     background: #1e293b;
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 16px;
-    padding: 1.5rem 1.75rem;
+    padding: 1.1rem 1.3rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.1rem;
+    gap: 0.8rem;
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.4);
   }
 
   .summary-card h2 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     text-align: center;
     letter-spacing: 0.02em;
   }
@@ -1349,18 +897,18 @@
     margin: 0;
     width: 100%;
     display: grid;
-    gap: 0.75rem;
+    gap: 0.55rem;
   }
 
   .summary-card .metric-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.6rem;
+    gap: 0.45rem;
     align-items: baseline;
   }
 
   .summary-card dt {
-    font-size: 0.8rem;
+    font-size: 0.65rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #94a3b8;
@@ -1369,7 +917,7 @@
 
   .summary-card dd {
     margin: 0;
-    font-size: 1.35rem;
+    font-size: 1.05rem;
     font-weight: 600;
     text-align: right;
   }

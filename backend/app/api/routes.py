@@ -29,7 +29,13 @@ from ..pipeline.dialog import DialogOrchestrator
 from ..pipeline.language import LanguageNotPermittedError
 from ..pipeline.pipeline import HolidaySearchPipeline
 from ..schemas import ImportSummary as ImportSummarySchema, build_import_summary
-from ..services import GuardrailOverloadError, ImportJobRunner, ImportSummary as ImportSummaryData
+from ..schemas.import_summary import ImportSummaryRequest, ImportSummaryResponse
+from ..services import (
+    GuardrailOverloadError,
+    ImportJobRunner,
+    ImportSummary as ImportSummaryData,
+    ImportSummaryReporter,
+)
 from ..integrations.stt import (
     SpeechToTextClient,
     SpeechToTextError,
@@ -896,6 +902,21 @@ async def fetch_fixtures(
             "importP95Significance": settings.import_p95_significance,
         },
     }
+
+
+@api_router.post("/import/summary", response_model=ImportSummaryResponse)
+async def import_summary(
+    payload: ImportSummaryRequest,
+    settings: Settings = Depends(get_settings),
+) -> ImportSummaryResponse:
+    """Compute statistical import summaries for performance and usage metrics."""
+
+    reporter = ImportSummaryReporter(settings=settings)
+    summary = reporter.summarise(
+        method=payload.method,
+        operations=[item.model_dump() for item in payload.operations],
+    )
+    return ImportSummaryResponse.from_service_summary(summary)
 
 @api_router.post("/voice", response_model=VoiceResponse)
 async def voice_endpoint(

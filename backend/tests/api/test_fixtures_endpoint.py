@@ -68,7 +68,7 @@ def test_fixtures_endpoint_uses_default_performance_targets(monkeypatch, tmp_pat
         payload = response.json()
         performance_targets = payload["performanceTargets"]
         assert performance_targets == {
-            "importP95ThresholdMs": 1000,
+            "importP95ThresholdMs": 750,
             "importP95SampleSize": 1000,
             "importP95Significance": 0.95,
         }

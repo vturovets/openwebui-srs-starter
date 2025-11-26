@@ -35,7 +35,7 @@ def test_dependency_settings_propagate_default_targets(monkeypatch, tmp_path) ->
 
     try:
         settings = dependencies.get_settings()
-        assert settings.import_p95_threshold_ms == 1000
+        assert settings.import_p95_threshold_ms == 750
         assert settings.import_p95_sample_size == 1000
         assert settings.import_p95_significance == 0.95
         assert settings.import_max_concurrency == 12
