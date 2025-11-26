@@ -15,11 +15,12 @@ vi.mock('../lib/api', () => ({
   fetchFixtures: vi.fn(),
   parseText: vi.fn(),
   postVoice: vi.fn(),
+  summarizeImport: vi.fn(),
 }));
 
 import App from '../App.svelte';
-import { fetchFixtures, parseText } from '../lib/api';
-import { CSV_LOG_FIELDS } from '../lib/types';
+import { fetchFixtures, parseText, summarizeImport } from '../lib/api';
+import { CSV_LOG_FIELDS, type ImportSummaryResponse } from '../lib/types';
 
 const FIXTURE_RESPONSE = {
   airports: ['Amsterdam', 'London Gatwick'],
@@ -181,6 +182,56 @@ const PARSE_FAILED = {
   ],
 };
 
+const BASE_SUMMARY: ImportSummaryResponse = {
+  performance: {
+    method: 'rules-basic',
+    requestCount: 1,
+    meanResponseMs: 34,
+    p95: {
+      valueMs: 34,
+      ciLowMs: null,
+      ciHighMs: null,
+      thresholdMs: 750,
+      inference: 'insufficient-data',
+      confidenceLevel: 0.95,
+      sampleSize: 1,
+      consideredCount: 1,
+    },
+    accuracy: {
+      value: 1,
+      threshold: 0.85,
+      pValue: null,
+      inference: 'insufficient-data',
+      confidenceLevel: 0.95,
+      sampleSize: 1,
+      successCount: 1,
+    },
+  },
+  usage: {
+    tokensIn: 50,
+    tokensOut: 10,
+    apiCalls: 1,
+    cpuMs: 20,
+    ramMbSeconds: 5.5,
+  },
+};
+
+const cloneSummary = (overrides: Partial<ImportSummaryResponse> = {}): ImportSummaryResponse => ({
+  performance: {
+    ...BASE_SUMMARY.performance,
+    ...overrides.performance,
+    p95: {
+      ...BASE_SUMMARY.performance.p95,
+      ...(overrides.performance?.p95 ?? {}),
+    },
+    accuracy: {
+      ...BASE_SUMMARY.performance.accuracy,
+      ...(overrides.performance?.accuracy ?? {}),
+    },
+  },
+  usage: { ...BASE_SUMMARY.usage, ...(overrides.usage ?? {}) },
+});
+
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 const parseCsvLine = (line: string): string[] => {
@@ -219,10 +270,12 @@ const parseCsvLine = (line: string): string[] => {
 describe('Holiday search console', () => {
   const fetchFixturesMock = fetchFixtures as unknown as vi.Mock;
   const parseTextMock = parseText as unknown as vi.Mock;
+  const summarizeImportMock = summarizeImport as unknown as vi.Mock;
 
   beforeEach(() => {
     fetchFixturesMock.mockReset().mockResolvedValue({ ...FIXTURE_RESPONSE });
     parseTextMock.mockReset();
+    summarizeImportMock.mockReset().mockResolvedValue(cloneSummary());
   });
 
   it('loads fixtures on mount and displays airports/destinations', async () => {
@@ -325,6 +378,20 @@ describe('Holiday search console', () => {
 
   it('imports CSV requests and flags expected mismatches', async () => {
     parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
+    summarizeImportMock.mockResolvedValueOnce(
+      cloneSummary({
+        performance: {
+          requestCount: 1,
+          p95: { inference: 'insufficient-data', thresholdMs: 750, valueMs: 34 },
+          accuracy: {
+            value: 0,
+            inference: 'insufficient-data',
+            successCount: 0,
+            threshold: 0.85,
+          },
+        },
+      })
+    );
     const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());
@@ -362,9 +429,11 @@ describe('Holiday search console', () => {
     await waitFor(() => expect(screen.getByTestId('performance-requests')).toHaveTextContent('1'));
     expect(screen.getByTestId('performance-mean')).toHaveTextContent('34 ms');
     expect(screen.getByTestId('performance-p95')).toHaveTextContent('34 ms');
-    expect(screen.getByTestId('performance-threshold')).toHaveTextContent('1000 ms');
+    expect(screen.getByTestId('performance-threshold')).toHaveTextContent('750 ms');
     expect(screen.getByTestId('performance-inference')).toHaveTextContent('Insufficient data');
     expect(screen.getByTestId('performance-accuracy')).toHaveTextContent('0%');
+    expect(screen.getByTestId('performance-accuracy-threshold')).toHaveTextContent('85%');
+    expect(screen.getByTestId('performance-accuracy-inference')).toHaveTextContent('Insufficient data');
 
     const resetButton = screen.getByTestId('reset-button') as HTMLButtonElement;
     await waitFor(() => expect(resetButton.disabled).toBe(false));
@@ -377,6 +446,17 @@ describe('Holiday search console', () => {
 
   it('derives usage summary values from usage metadata during import', async () => {
     parseTextMock.mockResolvedValueOnce(clone(PARSE_WITH_USAGE_METADATA));
+    summarizeImportMock.mockResolvedValueOnce(
+      cloneSummary({
+        usage: {
+          tokensIn: 120,
+          tokensOut: 45,
+          apiCalls: undefined,
+          cpuMs: undefined,
+          ramMbSeconds: undefined,
+        },
+      })
+    );
     const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());
@@ -411,6 +491,17 @@ describe('Holiday search console', () => {
 
   it('derives usage summary values from resource metrics during import', async () => {
     parseTextMock.mockResolvedValueOnce(clone(PARSE_WITH_RESOURCE_METRICS));
+    summarizeImportMock.mockResolvedValueOnce(
+      cloneSummary({
+        usage: {
+          tokensIn: undefined,
+          tokensOut: undefined,
+          apiCalls: 3,
+          cpuMs: 18.5,
+          ramMbSeconds: 9.25,
+        },
+      })
+    );
     const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());

@@ -2,6 +2,8 @@ import type {
   Fixtures,
   FixturesPerformanceTargets,
   HolidayResult,
+  ImportSummaryRequest,
+  ImportSummaryResponse,
   VoiceResponse,
 } from './types';
 
@@ -151,5 +153,20 @@ export async function postVoice(baseUrl: string, formData: FormData): Promise<Vo
     payload.voiceEnabled = payload.voice_enabled as boolean;
   }
   return payload as VoiceResponse;
+}
+
+export async function summarizeImport(
+  baseUrl: string,
+  payload: ImportSummaryRequest
+): Promise<ImportSummaryResponse> {
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/import/summary`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return handleResponse(response) as Promise<ImportSummaryResponse>;
 }
 

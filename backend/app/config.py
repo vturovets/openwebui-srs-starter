@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_core import PydanticUndefined
 
@@ -188,7 +188,7 @@ class Settings(BaseSettings):
         ),
     )
     import_p95_threshold_ms: int = Field(
-        default=1000,
+        default=750,
         alias="IMPORT_P95_THRESHOLD_MS",
         description=(
             "Maximum acceptable P95 response time, in milliseconds, for imported "
@@ -210,6 +210,27 @@ class Settings(BaseSettings):
             "Significance level expressed as a percentile (0-1) when evaluating "
             "imported performance data."
         ),
+    )
+    min_sample_size: int = Field(
+        default=1000,
+        alias="MIN_SAMPLE_SIZE",
+        description="Minimum number of observations required for statistical inferences.",
+    )
+    import_accuracy_threshold: float = Field(
+        default=0.85,
+        alias="IMPORT_ACCURACY_THRESHOLD",
+        description="Target accuracy (0-1) used for regression checks against imports.",
+    )
+    p95_outliers_threshold: int = Field(
+        default=10_000,
+        alias="P95_OUTLIERS_THRESHOLD",
+        description="Upper bound (ms) above which response times are treated as outliers and discarded.",
+    )
+    alpha: float = Field(
+        default=0.05,
+        alias="APLHA",
+        description="Significance level used when constructing statistical confidence intervals.",
+        validation_alias=AliasChoices("APLHA", "ALPHA"),
     )
     voice_max_bytes: int = Field(
         default=10_000_000,
@@ -414,7 +435,7 @@ class Settings(BaseSettings):
         if value is PydanticUndefined:
             return value  # type: ignore[return-value]
         if value in (None, ""):
-            return 1000
+            return 750
         try:
             threshold = int(value)
         except (TypeError, ValueError) as exc:
@@ -452,6 +473,66 @@ class Settings(BaseSettings):
         if not 0 < significance < 1:
             raise ValueError("IMPORT_P95_SIGNIFICANCE must be greater than 0 and less than 1")
         return significance
+
+    @field_validator("min_sample_size", mode="before")
+    @classmethod
+    def _validate_min_sample_size(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 1000
+        try:
+            sample_size = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("MIN_SAMPLE_SIZE must be a positive integer") from exc
+        if sample_size <= 0:
+            raise ValueError("MIN_SAMPLE_SIZE must be greater than zero")
+        return sample_size
+
+    @field_validator("import_accuracy_threshold", mode="before")
+    @classmethod
+    def _validate_import_accuracy_threshold(cls, value: object) -> float:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 0.85
+        try:
+            threshold = float(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("IMPORT_ACCURACY_THRESHOLD must be a numeric value between 0 and 1") from exc
+        if not 0 < threshold < 1:
+            raise ValueError("IMPORT_ACCURACY_THRESHOLD must be greater than 0 and less than 1")
+        return threshold
+
+    @field_validator("p95_outliers_threshold", mode="before")
+    @classmethod
+    def _validate_p95_outliers_threshold(cls, value: object) -> int:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 10_000
+        try:
+            threshold = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("P95_OUTLIERS_THRESHOLD must be a positive integer") from exc
+        if threshold <= 0:
+            raise ValueError("P95_OUTLIERS_THRESHOLD must be greater than zero")
+        return threshold
+
+    @field_validator("alpha", mode="before")
+    @classmethod
+    def _validate_alpha(cls, value: object) -> float:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return 0.05
+        try:
+            alpha = float(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("APLHA/ALPHA must be a numeric value between 0 and 1") from exc
+        if not 0 < alpha < 1:
+            raise ValueError("APLHA/ALPHA must be greater than 0 and less than 1")
+        return alpha
 
     @field_validator("csv_delimiter", mode="before")
     @classmethod
