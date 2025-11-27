@@ -1,7 +1,9 @@
 # Capabilities overview
 
-- **End-to-end holiday assistant** – The project couples a FastAPI backend with a Vite + Svelte frontend so OpenWebUI-style holiday requests can be parsed, validated, and reviewed in one place. The backend focuses on deterministic, benchmarkable behaviour while the frontend mirrors the OpenWebUI flows used for experiments and regression testing.【F:README.md†L3-L29】
-- **Deterministic NLP pipeline** – HolidaySearchPipeline wires together language detection, rule-based and LLM extractors, a normaliser, and a validator backed by fixture data. Optional popularity imputation fills gaps in requests using historic stats, and every run records extraction attempts and timings for observability.【F:backend/app/pipeline/pipeline.py†L93-L200】
-- **Full API surface for experiments** – `/v1/parse` runs the pipeline for single requests or import batches, `/v1/dialog` drives clarification-aware sessions, `/v1/fixtures` exposes airports/destinations/configuration/method catalogues, `/v1/import/summary` reports statistical rollups, and `/v1/voice` transcribes audio before reusing the same pipeline path.【F:backend/app/api/routes.py†L662-L1115】
-- **Guardrailed bulk imports** – ImportJobRunner executes backlog batches with bounded concurrency, CPU/memory-aware throttling, retry tracking, latency histograms, and percentile summaries so large datasets remain stable during evaluation runs.【F:backend/app/services/import_runner.py†L330-L428】
-- **Instrumentation and logging** – API responses include timing metadata, validation details, recognised entities, and method selections, while CSV logging and import summary logging persist outcomes for A/B comparisons or replay in the UI.【F:backend/app/api/routes.py†L691-L904】
+- This project delivers an end-to-end holiday assistant that pairs a reliable API with a responsive web interface to keep requests consistent from intake to review.
+- A deterministic NLP pipeline powers language detection, rule-based and LLM extraction, normalization, and validation so travel intents stay clear and auditable.
+- Batch and conversational endpoints support single parses, dialog-driven clarification, fixture discovery, import rollups, and voice transcription to reuse the same evaluation path.
+- Bulk imports are guarded by bounded concurrency, resource-aware throttling, retries, and latency insights to keep large datasets stable.
+- Rich instrumentation surfaces timings, validation results, recognized entities, and method choices while preserving logs for comparison or replay.
+- The experience is tailored for OpenWebUI-style experiments, providing predictable flows for benchmarking and regression coverage.
+- This work is part of the Ciklum AI Academy program, highlighting practical, production-minded design for applied AI assistants.
