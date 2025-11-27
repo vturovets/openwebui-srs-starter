@@ -203,9 +203,11 @@ class HolidaySearchPipeline:
             if isinstance(llm_metadata, Mapping):
                 metadata_payload["llm"] = dict(llm_metadata)
 
-        imputation_meta = self._apply_imputation(extraction)
-        metadata_payload["imputation"] = dict(imputation_meta)
-        metadata_payload["imputed"] = dict(imputation_meta.get("imputed", {}))
+        metadata_payload["imputation"] = {
+            "enabled": bool(self._imputer),
+            "imputed": {},
+        }
+        metadata_payload["imputed"] = {}
 
         normalized = self._measure(
             "normalizationMs",
@@ -304,6 +306,17 @@ class HolidaySearchPipeline:
                     fallback_summary["detail"] = fallback_outcome.detail
                 stage_summaries.append(fallback_summary)
                 combined_attempts.extend(dict(attempt) for attempt in fallback_outcome.attempts)
+
+                if fallback_outcome.status != "success" and self._imputer is not None:
+                    fallback_outcome = self._apply_imputation_and_revalidate(
+                        fallback_outcome, language, timings
+                    )
+                    stage_summaries[-1]["status"] = fallback_outcome.status
+                    if fallback_outcome.detail:
+                        stage_summaries[-1]["detail"] = fallback_outcome.detail
+                    elif "detail" in stage_summaries[-1]:
+                        stage_summaries[-1].pop("detail", None)
+                    combined_attempts = list(fallback_outcome.attempts)
                 metadata = dict(fallback_outcome.metadata)
                 hybrid_meta: Dict[str, Any] = {
                     "methodId": method.id,
@@ -527,6 +540,59 @@ class HolidaySearchPipeline:
         metadata.setdefault("imputed", {})
         metadata.setdefault("enabled", True)
         return metadata
+
+    def _apply_imputation_and_revalidate(
+        self, outcome: ExtractorOutcome, language: str, timings: Dict[str, float]
+    ) -> ExtractorOutcome:
+        imputation_meta = (
+            self._apply_imputation(outcome.extraction)
+            if outcome.extraction is not None
+            else {"enabled": bool(self._imputer), "imputed": {}}
+        )
+
+        metadata = dict(outcome.metadata)
+        metadata["imputation"] = dict(imputation_meta)
+        metadata["imputed"] = dict(imputation_meta.get("imputed", {}))
+        outcome.metadata = metadata
+
+        attempts = list(outcome.attempts)
+
+        if not imputation_meta.get("imputed"):
+            return outcome
+
+        normalized = self._measure(
+            "normalizationMs",
+            timings,
+            lambda: self._normalizer.normalize(language, outcome.extraction),
+        )
+        outcome.normalized = normalized
+
+        try:
+            self._measure(
+                "validationMs",
+                timings,
+                lambda: self._validator.validate(normalized),
+            )
+        except ValidationError as exc:
+            detail = str(exc)
+            validation = {"status": "failed", "errors": [{"message": detail}]}
+            if attempts:
+                attempts[-1] = {**attempts[-1], "status": "failed", "detail": detail}
+            outcome.status = "failed"
+            outcome.validation = validation
+            outcome.detail = detail
+            outcome.attempts = attempts
+            return outcome
+
+        validation = {"status": "passed", "errors": []}
+        if attempts:
+            attempts[-1] = {**attempts[-1], "status": "success"}
+            attempts[-1].pop("detail", None)
+        outcome.status = "success"
+        outcome.validation = validation
+        outcome.detail = None
+        outcome.attempts = attempts
+        return outcome
 
     def _merge_imputed_values(self, extraction: ExtractionResult, params: Mapping[str, object]) -> None:
         def _coerce_strings(value: object) -> list[str]:
