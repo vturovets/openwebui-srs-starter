@@ -152,6 +152,8 @@ class HolidaySearchPipeline:
         utterance: str,
         language: str,
         timings: Dict[str, float],
+        *,
+        allow_imputation: bool = True,
     ) -> ExtractorOutcome:
         runtime_kind = method.kind
         metadata_payload: Dict[str, Any] = {
@@ -229,7 +231,7 @@ class HolidaySearchPipeline:
             }
             attempts[0]["status"] = "failed"
             attempts[0]["detail"] = detail
-            return ExtractorOutcome(
+            outcome = ExtractorOutcome(
                 method=method.id,
                 status="failed",
                 extraction=extraction,
@@ -239,6 +241,9 @@ class HolidaySearchPipeline:
                 attempts=attempts,
                 metadata=metadata_payload,
             )
+            if allow_imputation and self._imputer is not None:
+                return self._apply_imputation_and_revalidate(outcome, language, timings)
+            return outcome
 
         validation = {"status": "passed", "errors": []}
         attempts[0]["status"] = "success"
@@ -269,7 +274,14 @@ class HolidaySearchPipeline:
         last_outcome: Optional[ExtractorOutcome] = None
         try:
             for stage in method.stages:
-                outcome = self._execute_method(stage.method, utterance, language, timings, visited=visited)
+                outcome = self._execute_method(
+                    stage.method,
+                    utterance,
+                    language,
+                    timings,
+                    visited=visited,
+                    allow_imputation=False,
+                )
                 stage_summary: Dict[str, Any] = {
                     "id": stage.method.id,
                     "type": stage.method.kind,
@@ -295,7 +307,14 @@ class HolidaySearchPipeline:
                     return outcome
 
             if method.fallback is not None:
-                fallback_outcome = self._execute_method(method.fallback, utterance, language, timings, visited=visited)
+                fallback_outcome = self._execute_method(
+                    method.fallback,
+                    utterance,
+                    language,
+                    timings,
+                    visited=visited,
+                    allow_imputation=True,
+                )
                 fallback_summary: Dict[str, Any] = {
                     "id": method.fallback.id,
                     "type": method.fallback.kind,
@@ -359,13 +378,22 @@ class HolidaySearchPipeline:
         timings: Dict[str, float],
         *,
         visited: Optional[Set[str]] = None,
+        allow_imputation: bool = True,
     ) -> ExtractorOutcome:
         visited_set = visited or set()
         if isinstance(method, HybridMethodConfig):
-            return self._execute_hybrid(method, utterance, language, timings, visited=visited_set)
+            return self._execute_hybrid(
+                method,
+                utterance,
+                language,
+                timings,
+                visited=visited_set,
+            )
         if method.kind not in {"rules", "llm"}:
             raise ValueError(f"Unsupported method kind '{method.kind}' requested")
-        return self._run_single_pass(method, utterance, language, timings)
+        return self._run_single_pass(
+            method, utterance, language, timings, allow_imputation=allow_imputation
+        )
 
     def _resolve_method(self, override: str | None) -> tuple[str | None, MethodConfig]:
         candidate = override or self._settings.llm_method

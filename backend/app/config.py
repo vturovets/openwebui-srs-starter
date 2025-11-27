@@ -643,8 +643,9 @@ class Settings(BaseSettings):
         """Enable the imputer only when explicitly allowed for hybrid LLM runs."""
 
         llm_method = (self.llm_method or "").lower()
+        allowed_methods = {"hybrid", ""}
         self.popularity_imputer_enabled = bool(
-            self.popularity_imputer_enabled and llm_method == "hybrid"
+            self.popularity_imputer_enabled and llm_method in allowed_methods
         )
 
         return self
