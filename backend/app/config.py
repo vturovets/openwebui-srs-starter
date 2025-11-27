@@ -228,9 +228,9 @@ class Settings(BaseSettings):
     )
     alpha: float = Field(
         default=0.05,
-        alias="APLHA",
+        alias="ALPHA",
         description="Significance level used when constructing statistical confidence intervals.",
-        validation_alias=AliasChoices("APLHA", "ALPHA"),
+        validation_alias=AliasChoices("ALPHA", "ALPHA"),
     )
     voice_max_bytes: int = Field(
         default=10_000_000,
@@ -529,9 +529,9 @@ class Settings(BaseSettings):
         try:
             alpha = float(value)
         except (TypeError, ValueError) as exc:
-            raise TypeError("APLHA/ALPHA must be a numeric value between 0 and 1") from exc
+            raise TypeError("ALPHA/ALPHA must be a numeric value between 0 and 1") from exc
         if not 0 < alpha < 1:
-            raise ValueError("APLHA/ALPHA must be greater than 0 and less than 1")
+            raise ValueError("ALPHA/ALPHA must be greater than 0 and less than 1")
         return alpha
 
     @field_validator("csv_delimiter", mode="before")

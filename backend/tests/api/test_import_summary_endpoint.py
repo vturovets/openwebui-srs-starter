@@ -46,7 +46,7 @@ def test_import_summary_meets_targets(monkeypatch) -> None:
             "IMPORT_P95_THRESHOLD_MS": "750",
             "IMPORT_ACCURACY_THRESHOLD": "0.5",
             "P95_OUTLIERS_THRESHOLD": "2000",
-            "APLHA": "0.1",
+            "ALPHA": "0.1",
         },
     )
 
@@ -92,7 +92,7 @@ def test_import_summary_detects_regressions(monkeypatch) -> None:
             "IMPORT_P95_THRESHOLD_MS": "500",
             "IMPORT_ACCURACY_THRESHOLD": "0.9",
             "P95_OUTLIERS_THRESHOLD": "2000",
-            "APLHA": "0.05",
+            "ALPHA": "0.05",
         },
     )
 
