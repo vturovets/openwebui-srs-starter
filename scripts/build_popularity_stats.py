@@ -152,6 +152,7 @@ def init_counter_bundle() -> dict[str, Counter]:
         "party": Counter(),
         "interval": Counter(),
         "airport": Counter(),
+        "destination": Counter(),
     }
 
 
@@ -216,6 +217,8 @@ def build_statistics(rows: Iterable[ParsedRow], *, top_n: int) -> tuple[dict, di
         unique_destinations = sorted(set(parsed.destinations))
         destination_mentions += len(unique_destinations)
         for dest in unique_destinations:
+            global_counters["destination"][dest] += 1
+        for dest in unique_destinations:
             bundle = destination_counters[dest]
             if parsed.duration is not None:
                 bundle["duration"][parsed.duration] += 1
@@ -240,6 +243,9 @@ def build_statistics(rows: Iterable[ParsedRow], *, top_n: int) -> tuple[dict, di
         "interval": summarize_counter(global_counters["interval"], serialize_interval, top_n),
         "departure_airport": summarize_counter(
             global_counters["airport"], lambda value: value, top_n
+        ),
+        "destination": summarize_counter(
+            global_counters["destination"], lambda value: value, top_n
         ),
         "totals": {
             "rows": processed_rows,

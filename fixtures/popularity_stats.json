@@ -1,10 +1,10 @@
 {
   "metadata": {
     "schema_version": 1,
-    "generated_at": "2025-11-18T15:54:08.179531+00:00",
+    "generated_at": "2025-11-27T08:15:18.706689+00:00",
     "source": {
-      "path": "docs\\demo_set_example.csv",
-      "sha256": "023a7a3238c1af0b9d2a7fbc5c7ea1fbe78ca2d082c8ac252ef63458eb339ab0",
+      "path": "docs/demo_set_example.csv",
+      "sha256": "974a3b0432c07a7b3f0718beb5e19e173a585a915a98ea95f7188d2b7da736b1",
       "rows": 10
     },
     "top_n": 5,
@@ -168,6 +168,34 @@
       ],
       "unique_values": 2,
       "total": 7
+    },
+    "destination": {
+      "mode": "Costa Rica",
+      "mode_count": 10,
+      "top_values": [
+        {
+          "value": "Costa Rica",
+          "count": 10
+        },
+        {
+          "value": "Kenya",
+          "count": 10
+        },
+        {
+          "value": "Australia",
+          "count": 9
+        },
+        {
+          "value": "Columbia",
+          "count": 9
+        },
+        {
+          "value": "Japan",
+          "count": 9
+        }
+      ],
+      "unique_values": 10,
+      "total": 86
     },
     "totals": {
       "rows": 10,
@@ -1383,7 +1411,7 @@
         "total": 6
       }
     },
-    "Austria": {
+    "Latvia": {
       "duration": {
         "mode": 7,
         "mode_count": 3,
@@ -1729,7 +1757,7 @@
       "unique_intervals": 1,
       "total": 1
     },
-    "Australia||Columbia||Costa Rica||Japan||Kenya||Kuwait||Austria||New Zealand": {
+    "Australia||Columbia||Costa Rica||Japan||Kenya||Kuwait||Latvia||New Zealand": {
       "destinations": [
         "Australia",
         "Columbia",
@@ -1737,7 +1765,7 @@
         "Japan",
         "Kenya",
         "Kuwait",
-        "Austria",
+        "Latvia",
         "New Zealand"
       ],
       "mode": {
@@ -1757,7 +1785,7 @@
       "unique_intervals": 1,
       "total": 1
     },
-    "Australia||Chile||Columbia||Costa Rica||Japan||Kenya||Korea||Kuwait||Austria||New Zealand": {
+    "Australia||Chile||Columbia||Costa Rica||Japan||Kenya||Korea||Kuwait||Latvia||New Zealand": {
       "destinations": [
         "Australia",
         "Chile",
@@ -1767,7 +1795,7 @@
         "Kenya",
         "Korea",
         "Kuwait",
-        "Austria",
+        "Latvia",
         "New Zealand"
       ],
       "mode": {
