@@ -1,89 +1,553 @@
-architecture-beta
-    group client(browser)[Client]
+(.venv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest
+============================================================================== test session starts ===============================================================================
+platform win32 -- Python 3.12.2, pytest-8.4.2, pluggy-1.6.0
+rootdir: C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search
+configfile: pyproject.toml
+testpaths: backend/tests
+plugins: anyio-4.11.0
+collected 102 items
 
-    service webui(browser)[Svelte Frontend] in client
+backend\tests\api\test_cors_preflight.py .                                                                                                                                  [  0%]
+backend\tests\api\test_fixtures_endpoint.py ..                                                                                                                              [  2%]
+backend\tests\api\test_import_summary_endpoint.py ...                                                                                                                       [  5%]
+backend\tests\api\test_language_errors.py .                                                                                                                                 [  6%]
+backend\tests\api\test_voice_endpoint.py ......                                                                                                                             [ 12%]
+backend\tests\fixtures\test_repository.py ...                                                                                                                               [ 15%]
+backend\tests\integration\test_import_cli.py F                                                                                                                              [ 16%]
+backend\tests\integrations\test_llm_client.py .....                                                                                                                         [ 21%]
+backend\tests\integrations\test_stt_deepgram.py .                                                                                                                           [ 22%]
+backend\tests\integrations\test_stt_fallback.py .....                                                                                                                       [ 27%]
+backend\tests\logging\test_csv_logger.py ....                                                                                                                               [ 31%]
+backend\tests\pipeline\test_methods_catalog.py .......                                                                                                                      [ 38%]
+backend\tests\pipeline\test_pipeline_components.py .....F..........FF.F.F                                                                                                   [ 59%]
+backend\tests\pipeline\test_pipeline_methods.py ....F.....F                                                                                                                 [ 70%]
+backend\tests\services\test_import_runner.py .........                                                                                                                      [ 79%]
+backend\tests\services\test_popularity_imputer.py ......                                                                                                                    [ 85%]
+backend\tests\test_dependencies.py ..                                                                                                                                       [ 87%]
+backend\tests\test_openwebui_connector.py ...                                                                                                                               [ 90%]
+backend\tests\test_openwebui_extension.py ....                                                                                                                              [ 94%]
+backend\tests\test_settings.py F.F...                                                                                                                                       [100%]
 
-    group api(server)[API Layer]
+==================================================================================== FAILURES ====================================================================================
+__________________________________________________________________ test_run_import_cli_outputs_summary_and_logs __________________________________________________________________
 
-    service fastapi(server)[FastAPI Application] in api
-    service health(api)[/health] in api
-    service parse(api)[/v1/parse] in api
-    service dialog(api)[/v1/dialog] in api
-    service voice(api)[/v1/voice] in api
-    service fixtures(api)[/v1/fixtures] in api
+tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-292/test_run_import_cli_outputs_su0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026066A01F40>, capsys = <_pytest.capture.CaptureFixture object at 0x0000026066A03F80>
 
-    group pipeline(server)[NLP Pipeline]
+    @pytest.mark.integration
+    def test_run_import_cli_outputs_summary_and_logs(tmp_path: Path, monkeypatch, capsys) -> None:
+        batch = [
+            {"text": "Book a trip from Amsterdam to Japan", "mode": "dialog"},
+            {"text": "Find holidays to Australia in October"},
+        ]
+        batch_path = tmp_path / "batch.json"
+        batch_path.write_text(json.dumps(batch), encoding="utf-8")
 
-    service orchestrator(service)[Pipeline Orchestrator] in pipeline
-    service langdetect(service)[Language Detector] in pipeline
-    service methodcatalog(service)[Method Catalogue] in pipeline
-    service extractor(service)[Extractor Dispatcher] in pipeline
-    service normalizer(service)[Normalizer] in pipeline
-    service validator(service)[Validator] in pipeline
-    service dialogorch(service)[Dialog Orchestrator] in pipeline
+        summary_path = tmp_path / "summary.csv"
+        csv_path = tmp_path / "requests.csv"
 
-    group extraction(server)[Extraction Methods]
+        monkeypatch.setenv("CSV_PATH", str(csv_path))
+        monkeypatch.setenv("IMPORT_SUMMARY_PATH", str(summary_path))
+        monkeypatch.setenv("FIXTURES_DIR", str(FIXTURES_DIR))
 
-    service rules(service)[Rules Extractor] in extraction
-    service llm(service)[LLM Extractor] in extraction
-    service hybrid(service)[Hybrid Strategy] in extraction
+        exit_code = run_import.main([str(batch_path)])
+        assert exit_code == 0
 
-    group services(server)[Supporting Services]
+        captured = capsys.readouterr()
+        payload = json.loads(captured.out)
 
-    service csvlogger(storage)[CSV Logger] in services
-    service importrunner(worker)[Import Job Runner] in services
-    service importsummary(service)[Import Summary Reporter] in services
-    service resourcemonitor(monitor)[Resource Monitor] in services
-    service sttclient(service)[Speech-to-Text Client] in services
+        assert payload["counts"]["requests"] == len(batch)
+>       assert payload["status"] in {"success", "partial"}
+E       AssertionError: assert 'error' in {'partial', 'success'}
 
-    group data(database)[Data & Fixtures]
+backend\tests\integration\test_import_cli.py:41: AssertionError
+____________________________________________________________ test_pipeline_populates_defaults_for_unspecified_request ____________________________________________________________
 
-    service fixturesrepo(storage)[Fixture Repository] in data
-    service popularity(storage)[Popularity Stats] in data
-    service methodsconfig(storage)[Methods Configuration] in data
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x000002606CAF7F80>
 
-    group integrations(cloud)[External Providers]
+    def test_pipeline_populates_defaults_for_unspecified_request(pipeline: HolidaySearchPipeline) -> None:
+>       result = pipeline.run("Find me a trip")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    service llmprovider(internet)[Hosted LLM API] in integrations
-    service deepgram(internet)[Deepgram STT] in integrations
-    service whisper(cpu)[Local Faster-Whisper] in integrations
+backend\tests\pipeline\test_pipeline_components.py:123:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\app\pipeline\pipeline.py:390: in run
+    outcome = self._execute_method(resolved_method, utterance, detection.language, timings)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:365: in _execute_method
+    return self._execute_hybrid(method, utterance, language, timings, visited=visited_set)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:272: in _execute_hybrid
+    outcome = self._execute_method(stage.method, utterance, language, timings, visited=visited)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:368: in _execute_method
+    return self._run_single_pass(method, utterance, language, timings)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:170: in _run_single_pass
+    llm_extractor = self._build_llm_extractor(method)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:426: in _build_llm_extractor
+    client = self._get_llm_client_for_method(method)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-    webui:R --> L:fastapi
+self = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x000002606CAF7F80>
+method = MethodConfig(id='gemini-2.5-flash', kind='llm', label=None, description=None, params={'timeout_s': 30, 'temperature': ...: 'gemini-2.5-flash', 'api_base': 'https://generativelanguage.googleapis.com/v1beta', 'api_key_env': 'GOOGLE_API_KEY'})
 
-    fastapi:B --> T:health
-    fastapi:B --> T:parse
-    fastapi:B --> T:dialog
-    fastapi:B --> T:voice
-    fastapi:B --> T:fixtures
+    def _get_llm_client_for_method(
+        self, method: MethodConfig
+    ) -> Callable[[str], Mapping[str, object]]:
+        if self._default_llm_client is not None:
+            return self._default_llm_client
 
-    parse:R --> L:orchestrator
-    dialog:R --> L:dialogorch
-    voice:R --> L:sttclient
+        if method.id in self._llm_clients:
+            return self._llm_clients[method.id]
 
-    orchestrator:R --> L:langdetect
-    orchestrator:R --> L:methodcatalog
-    langdetect:R --> L:extractor
-    extractor:R --> L:normalizer
-    normalizer:R --> L:validator
+        provider = str(method.config.get("provider", "")).strip().lower()
+        api_base = method.config.get("api_base", self._settings.llm_api_base)
+        model = method.config.get("model", self._settings.llm_model)
+        timeout = float(method.params.get("timeout_s", self._settings.llm_timeout))
 
-    methodcatalog:B --> T:methodsconfig
-    normalizer:B --> T:fixturesrepo
-    validator:B --> T:fixturesrepo
-    validator:B --> T:popularity
+        api_key_env = str(method.config.get("api_key_env", "") or "").strip()
+        api_key = os.environ.get(api_key_env) if api_key_env else None
+        if not api_key:
+            api_key = self._settings.llm_api_key
+        if not api_key:
+>           raise ValueError(
+                f"LLM method '{method.id}' is missing an API key; set {api_key_env or 'LLM_API_KEY'}"
+            )
+E           ValueError: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
 
-    extractor:B --> T:rules
-    extractor:B --> T:llm
-    extractor:B --> T:hybrid
+backend\app\pipeline\pipeline.py:452: ValueError
+_________________________________________________________________ test_pipeline_imputes_single_destination_stats _________________________________________________________________
 
-    llm:R --> L:llmprovider
-    sttclient:R --> L:deepgram
-    sttclient:R --> L:whisper
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x0000026066A7D280>
 
-    parse:B --> T:csvlogger
-    dialog:B --> T:csvlogger
-    voice:B --> T:csvlogger
+    def test_pipeline_imputes_single_destination_stats(pipeline: HolidaySearchPipeline) -> None:
+>       result = _run_pipeline_scenario(pipeline, "Best cheap hotels in Australia")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    importrunner:R --> L:parse
-    importrunner:R --> L:resourcemonitor
-    importrunner:R --> L:importsummary
-    importsummary:R --> L:csvlogger
+backend\tests\pipeline\test_pipeline_components.py:287:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\pipeline\test_pipeline_components.py:278: in _run_pipeline_scenario
+    result = pipeline.run(utterance)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:390: in run
+    outcome = self._execute_method(resolved_method, utterance, detection.language, timings)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:365: in _execute_method
+    return self._execute_hybrid(method, utterance, language, timings, visited=visited_set)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:272: in _execute_hybrid
+    outcome = self._execute_method(stage.method, utterance, language, timings, visited=visited)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:368: in _execute_method
+    return self._run_single_pass(method, utterance, language, timings)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:170: in _run_single_pass
+    llm_extractor = self._build_llm_extractor(method)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:426: in _build_llm_extractor
+    client = self._get_llm_client_for_method(method)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x0000026066A7D280>
+method = MethodConfig(id='gemini-2.5-flash', kind='llm', label=None, description=None, params={'timeout_s': 30, 'temperature': ...: 'gemini-2.5-flash', 'api_base': 'https://generativelanguage.googleapis.com/v1beta', 'api_key_env': 'GOOGLE_API_KEY'})
+
+    def _get_llm_client_for_method(
+        self, method: MethodConfig
+    ) -> Callable[[str], Mapping[str, object]]:
+        if self._default_llm_client is not None:
+            return self._default_llm_client
+
+        if method.id in self._llm_clients:
+            return self._llm_clients[method.id]
+
+        provider = str(method.config.get("provider", "")).strip().lower()
+        api_base = method.config.get("api_base", self._settings.llm_api_base)
+        model = method.config.get("model", self._settings.llm_model)
+        timeout = float(method.params.get("timeout_s", self._settings.llm_timeout))
+
+        api_key_env = str(method.config.get("api_key_env", "") or "").strip()
+        api_key = os.environ.get(api_key_env) if api_key_env else None
+        if not api_key:
+            api_key = self._settings.llm_api_key
+        if not api_key:
+>           raise ValueError(
+                f"LLM method '{method.id}' is missing an API key; set {api_key_env or 'LLM_API_KEY'}"
+            )
+E           ValueError: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
+
+backend\app\pipeline\pipeline.py:452: ValueError
+__________________________________________________________ test_pipeline_imputes_multi_destination_without_intersection __________________________________________________________
+
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x0000026066A333B0>
+
+    def test_pipeline_imputes_multi_destination_without_intersection(
+        pipeline: HolidaySearchPipeline,
+    ) -> None:
+>       result = _run_pipeline_scenario(pipeline, "Cheapest offers for Kenya and Japan")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:301:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\pipeline\test_pipeline_components.py:278: in _run_pipeline_scenario
+    result = pipeline.run(utterance)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:390: in run
+    outcome = self._execute_method(resolved_method, utterance, detection.language, timings)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:365: in _execute_method
+    return self._execute_hybrid(method, utterance, language, timings, visited=visited_set)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:272: in _execute_hybrid
+    outcome = self._execute_method(stage.method, utterance, language, timings, visited=visited)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:368: in _execute_method
+    return self._run_single_pass(method, utterance, language, timings)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:170: in _run_single_pass
+    llm_extractor = self._build_llm_extractor(method)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:426: in _build_llm_extractor
+    client = self._get_llm_client_for_method(method)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x0000026066A333B0>
+method = MethodConfig(id='gemini-2.5-flash', kind='llm', label=None, description=None, params={'timeout_s': 30, 'temperature': ...: 'gemini-2.5-flash', 'api_base': 'https://generativelanguage.googleapis.com/v1beta', 'api_key_env': 'GOOGLE_API_KEY'})
+
+    def _get_llm_client_for_method(
+        self, method: MethodConfig
+    ) -> Callable[[str], Mapping[str, object]]:
+        if self._default_llm_client is not None:
+            return self._default_llm_client
+
+        if method.id in self._llm_clients:
+            return self._llm_clients[method.id]
+
+        provider = str(method.config.get("provider", "")).strip().lower()
+        api_base = method.config.get("api_base", self._settings.llm_api_base)
+        model = method.config.get("model", self._settings.llm_model)
+        timeout = float(method.params.get("timeout_s", self._settings.llm_timeout))
+
+        api_key_env = str(method.config.get("api_key_env", "") or "").strip()
+        api_key = os.environ.get(api_key_env) if api_key_env else None
+        if not api_key:
+            api_key = self._settings.llm_api_key
+        if not api_key:
+>           raise ValueError(
+                f"LLM method '{method.id}' is missing an API key; set {api_key_env or 'LLM_API_KEY'}"
+            )
+E           ValueError: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
+
+backend\app\pipeline\pipeline.py:452: ValueError
+________________________________________________________________ test_parse_endpoint_import_mode_returns_summary _________________________________________________________________
+
+app_dependencies = (Settings(interaction_mode='direct-parse', allowed_langs=['en', 'nl', 'fr'], csv_path=WindowsPath('C:/Users/votu/AppDa...eak CPU (%)', 'Peak Memory (MB)', 'Throttle Count', 'Guardrail Breaches', 'Started At', 'Finished At'), delimiter=','))
+
+    def test_parse_endpoint_import_mode_returns_summary(app_dependencies) -> None:
+        settings, pipeline, logger, summary_logger = app_dependencies
+        batch_payload = [
+            {
+                "text": "Book a family trip from Amsterdam to Japan on 10 October 2025 for 7 nights",
+                "mode": "dialog",
+                "method": "sut",
+            },
+            {
+                "text": "Find holidays from Ostend to Australia in October",
+                "mode": "direct-parse",
+            },
+        ]
+        payload = ParseRequest(text="", import_mode=True, batch=batch_payload)
+
+        response = _call_parse(payload, settings, pipeline, logger, summary_logger)
+
+        assert isinstance(response, ImportSummarySchema)
+>       assert response.status in {"success", "partial"}
+E       AssertionError: assert 'error' in {'partial', 'success'}
+E        +  where 'error' = ImportSummary(status='error', mode=None, counts=ImportCounts(requests=2, succeeded=1, failed=0, errored=1), durations=....timezone.utc), resources=ImportResources(peak_cpu=None, peak_memory_mb=None, throttle_count=0), guardrail_breaches={}).status
+
+backend\tests\pipeline\test_pipeline_components.py:395: AssertionError
+_______________________________________________________________ test_parse_endpoint_failure_logs_validation_errors _______________________________________________________________
+
+payload = ParseRequest(text='I am looking for a trip starting on October 10 2025.', mode=None, method=None, batch=None, import_mode=False)
+settings = Settings(interaction_mode='direct-parse', allowed_langs=['en', 'nl', 'fr'], csv_path=WindowsPath('C:/Users/votu/AppDat...es-basic', 'hybrid-v1', 'gemini-2.5-flash'), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x000002606A5481D0>
+logger = CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-292/test_parse_endpoint_failure_lo0...nguage Detection', 'Extraction', 'Mapping', 'Validation', 'Transcription', 'Network Latency', 'Output'), delimiter=',')
+summary_logger = ImportSummaryLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-292/test_parse_endpoint_f...Peak CPU (%)', 'Peak Memory (MB)', 'Throttle Count', 'Guardrail Breaches', 'Started At', 'Finished At'), delimiter=',')
+
+    @api_router.post("/parse", response_model=ParseResponse | ImportSummarySchema)
+    async def parse_text(
+        payload: ParseRequest,
+        settings: Settings = Depends(get_settings),
+        pipeline: HolidaySearchPipeline = Depends(get_pipeline),
+        logger: CSVLogger = Depends(get_csv_logger),
+        summary_logger: ImportSummaryLogger | None = Depends(get_import_summary_logger),
+    ) -> ParseResponse | ImportSummarySchema:
+        """Run the NLP pipeline and expose timings plus validation metadata."""
+
+        if payload.import_mode:
+            runner = ImportJobRunner(pipeline=pipeline, settings=settings, logger=None)
+            try:
+                summary = await runner.run_import(_prepare_import_requests(payload))
+            except GuardrailOverloadError as exc:  # pragma: no cover - defensive
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=str(exc),
+                ) from exc
+            return _summarise_import(summary, mode=payload.mode, summary_logger=summary_logger)
+
+        try:
+>           result = pipeline.run(payload.text, method=payload.method)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\app\api\routes.py:684:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\app\pipeline\pipeline.py:390: in run
+    outcome = self._execute_method(resolved_method, utterance, detection.language, timings)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:365: in _execute_method
+    return self._execute_hybrid(method, utterance, language, timings, visited=visited_set)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:272: in _execute_hybrid
+    outcome = self._execute_method(stage.method, utterance, language, timings, visited=visited)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:368: in _execute_method
+    return self._run_single_pass(method, utterance, language, timings)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:170: in _run_single_pass
+    llm_extractor = self._build_llm_extractor(method)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\pipeline\pipeline.py:426: in _build_llm_extractor
+    client = self._get_llm_client_for_method(method)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x000002606A5481D0>
+method = MethodConfig(id='gemini-2.5-flash', kind='llm', label=None, description=None, params={'timeout_s': 30, 'temperature': ...: 'gemini-2.5-flash', 'api_base': 'https://generativelanguage.googleapis.com/v1beta', 'api_key_env': 'GOOGLE_API_KEY'})
+
+    def _get_llm_client_for_method(
+        self, method: MethodConfig
+    ) -> Callable[[str], Mapping[str, object]]:
+        if self._default_llm_client is not None:
+            return self._default_llm_client
+
+        if method.id in self._llm_clients:
+            return self._llm_clients[method.id]
+
+        provider = str(method.config.get("provider", "")).strip().lower()
+        api_base = method.config.get("api_base", self._settings.llm_api_base)
+        model = method.config.get("model", self._settings.llm_model)
+        timeout = float(method.params.get("timeout_s", self._settings.llm_timeout))
+
+        api_key_env = str(method.config.get("api_key_env", "") or "").strip()
+        api_key = os.environ.get(api_key_env) if api_key_env else None
+        if not api_key:
+            api_key = self._settings.llm_api_key
+        if not api_key:
+>           raise ValueError(
+                f"LLM method '{method.id}' is missing an API key; set {api_key_env or 'LLM_API_KEY'}"
+            )
+E           ValueError: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
+
+backend\app\pipeline\pipeline.py:452: ValueError
+
+The above exception was the direct cause of the following exception:
+
+app_dependencies = (Settings(interaction_mode='direct-parse', allowed_langs=['en', 'nl', 'fr'], csv_path=WindowsPath('C:/Users/votu/AppDa...eak CPU (%)', 'Peak Memory (MB)', 'Throttle Count', 'Guardrail Breaches', 'Started At', 'Finished At'), delimiter=','))
+
+    def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
+        settings, _, logger, summary_logger = app_dependencies
+        failure_settings = Settings(
+            fixtures_dir=settings.fixtures_dir,
+            csv_path=settings.csv_path,
+            import_summary_path=settings.import_summary_path,
+            allowed_langs=settings.allowed_langs,
+            popularity_imputer_enabled=False,
+        )
+        pipeline = HolidaySearchPipeline(
+            settings=failure_settings,
+            fixtures_dir=failure_settings.fixtures_dir,
+        )
+        payload = ParseRequest(
+            text="I am looking for a trip starting on October 10 2025.",
+        )
+
+>       response = _call_parse(payload, failure_settings, pipeline, logger, summary_logger)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\pipeline\test_pipeline_components.py:465:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\pipeline\test_pipeline_components.py:318: in _call_parse
+    return asyncio.run(
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\votu\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:685: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = ParseRequest(text='I am looking for a trip starting on October 10 2025.', mode=None, method=None, batch=None, import_mode=False)
+settings = Settings(interaction_mode='direct-parse', allowed_langs=['en', 'nl', 'fr'], csv_path=WindowsPath('C:/Users/votu/AppDat...es-basic', 'hybrid-v1', 'gemini-2.5-flash'), defaults={'timeout_s': 30, 'temperature': 0.0}, default_id='rules-basic'))
+pipeline = <backend.app.pipeline.pipeline.HolidaySearchPipeline object at 0x000002606A5481D0>
+logger = CSVLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-292/test_parse_endpoint_failure_lo0...nguage Detection', 'Extraction', 'Mapping', 'Validation', 'Transcription', 'Network Latency', 'Output'), delimiter=',')
+summary_logger = ImportSummaryLogger(path=WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-292/test_parse_endpoint_f...Peak CPU (%)', 'Peak Memory (MB)', 'Throttle Count', 'Guardrail Breaches', 'Started At', 'Finished At'), delimiter=',')
+
+    @api_router.post("/parse", response_model=ParseResponse | ImportSummarySchema)
+    async def parse_text(
+        payload: ParseRequest,
+        settings: Settings = Depends(get_settings),
+        pipeline: HolidaySearchPipeline = Depends(get_pipeline),
+        logger: CSVLogger = Depends(get_csv_logger),
+        summary_logger: ImportSummaryLogger | None = Depends(get_import_summary_logger),
+    ) -> ParseResponse | ImportSummarySchema:
+        """Run the NLP pipeline and expose timings plus validation metadata."""
+
+        if payload.import_mode:
+            runner = ImportJobRunner(pipeline=pipeline, settings=settings, logger=None)
+            try:
+                summary = await runner.run_import(_prepare_import_requests(payload))
+            except GuardrailOverloadError as exc:  # pragma: no cover - defensive
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=str(exc),
+                ) from exc
+            return _summarise_import(summary, mode=payload.mode, summary_logger=summary_logger)
+
+        try:
+            result = pipeline.run(payload.text, method=payload.method)
+        except LanguageNotPermittedError as exc:
+            message = _format_language_error_message(exc, settings.allowed_langs)
+            raise HTTPException(status_code=400, detail=message) from exc
+        except ValueError as exc:
+>           raise HTTPException(status_code=400, detail=str(exc)) from exc
+E           fastapi.exceptions.HTTPException: 400: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
+
+backend\app\api\routes.py:689: HTTPException
+_____________________________________________________________________ test_pipeline_hybrid_fallback_failure ______________________________________________________________________
+
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x000002606CD18EA0>
+
+    def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
+        llm_payloads = {
+            "Fallback still missing data": {
+                "airports": ["AMS"],
+                "destinations": ["d7b4bb39-2000-1234-aaac-1234567d"],
+                "dates": [],
+            }
+        }
+        pipeline = pipeline_factory(llm_payloads, popularity_imputer_enabled=False)
+
+        result = pipeline.run("Fallback still missing data", method="hybrid")
+
+>       assert result.status == "failed"
+E       AssertionError: assert 'success' == 'failed'
+E
+E         - failed
+E         + success
+
+backend\tests\pipeline\test_pipeline_methods.py:172: AssertionError
+_____________________________________________________________________ test_pipeline_imputer_can_be_disabled ______________________________________________________________________
+
+pipeline_factory = <function pipeline_factory.<locals>.factory at 0x000002606CD19760>
+
+    def test_pipeline_imputer_can_be_disabled(pipeline_factory) -> None:
+        llm_payloads = {"Show me the best Costa Rica deals": {}}
+        pipeline = pipeline_factory(
+            llm_payloads, default_method="hybrid", popularity_imputer_enabled=False
+        )
+
+        result = pipeline.run("Show me the best Costa Rica deals", method="hybrid")
+
+>       assert result.status == "failed"
+E       AssertionError: assert 'success' == 'failed'
+E
+E         - failed
+E         + success
+
+backend\tests\pipeline\test_pipeline_methods.py:305: AssertionError
+____________________________________________________________________ test_popularity_imputer_enabled_default _____________________________________________________________________
+
+    def test_popularity_imputer_enabled_default() -> None:
+        settings = Settings()
+>       assert settings.popularity_imputer_enabled is False
+E       AssertionError: assert True is False
+E        +  where True = Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('data/log.csv'), csv_delimiter=';...tats.json'), methods_config_path=WindowsPath('config/methods.yaml'), processing_threshold_ms=750, methods_catalog=None).popularity_imputer_enabled
+
+backend\tests\test_settings.py:13: AssertionError
+____________________________________________________________ test_popularity_imputer_disabled_when_method_not_hybrid _____________________________________________________________
+
+    def test_popularity_imputer_disabled_when_method_not_hybrid() -> None:
+        settings = Settings(llm_method="rules", popularity_imputer_enabled=True)
+
+>       assert settings.popularity_imputer_enabled is False
+E       AssertionError: assert True is False
+E        +  where True = Settings(interaction_mode='direct-parse', allowed_langs=['en'], csv_path=WindowsPath('data/log.csv'), csv_delimiter=';...tats.json'), methods_config_path=WindowsPath('config/methods.yaml'), processing_threshold_ms=750, methods_catalog=None).popularity_imputer_enabled
+
+backend\tests\test_settings.py:25: AssertionError
+================================================================================ warnings summary ================================================================================
+.venv\Lib\site-packages\ctranslate2\__init__.py:8
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\ctranslate2\__init__.py:8: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+backend\app\main.py:26
+backend/tests/api/test_cors_preflight.py::test_parse_endpoint_allows_preflight_request
+backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voice_configuration
+backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_uses_default_performance_targets
+backend/tests/api/test_import_summary_endpoint.py::test_import_summary_meets_targets
+backend/tests/api/test_import_summary_endpoint.py::test_import_summary_detects_regressions
+backend/tests/api/test_import_summary_endpoint.py::test_import_summary_reports_insufficient_sample
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py:26: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+.venv\Lib\site-packages\fastapi\applications.py:4575: 2 warnings
+backend/tests/api/test_cors_preflight.py: 2 warnings
+backend/tests/api/test_fixtures_endpoint.py: 4 warnings
+backend/tests/api/test_import_summary_endpoint.py: 6 warnings
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\.venv\Lib\site-packages\fastapi\applications.py:4575: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)
+
+backend\app\main.py:31
+backend/tests/api/test_cors_preflight.py::test_parse_endpoint_allows_preflight_request
+backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_includes_voice_configuration
+backend/tests/api/test_fixtures_endpoint.py::test_fixtures_endpoint_uses_default_performance_targets
+backend/tests/api/test_import_summary_endpoint.py::test_import_summary_meets_targets
+backend/tests/api/test_import_summary_endpoint.py::test_import_summary_detects_regressions
+backend/tests/api/test_import_summary_endpoint.py::test_import_summary_reports_insufficient_sample
+  C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search\backend\app\main.py:31: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================================================================ short test summary info =============================================================================
+FAILED backend/tests/integration/test_import_cli.py::test_run_import_cli_outputs_summary_and_logs - AssertionError: assert 'error' in {'partial', 'success'}
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_pipeline_populates_defaults_for_unspecified_request - ValueError: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_pipeline_imputes_single_destination_stats - ValueError: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_pipeline_imputes_multi_destination_without_intersection - ValueError: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_import_mode_returns_summary - AssertionError: assert 'error' in {'partial', 'success'}
+FAILED backend/tests/pipeline/test_pipeline_components.py::test_parse_endpoint_failure_logs_validation_errors - fastapi.exceptions.HTTPException: 400: LLM method 'gemini-2.5-flash' is missing an API key; set GOOGLE_API_KEY
+FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_hybrid_fallback_failure - AssertionError: assert 'success' == 'failed'
+FAILED backend/tests/pipeline/test_pipeline_methods.py::test_pipeline_imputer_can_be_disabled - AssertionError: assert 'success' == 'failed'
+FAILED backend/tests/test_settings.py::test_popularity_imputer_enabled_default - AssertionError: assert True is False
+FAILED backend/tests/test_settings.py::test_popularity_imputer_disabled_when_method_not_hybrid - AssertionError: assert True is False
+================================================================== 10 failed, 92 passed, 29 warnings in 18.21s ===================================================================
