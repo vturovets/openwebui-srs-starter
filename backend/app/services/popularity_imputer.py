@@ -253,6 +253,11 @@ class PopularityImputer:
         return None, "configuration"
 
     def _select_most_popular_destination(self) -> str | None:
+        global_mode = self._extract_mode(self._global_stats.get("destination"))
+        if isinstance(global_mode, str) and global_mode.strip():
+            normalized = global_mode.strip().lower()
+            return self._destination_names.get(normalized, global_mode.strip())
+
         if not self._destination_stats:
             return None
 
