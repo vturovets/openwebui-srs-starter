@@ -112,7 +112,7 @@ serving traffic. Key options mirror the SRS:
 | `MIN_SAMPLE_SIZE` | `1000` | Minimum observations required before issuing statistical inferences for P95/accuracy. |
 | `IMPORT_ACCURACY_THRESHOLD` | `0.85` | Target accuracy (0–1) checked with an exact binomial test during imports. |
 | `P95_OUTLIERS_THRESHOLD` | `10000` | Discard imported timings above this many milliseconds before P95 calculations. |
-| `APLHA`/`ALPHA` | `0.05` | Significance level (alpha) used when constructing confidence intervals. |
+| `ALPHA` | `0.05` | Significance level (alpha) used when constructing confidence intervals. |
 | `IMPORT_MAX_CONCURRENCY` | `32` | Hard ceiling for concurrent import worker tasks, even when overrides request more parallelism. |
 | `IMPORT_BATCH_SIZE` | `64` | Number of queued requests submitted before awaiting completion to avoid overwhelming the runtime. |
 | `IMPORT_CPU_THRESHOLD` | `90` | Pause scheduling when the 1-minute CPU load estimate exceeds this percentage. |
@@ -149,7 +149,7 @@ IMPORT_P95_SIGNIFICANCE=0.9
 MIN_SAMPLE_SIZE=1200
 IMPORT_ACCURACY_THRESHOLD=0.9
 P95_OUTLIERS_THRESHOLD=12000
-APLHA=0.05
+ALPHA=0.05
 ```
 
 When deploying with Docker Compose, mirror the same environment variables in the
@@ -204,7 +204,7 @@ POST `/v1/import/summary` accepts raw import-operation metadata (status plus
 the captured `metadata` payload) and returns statistically robust performance
 and usage summaries. The service filters outliers above `P95_OUTLIERS_THRESHOLD`,
 bootstraps the import P95 against `IMPORT_P95_THRESHOLD_MS` using the configured
-`APLHA`/`ALPHA` level, and runs an exact binomial test against
+`ALPHA`/`ALPHA` level, and runs an exact binomial test against
 `IMPORT_ACCURACY_THRESHOLD` once `MIN_SAMPLE_SIZE` observations are available.
 The frontend import flow calls this endpoint after replaying CSV rows so the UI
 can surface thresholds, inferences, and resource footprints consistently.
