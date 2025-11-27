@@ -277,11 +277,14 @@ def test_pipeline_rejects_language_outside_allow_list(pipeline_factory) -> None:
 
 
 def test_pipeline_imputer_enriches_missing_fields(pipeline_factory) -> None:
-    pipeline = pipeline_factory(default_method="hybrid")
+    llm_payloads = {"Show me the best Costa Rica deals": {}}
+    pipeline = pipeline_factory(llm_payloads, default_method="hybrid")
 
-    result = pipeline.run("Show me the best Costa Rica deals", method="rules")
+    result = pipeline.run("Show me the best Costa Rica deals", method="hybrid")
 
     assert result.status == "success"
+    hybrid_meta = result.metadata.get("hybrid", {})
+    assert hybrid_meta.get("fallbackTriggered") is True
     normalized = result.normalized
     assert normalized is not None
     assert normalized.departure_dates
@@ -292,9 +295,12 @@ def test_pipeline_imputer_enriches_missing_fields(pipeline_factory) -> None:
 
 
 def test_pipeline_imputer_can_be_disabled(pipeline_factory) -> None:
-    pipeline = pipeline_factory(default_method="hybrid", popularity_imputer_enabled=False)
+    llm_payloads = {"Show me the best Costa Rica deals": {}}
+    pipeline = pipeline_factory(
+        llm_payloads, default_method="hybrid", popularity_imputer_enabled=False
+    )
 
-    result = pipeline.run("Show me the best Costa Rica deals", method="rules")
+    result = pipeline.run("Show me the best Costa Rica deals", method="hybrid")
 
     assert result.status == "failed"
     assert result.validation["status"] == "failed"
