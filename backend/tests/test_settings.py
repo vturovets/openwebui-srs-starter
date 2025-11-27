@@ -10,7 +10,19 @@ from backend.app.config import Settings
 
 def test_popularity_imputer_enabled_default() -> None:
     settings = Settings()
+    assert settings.popularity_imputer_enabled is False
+
+
+def test_popularity_imputer_enabled_hybrid_only() -> None:
+    settings = Settings(llm_method="hybrid")
+
     assert settings.popularity_imputer_enabled is True
+
+
+def test_popularity_imputer_disabled_when_method_not_hybrid() -> None:
+    settings = Settings(llm_method="rules", popularity_imputer_enabled=True)
+
+    assert settings.popularity_imputer_enabled is False
 
 
 def test_resolve_popularity_data_path_relative_to_fixtures(tmp_path: Path) -> None:

@@ -101,7 +101,7 @@ serving traffic. Key options mirror the SRS:
 | `VOICE_MAX_BYTES` | `10000000` | Maximum audio payload size accepted by `/v1/voice` in bytes. |
 | `VOICE_ALLOWED_CONTENT_TYPES` | see code | Comma-separated list of MIME types accepted by `/v1/voice` (defaults cover WAV, MP3, OGG, WebM, and FLAC). |
 | `FIXTURES_DIR` | `fixtures` | Directory containing the JSON fixture files. |
-| `POPULARITY_IMPUTER_ENABLED` | `true` | Enable or disable the popularity-based imputer that fills missing dates, airports, and party values using historic stats. |
+| `POPULARITY_IMPUTER_ENABLED` | `true` | Enable or disable the popularity-based imputer that fills missing dates, airports, and party values using historic stats. Only applied when `LLM_METHOD=hybrid`. |
 | `POPULARITY_DATA_PATH` | `fixtures/popularity_stats.json` | Location of the persisted popularity statistics. Relative paths are resolved under `FIXTURES_DIR`. |
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
@@ -133,13 +133,13 @@ INTERACTION_MODE=direct-parse
 ALLOWED_LANGS=en
 CSV_PATH=data/log.csv
 CSV_DELIMITER=;
-# Enable the structured LLM path
-LLM_METHOD=llm
+# Enable the structured LLM path (hybrid required for the imputer)
+LLM_METHOD=hybrid
 LLM_API_KEY=sk-your-key
 LLM_MODEL=gemini-2.5-flash
 # Optional when routing through a proxy/self-hosted gateway
 # LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta
-# Enable the popularity imputer and override the stats filename (relative to FIXTURES_DIR)
+# Enable the popularity imputer (only used when LLM_METHOD=hybrid) and override the stats filename (relative to FIXTURES_DIR)
 POPULARITY_IMPUTER_ENABLED=true
 POPULARITY_DATA_PATH=popularity_stats.json
 PROCESSING_THRESHOLD_MS=750
@@ -474,8 +474,8 @@ Content-Type: application/json
 
 The popularity imputer described in [`docs/CR-001.md`](docs/CR-001.md) consumes the
 pre-computed statistics stored in [`fixtures/popularity_stats.json`](fixtures/popularity_stats.json).
-Set `POPULARITY_IMPUTER_ENABLED=false` in your `.env` to bypass the imputer when
-debugging and use `POPULARITY_DATA_PATH` to point at alternate stats files.
+It only activates when `LLM_METHOD=hybrid`; other modes force `POPULARITY_IMPUTER_ENABLED` to `false`
+even if the variable is set. Use `POPULARITY_DATA_PATH` to point at alternate stats files.
 Relative values are resolved under `FIXTURES_DIR`, so `POPULARITY_DATA_PATH=popularity_stats.json`
 will resolve to `<fixtures_dir>/popularity_stats.json` automatically.
 The file is regenerated from `docs/demo_set_example.csv` and exposes the
