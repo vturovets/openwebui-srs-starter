@@ -1,91 +1,79 @@
 architecture-beta
     group client(cloud)[Client]
-    
     service webui(server)[Svelte Frontend] in client
-    
-    group api(server)[API Layer]
 
-    service fastapi(server)[FastAPI Application] in api
-    service health(server)[health] in api
-    service parse(server)[parse] in api
-    service dialog(server)[dialog] in api
-    service voice(server)[voice] in api
-    service fixtures(server)[fixtures] in api
+    group api(server)[Backend API]
+    service fastapi(server)[FastAPI App] in api
+    service v1(server)[V1 Routes] in api
 
-    group pipeline(server)[NLP Pipeline]
-
-    service orchestrator(server)[Pipeline Orchestrator] in pipeline
-    service langdetect(server)[Language Detector] in pipeline
-    service methodcatalog(server)[Method Catalogue] in pipeline
-    service extractor(server)[Extractor Dispatcher] in pipeline
-    service normalizer(server)[Normalizer] in pipeline
-    service validator(server)[Validator] in pipeline
-    service dialogorch(server)[Dialog Orchestrator] in pipeline
-
-    group extraction(server)[Extraction Methods]
-
-    service rules(server)[Rules Extractor] in extraction
-    service llm(server)[LLM Extractor] in extraction
-    service hybrid(server)[Hybrid Strategy] in extraction
-
-    group services(server)[Supporting Services]
-
-    service csvlogger(disk)[CSV Logger] in services
-    service importrunner(server)[Import Job Runner] in services
-    service importsummary(server)[Import Summary Reporter] in services
+    group services(server)[Application Services]
+    service dialogorch(server)[Dialog Orchestrator] in services
+    service importrunner(server)[Import Runner] in services
+    service importsummary(server)[Import Summary Logger] in services
     service resourcemonitor(server)[Resource Monitor] in services
+    service csvlogger(disk)[CSV Audit Logger] in services
     service sttclient(server)[Speech to Text Client] in services
 
-    group data(database)[Data and Fixtures]
-    
+    group pipeline(server)[NLP Pipeline]
+    service pipelinecore(server)[Holiday Search Pipeline] in pipeline
+    service language(server)[Language Detector] in pipeline
+    service extractor(server)[Rules Extractor] in pipeline
+    service llmextractor(server)[LLM Extractor] in pipeline
+    service hybrid(server)[Hybrid Strategy] in pipeline
+    service normalizer(server)[Normalizer] in pipeline
+    service validator(server)[Validator] in pipeline
+    service imputer(server)[Popularity Imputer] in pipeline
+
+    group data(database)[Domain Data]
     service fixturesrepo(database)[Fixture Repository] in data
+    service searchconfig(database)[Search Configuration] in data
+    service methodsconfig(database)[Methods Catalogue] in data
     service popularity(database)[Popularity Stats] in data
-    service methodsconfig(database)[Methods Configuration] in data
 
     group integrations(cloud)[External Providers]
-
-    service llmprovider(internet)[Hosted LLM API] in integrations
-    service deepgram(internet)[Deepgram STT] in integrations
+    service gemini(internet)[Google Gemini LLM] in integrations
+    service llmgateway(internet)[HTTP LLM Endpoint] in integrations
+    service deepgram(internet)[Deepgram Speech to Text] in integrations
     service whisper(server)[Local Faster Whisper] in integrations
-    service gemini(internet)[Google Gemini] in integrations
 
     webui:R --> L:fastapi
+    fastapi:B --> T:v1
 
-    fastapi:B --> T:health
-    fastapi:B --> T:parse
-    fastapi:B --> T:dialog
-    fastapi:B --> T:voice
-    fastapi:B --> T:fixtures
+    v1:R --> L:pipelinecore
+    v1:R --> L:dialogorch
+    v1:R --> L:importrunner
+    v1:B --> T:csvlogger
+    v1:B --> T:importsummary
+    v1:R --> L:sttclient
 
-    parse:R --> L:orchestrator
-    dialog:R --> L:dialogorch
-    voice:R --> L:sttclient
+    dialogorch:R --> L:pipelinecore
+    dialogorch:B --> T:csvlogger
 
-    orchestrator:R --> L:langdetect
-    orchestrator:R --> L:methodcatalog
-    langdetect:R --> L:extractor
-    extractor:R --> L:normalizer
-    normalizer:R --> L:validator
+    importrunner:R --> L:pipelinecore
+    importrunner:B --> T:resourcemonitor
+    importrunner:B --> T:csvlogger
+    importrunner:B --> T:importsummary
 
-    methodcatalog:B --> T:methodsconfig
-    normalizer:B --> T:fixturesrepo
-    validator:B --> T:fixturesrepo
-    validator:B --> T:popularity
-
-    extractor:B --> T:rules
-    extractor:B --> T:llm
-    extractor:B --> T:hybrid
-
-    llm:R --> L:llmprovider
-    llm:R --> L:gemini
     sttclient:R --> L:deepgram
     sttclient:R --> L:whisper
 
-    parse:B --> T:csvlogger
-    dialog:B --> T:csvlogger
-    voice:B --> T:csvlogger
+    pipelinecore:R --> L:language
+    pipelinecore:R --> L:extractor
+    pipelinecore:R --> L:llmextractor
+    pipelinecore:R --> L:hybrid
+    pipelinecore:R --> L:normalizer
+    pipelinecore:R --> L:validator
+    pipelinecore:R --> L:imputer
 
-    importrunner:R --> L:parse
-    importrunner:R --> L:resourcemonitor
-    importrunner:R --> L:importsummary
-    importsummary:R --> L:csvlogger
+    pipelinecore:B --> T:fixturesrepo
+    pipelinecore:B --> T:searchconfig
+    pipelinecore:B --> T:methodsconfig
+
+    extractor:B --> T:fixturesrepo
+    normalizer:B --> T:fixturesrepo
+    validator:B --> T:fixturesrepo
+
+    llmextractor:R --> L:gemini
+    llmextractor:R --> L:llmgateway
+
+    imputer:B --> T:popularity
