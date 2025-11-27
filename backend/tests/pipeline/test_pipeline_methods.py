@@ -277,7 +277,7 @@ def test_pipeline_rejects_language_outside_allow_list(pipeline_factory) -> None:
 
 
 def test_pipeline_imputer_enriches_missing_fields(pipeline_factory) -> None:
-    pipeline = pipeline_factory()
+    pipeline = pipeline_factory(default_method="hybrid")
 
     result = pipeline.run("Show me the best Costa Rica deals", method="rules")
 
@@ -292,7 +292,7 @@ def test_pipeline_imputer_enriches_missing_fields(pipeline_factory) -> None:
 
 
 def test_pipeline_imputer_can_be_disabled(pipeline_factory) -> None:
-    pipeline = pipeline_factory(popularity_imputer_enabled=False)
+    pipeline = pipeline_factory(default_method="hybrid", popularity_imputer_enabled=False)
 
     result = pipeline.run("Show me the best Costa Rica deals", method="rules")
 

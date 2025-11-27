@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_core import PydanticUndefined
 
@@ -637,6 +637,17 @@ class Settings(BaseSettings):
         if len(cleaned) != 1:
             raise ValueError("IMPORT_SUMMARY_DELIMITER must be a single character")
         return cleaned
+
+    @model_validator(mode="after")
+    def _enforce_popularity_imputer_prerequisites(self) -> "Settings":
+        """Enable the imputer only when explicitly allowed for hybrid LLM runs."""
+
+        llm_method = (self.llm_method or "").lower()
+        self.popularity_imputer_enabled = bool(
+            self.popularity_imputer_enabled and llm_method == "hybrid"
+        )
+
+        return self
 
     def ensure_directories(self) -> None:
         """Create required directories for runtime artifacts if missing."""
