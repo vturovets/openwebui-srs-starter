@@ -71,7 +71,7 @@ The editable install pulls both runtime and development dependencies
 | --- | --- |
 | Run API locally | `uvicorn backend.app.main:app --reload`
 | Lint backend code | `make lint` *(ruff check backend)* |
-| Run backend tests | `make test` *(pytest)* |
+| Run backend + frontend tests | `make test` *(pytest + npm test)* |
 
 ## Configuration
 
@@ -86,6 +86,8 @@ serving traffic. Key options mirror the SRS:
 | `ALLOWED_LANGS` | `en` | Comma-separated ISO language codes accepted by the language detector (v1 ships with English only). |
 | `CSV_PATH` | `data/log.csv` | Path to the CSV audit log; directories are created automatically. |
 | `CSV_DELIMITER` | `,` | Single-character delimiter used when writing the CSV audit log. |
+| `IMPORT_SUMMARY_PATH` | `data/import_summary.csv` | Optional path for persisting roll-up import summaries (empty string disables the sink). |
+| `IMPORT_SUMMARY_DELIMITER` | `,` | Single-character delimiter for the import summary CSV sink. |
 | `LLM_METHOD` | _(unset)_ | Optional identifier for the NLP technique under evaluation (e.g., `rules`, `llm`, `hybrid`). |
 | `LLM_API_BASE` | _(unset)_ | Override the LLM provider base URL when using a proxy or self-hosted gateway. |
 | `LLM_API_KEY` | _(unset)_ | Credential passed to the structured LLM client when `LLM_METHOD=llm` or `hybrid`. |
@@ -113,11 +115,14 @@ serving traffic. Key options mirror the SRS:
 | `IMPORT_ACCURACY_THRESHOLD` | `0.85` | Target accuracy (0–1) checked with an exact binomial test during imports. |
 | `P95_OUTLIERS_THRESHOLD` | `10000` | Discard imported timings above this many milliseconds before P95 calculations. |
 | `ALPHA` | `0.05` | Significance level (alpha) used when constructing confidence intervals. |
+| `IMPORT_WORKER_CONCURRENCY` | `8` | Maximum worker tasks scheduled simultaneously per import job. |
 | `IMPORT_MAX_CONCURRENCY` | `32` | Hard ceiling for concurrent import worker tasks, even when overrides request more parallelism. |
 | `IMPORT_BATCH_SIZE` | `64` | Number of queued requests submitted before awaiting completion to avoid overwhelming the runtime. |
 | `IMPORT_CPU_THRESHOLD` | `90` | Pause scheduling when the 1-minute CPU load estimate exceeds this percentage. |
 | `IMPORT_MEMORY_THRESHOLD_MB` | `4096` | Pause scheduling when estimated RAM usage exceeds this many megabytes. |
 | `IMPORT_PAUSE_SECONDS` | `0.1` | Duration to sleep before re-checking system load while throttling import execution. |
+| `IMPORT_RETRY_ATTEMPTS` | `3` | Number of retries applied to transient pipeline errors during imports. |
+| `IMPORT_RETRY_BACKOFF_SECONDS` | `0.25` | Initial exponential backoff delay between retries for transient errors. |
 
 > **Note:** When `STT_ENGINE=deepgram` but the `DEEPGRAM_API_KEY` is omitted, the
 > backend falls back to a local `faster-whisper` model. Install it with `pip
@@ -194,9 +199,11 @@ by the telemetry sampler. Consult [`docs/imports.md`](docs/imports.md) for
 operational guidance and tuning tips.
 
 The repository includes [`scripts/run_import.py`](scripts/run_import.py) for
-running imports from the command line. Pass a JSONL file (or storage key
-handled by your deployment) and the script will stream summaries to stdout while
-persisting the CSV audit trail.
+running imports from the command line. Provide a JSON file containing an array
+of parse requests (each entry can be a string or `{ text, mode?, method? }`)
+and optional `--mode`/`--method` defaults. The script prints a roll-up JSON
+summary to stdout and, when `IMPORT_SUMMARY_PATH` is configured, writes a single
+row to the import summary CSV.
 
 ## Import summary endpoint
 
@@ -339,6 +346,7 @@ and Playwright suites live under [`frontend/tests`](frontend/tests).
 | `POST /v1/parse` | Parses a natural-language utterance and responds with structured holiday parameters, validation metadata, and timing metrics. |
 | `POST /v1/dialog` | Maintains clarification sessions, returning prompts and accumulating transcript context when `INTERACTION_MODE=dialog`. |
 | `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, configuration defaults, enabled methods, and UI hints such as `voiceEnabled`/`showFailedOnly`. |
+| `POST /v1/import/summary` | Accepts previously captured import metadata and returns performance/accuracy/usage roll-ups aligned with the UI dashboards. |
 | `POST /v1/voice` | Streams uploaded audio to the configured STT engine, returns the transcript with timing data, and forwards the utterance into the holiday search pipeline. |
 
 ### Sample `/v1/parse` request
