@@ -604,7 +604,7 @@
         <textarea
           bind:value={query}
           rows="3"
-          placeholder="Find me a trip from Amsterdam to Italy next October"
+          placeholder="Find me a trip from Amsterdam to Chile next October"
           data-testid="query-input"
         ></textarea>
       </label>
