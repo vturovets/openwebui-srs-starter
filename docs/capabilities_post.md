@@ -1,7 +1,7 @@
-This application delivers an NLP-powered holiday request assistant that turns free-form text or voice inputs into structured itineraries for OpenWebUI experiments as part of the Ciklum AI Academy program.
-It is built around a deterministic FastAPI pipeline that chains language detection, rules/LLM extraction, normalization, validation, and timing capture so every stage remains explainable and benchmarkable.
-Dialogue orchestration and CSV-backed observability ensure clarification prompts, audit trails, and per-stage telemetry stay aligned across both direct-parse and dialog interaction modes.
-A Vite + Svelte frontend mirrors the OpenWebUI experience, offering component and Playwright E2E tests to validate UI flows against the backend contract.
-Bulk import guardrails let teams replay CSV backlogs with retry logic, resource-aware throttling, and performance summaries suitable for A/B comparisons.
-Configuration is environment-driven, allowing teams to toggle LLM strategies, speech-to-text engines, and fixture-backed defaults without code changes.
-Docker Compose examples and helper scripts accelerate local development while keeping parity with the documented SRS/SDD architecture.
+# Capabilities overview
+
+- **End-to-end holiday assistant** – The project couples a FastAPI backend with a Vite + Svelte frontend so OpenWebUI-style holiday requests can be parsed, validated, and reviewed in one place. The backend focuses on deterministic, benchmarkable behaviour while the frontend mirrors the OpenWebUI flows used for experiments and regression testing.【F:README.md†L3-L29】
+- **Deterministic NLP pipeline** – HolidaySearchPipeline wires together language detection, rule-based and LLM extractors, a normaliser, and a validator backed by fixture data. Optional popularity imputation fills gaps in requests using historic stats, and every run records extraction attempts and timings for observability.【F:backend/app/pipeline/pipeline.py†L93-L200】
+- **Full API surface for experiments** – `/v1/parse` runs the pipeline for single requests or import batches, `/v1/dialog` drives clarification-aware sessions, `/v1/fixtures` exposes airports/destinations/configuration/method catalogues, `/v1/import/summary` reports statistical rollups, and `/v1/voice` transcribes audio before reusing the same pipeline path.【F:backend/app/api/routes.py†L662-L1115】
+- **Guardrailed bulk imports** – ImportJobRunner executes backlog batches with bounded concurrency, CPU/memory-aware throttling, retry tracking, latency histograms, and percentile summaries so large datasets remain stable during evaluation runs.【F:backend/app/services/import_runner.py†L330-L428】
+- **Instrumentation and logging** – API responses include timing metadata, validation details, recognised entities, and method selections, while CSV logging and import summary logging persist outcomes for A/B comparisons or replay in the UI.【F:backend/app/api/routes.py†L691-L904】
