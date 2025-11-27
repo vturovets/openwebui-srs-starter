@@ -29,6 +29,9 @@
   let showFailedOnly = true;
   let query = '';
   let history: HolidayResultEntry[] = [];
+  let saveImportResults = false;
+  let saveFailedImportsOnly = false;
+  let importStatusMessage = '';
   type MethodOption = { id: string; label: string };
 
   let mode = 'direct-parse';
@@ -346,6 +349,8 @@
     let processedCount = 0;
     let totalRecords = 0;
     const operationsForSummary: ImportSummaryRequest['operations'] = [];
+    let persistedImportCount = 0;
+    importStatusMessage = '';
 
     const recordImportedEntry = (entry: HolidayResultEntry) => {
       processedCount += 1;
@@ -354,8 +359,14 @@
         metadata: entry.result?.metadata ?? null,
       };
       operationsForSummary.push(operation);
-      if (shouldDisplayImportedEntry(entry)) {
-        addEntry(entry);
+      const shouldPersistEntry =
+        saveImportResults ||
+        (saveFailedImportsOnly && isFailureStatus(entry?.result?.status));
+      if (shouldPersistEntry) {
+        persistedImportCount += 1;
+        if (shouldDisplayImportedEntry(entry)) {
+          addEntry(entry);
+        }
       }
 
       if (importProgress) {
@@ -448,12 +459,40 @@
           importPerformanceSummary = null;
           importUsageSummary = null;
         }
+        if ((saveImportResults || saveFailedImportsOnly) && persistedImportCount > 0) {
+          exportCsv();
+          importStatusMessage = saveFailedImportsOnly
+            ? 'Import complete. Failed requests were saved to the export file.'
+            : 'Import complete. All request results were saved to the export file.';
+        } else if (saveImportResults || saveFailedImportsOnly) {
+          importStatusMessage = 'Import complete. No requests matched the export filter.';
+        } else {
+          importStatusMessage =
+            'Import complete. Performance and usage summaries are available below.';
+        }
       } else {
         importPerformanceSummary = null;
         importUsageSummary = null;
         importMethod = null;
+        importStatusMessage = 'No importable records were found in the selected file.';
       }
       importProgress = null;
+    }
+  }
+
+  function handleSaveImportResultsChange(event: Event) {
+    const target = event.currentTarget as HTMLInputElement | null;
+    saveImportResults = Boolean(target?.checked);
+    if (saveImportResults) {
+      saveFailedImportsOnly = false;
+    }
+  }
+
+  function handleSaveFailedOnlyChange(event: Event) {
+    const target = event.currentTarget as HTMLInputElement | null;
+    saveFailedImportsOnly = Boolean(target?.checked);
+    if (saveFailedImportsOnly) {
+      saveImportResults = false;
     }
   }
 
@@ -622,6 +661,27 @@
         <button type="button" on:click={exportCsv} data-testid="export-button">Export CSV</button>
       </div>
 
+      <div class="import-options">
+        <label>
+          <input
+            type="checkbox"
+            bind:checked={saveImportResults}
+            on:change={handleSaveImportResultsChange}
+            data-testid="import-save-all"
+          />
+          Save all import results to the export file
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            bind:checked={saveFailedImportsOnly}
+            on:change={handleSaveFailedOnlyChange}
+            data-testid="import-save-failed"
+          />
+          Save only failed import requests to the export file
+        </label>
+      </div>
+
       {#if importProgress}
         <p class="import-progress" data-testid="import-progress">
           Importing {importProgress.processed} of {importProgress.total}
@@ -629,6 +689,10 @@
             ({Math.round((importProgress.processed / importProgress.total) * 100)}%)
           {/if}
         </p>
+      {/if}
+
+      {#if importStatusMessage}
+        <p class="import-status" data-testid="import-status">{importStatusMessage}</p>
       {/if}
     </form>
 
@@ -968,6 +1032,27 @@
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
+  }
+
+  .import-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.95rem;
+  }
+
+  .import-options label {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .import-status {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    background: #0b1527;
+    border: 1px solid #1f2a3f;
+    border-radius: 8px;
   }
 
   .import-progress {
