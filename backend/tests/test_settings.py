@@ -10,7 +10,7 @@ from backend.app.config import Settings
 
 def test_popularity_imputer_enabled_default() -> None:
     settings = Settings()
-    assert settings.popularity_imputer_enabled is True
+    assert settings.popularity_imputer_enabled is False
 
 
 def test_popularity_imputer_enabled_hybrid_only() -> None:
