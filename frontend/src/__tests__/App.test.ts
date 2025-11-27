@@ -399,6 +399,14 @@ describe('Holiday search console', () => {
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
     await screen.findByTestId('fixtures-loaded');
 
+    const createObjectURLSpy = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:mock-import');
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    const saveFailedCheckbox = screen.getByTestId('import-save-failed') as HTMLInputElement;
+    await fireEvent.click(saveFailedCheckbox);
+
     expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument();
     expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
 
@@ -418,6 +426,11 @@ describe('Holiday search console', () => {
     await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
     expect(screen.getByTestId('status-label')).toHaveTextContent('failed');
     expect(screen.getByText('Expected value mismatches:')).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByTestId('import-status')).toBeInTheDocument());
+    expect(screen.getByTestId('import-status')).toHaveTextContent(
+      'Failed requests were saved to the export file'
+    );
 
     await waitFor(() => expect(screen.getByTestId('usage-summary')).toBeInTheDocument());
     expect(screen.getByTestId('usage-tokens-in')).toHaveTextContent('50');
@@ -442,6 +455,8 @@ describe('Holiday search console', () => {
     expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
 
     component.$destroy();
+    createObjectURLSpy.mockRestore();
+    revokeObjectURLSpy.mockRestore();
   });
 
   it('derives usage summary values from usage metadata during import', async () => {
@@ -587,6 +602,14 @@ describe('Holiday search console', () => {
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
     await screen.findByTestId('fixtures-loaded');
 
+    const createObjectURLSpy = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:mock-import');
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    const saveAllCheckbox = screen.getByTestId('import-save-all') as HTMLInputElement;
+    await fireEvent.click(saveAllCheckbox);
+
     const csvContent = 'User input,Expected values\n"Find a trip",""\n';
     const file = {
       name: 'requests.csv',
@@ -606,6 +629,8 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('status-label')).toHaveTextContent('success');
 
     component.$destroy();
+    createObjectURLSpy.mockRestore();
+    revokeObjectURLSpy.mockRestore();
   });
 
   it('exports backend-compatible CSV for the current session history', async () => {
