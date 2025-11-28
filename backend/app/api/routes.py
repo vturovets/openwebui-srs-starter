@@ -7,9 +7,10 @@ import mimetypes
 import re
 from time import perf_counter, perf_counter_ns
 from collections.abc import Mapping
-
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncIterator, Iterable, cast
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.params import Depends as DependsMarker
@@ -904,12 +905,24 @@ async def fetch_fixtures(
     }
 
 
+def _persist_import_summary_payload(payload: ImportSummaryRequest) -> Path:
+    data_dir = Path("data")
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    file_path = data_dir / f"import_summary_{timestamp}_{uuid4().hex}.json"
+    file_path.write_text(payload.model_dump_json(), encoding="utf-8")
+    return file_path
+
+
 @api_router.post("/import/summary", response_model=ImportSummaryResponse)
 async def import_summary(
     payload: ImportSummaryRequest,
     settings: Settings = Depends(get_settings),
 ) -> ImportSummaryResponse:
     """Compute statistical import summaries for performance and usage metrics."""
+
+    _persist_import_summary_payload(payload)
 
     reporter = ImportSummaryReporter(settings=settings)
     summary = reporter.summarise(

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.dependencies import get_settings
@@ -12,6 +16,19 @@ def _build_client(monkeypatch, env: dict[str, str]) -> TestClient:
     get_settings.cache_clear()
     app = create_app()
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def clean_import_summary_files():
+    data_dir = Path("data")
+    preexisting_files = set(data_dir.glob("import_summary_*.json")) if data_dir.exists() else set()
+    yield
+    if data_dir.exists():
+        for path in data_dir.glob("import_summary_*.json"):
+            if path not in preexisting_files:
+                path.unlink()
+        if not any(data_dir.iterdir()):
+            data_dir.rmdir()
 
 
 def _make_operation(total_ms: float, *, mismatched: bool = False) -> dict[str, object]:
@@ -146,5 +163,46 @@ def test_import_summary_reports_insufficient_sample(monkeypatch) -> None:
         assert performance["accuracy"]["inference"] == "insufficient-data"
         assert performance["p95"]["ciLowMs"] is None
         assert performance["accuracy"]["pValue"] is None
+    finally:
+        get_settings.cache_clear()
+
+
+def test_import_summary_persists_payload(monkeypatch) -> None:
+    client = _build_client(
+        monkeypatch,
+        {
+            "MIN_SAMPLE_SIZE": "3",
+            "IMPORT_P95_THRESHOLD_MS": "750",
+            "IMPORT_ACCURACY_THRESHOLD": "0.5",
+            "P95_OUTLIERS_THRESHOLD": "2000",
+            "ALPHA": "0.1",
+        },
+    )
+
+    data_dir = Path("data")
+    preexisting_files = set(data_dir.glob("import_summary_*.json")) if data_dir.exists() else set()
+
+    try:
+        payload = {
+            "method": "rules-basic",
+            "operations": [
+                _make_operation(420.0),
+                _make_operation(515.0),
+                _make_operation(610.0),
+            ],
+        }
+        response = client.post("/v1/import/summary", json=payload)
+
+        assert response.status_code == 200
+
+        new_files = [
+            path
+            for path in data_dir.glob("import_summary_*.json")
+            if path not in preexisting_files
+        ]
+        assert len(new_files) == 1
+
+        saved_payload = json.loads(new_files[0].read_text())
+        assert saved_payload == payload
     finally:
         get_settings.cache_clear()
