@@ -7,6 +7,8 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Mapping, MutableMapping, Sequence
 
+from datetime import date, timedelta
+
 import httpx
 
 from ..config import Settings
@@ -156,14 +158,9 @@ class HolidaySearchLLMClient(StructuredLLMClient):
                 "options": configuration.flex_options,
             },
         }
+        tomorrow = (date.today() + timedelta(days=1)).isoformat()
 
-        self._system_prompt = (
-            "You analyse travel booking queries and extract parameters for the holiday search engine. "
-            "Respond with a JSON object containing these keys: 'airports' (list), 'destinations' (list), "
-            "'duration' (object or null), 'flexibility' (object or null), and 'dates' (list). Each airport and "
-            "destination should reference the provided identifiers when possible. Dates should be returned as "
-            "objects with 'phrase' and ISO8601 'iso' fields when detected."
-        )
+        self._system_prompt = ("You analyse travel booking queries and extract parameters for the holiday search engine. The user may or may not explicitly declare booking parameters. Respond with a JSON object containing these keys: 'airports' (list), 'destinations' (list), 'duration', 'flexibility', and 'dates' (list). Use metadata to validate extracted values against allowed ones. Return airports and destinations explicitly describing their availability according to the metadata. For missing input parameters, use default values from the metadata. Each airport and destination should reference the provided identifiers when possible. Dates should be returned as objects with 'phrase' and ISO8601 `YYYY-MM-DD` (year-month-day) 'iso' fields when detected." f" Today is '{tomorrow}'. Never return any date in past to that date, otherwise leave empty.")
 
         super().__init__(
             api_base=settings.llm_api_base,
