@@ -116,9 +116,7 @@ class PopularityImputer:
                 imputed_meta["party"] = {"source": source, "value": dict(party)}
 
         if self._needs_rooms(payload):
-            rooms, source = self._select_rooms(
-                destinations, allow_auto_configuration=not request_was_unpopulated
-            )
+            rooms, source = self._select_rooms(destinations)
             payload["rooms"] = rooms
             rooms_meta = {"source": source, "autoRoomAllocationSwitch": self._auto_room_enabled}
             rooms_meta["value"] = rooms
