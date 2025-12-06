@@ -57,6 +57,10 @@ class Validator:
         if normalized.duration_id not in self._config.duration_by_id:
             raise ValidationError("Duration is not supported")
 
+    def _validate_destination_presence(self, normalized: NormalizedResult) -> None:
+        if not normalized.to_ids:
+            raise ValidationError("Destination is required")
+
     def _validate_party(self, normalized: NormalizedResult) -> None:
         party_cfg = self._config.party
         adults = normalized.party.get("adults", 0)
@@ -101,6 +105,7 @@ class Validator:
         self._validate_availability(normalized)
         self._validate_multi_select_limits(normalized)
         self._validate_dates(normalized)
+        self._validate_destination_presence(normalized)
         self._validate_duration(normalized)
         self._validate_party(normalized)
         self._validate_rooms(normalized)

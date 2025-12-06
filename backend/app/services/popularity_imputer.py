@@ -93,7 +93,7 @@ class PopularityImputer:
 
         request_was_unpopulated = self._is_unpopulated_request(payload)
 
-        if request_was_unpopulated:
+        if request_was_unpopulated or not self._extract_destinations(payload.get("to"))[0]:
             popular_destination = self._select_most_popular_destination()
             if popular_destination:
                 payload["to"] = [popular_destination]
