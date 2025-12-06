@@ -63,7 +63,7 @@ def extraction_to_imputer_payload(extraction: ExtractionResult) -> Dict[str, obj
 
     airports = _collect_labels(extraction.airports)
     destinations = _collect_labels(extraction.destinations)
-    allow_intersection = len(destinations) <= 1
+    allow_intersection = True
     dates = [dt.isoformat() for _, dt in extraction.dates]
 
     duration_id: str | None = None
@@ -209,7 +209,10 @@ class HolidaySearchPipeline:
             "enabled": bool(self._imputer),
             "imputed": {},
         }
-        metadata_payload["imputed"] = {}
+
+        imputation_meta = self._apply_imputation(extraction)
+        metadata_payload["imputation"] = dict(imputation_meta)
+        metadata_payload["imputed"] = dict(imputation_meta.get("imputed", {}))
 
         normalized = self._measure(
             "normalizationMs",
