@@ -63,6 +63,7 @@ def extraction_to_imputer_payload(extraction: ExtractionResult) -> Dict[str, obj
 
     airports = _collect_labels(extraction.airports)
     destinations = _collect_labels(extraction.destinations)
+    allow_intersection = len(destinations) <= 1
     dates = [dt.isoformat() for _, dt in extraction.dates]
 
     duration_id: str | None = None
@@ -86,6 +87,7 @@ def extraction_to_imputer_payload(extraction: ExtractionResult) -> Dict[str, obj
         "departureDate": dates,
         "party": party_payload,
         "rooms": extraction.rooms,
+        "allowIntersection": allow_intersection,
     }
     return payload
 
