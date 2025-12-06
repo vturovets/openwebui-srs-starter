@@ -111,6 +111,32 @@ def test_pipeline_hybrid_fallback_success(pipeline_factory) -> None:
     assert attempts[-1]["method"] == "gemini-2.5-flash"
 
 
+def test_pipeline_hybrid_imputes_after_llm(pipeline_factory) -> None:
+    llm_payloads = {
+        "Need help filling gaps": {
+            "airports": [],
+            "destinations": ["d7b4bb39-2000-1234-aaac-1234567d"],
+            "dates": [],
+        }
+    }
+
+    pipeline = pipeline_factory(llm_payloads)
+
+    result = pipeline.run("Need help filling gaps", method="hybrid")
+
+    assert result.status == "success"
+    assert result.method_used == "gemini-2.5-flash"
+
+    hybrid_meta = result.metadata.get("hybrid", {})
+    stages = hybrid_meta.get("stages", [])
+    assert stages and stages[0]["id"] == "rules-basic" and stages[0]["status"] == "failed"
+    assert stages[-1]["id"] == "gemini-2.5-flash" and stages[-1]["status"] == "success"
+
+    imputation_meta = result.metadata.get("imputation", {})
+    assert imputation_meta.get("enabled") is True
+    assert imputation_meta.get("imputed")
+
+
 def test_pipeline_records_llm_network_latency(pipeline_factory) -> None:
     llm_payloads = {
         "Measure latency": (
