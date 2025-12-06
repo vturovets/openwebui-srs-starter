@@ -472,6 +472,21 @@ class HolidaySearchPipeline:
     def _get_llm_client_for_method(
         self, method: MethodConfig
     ) -> Callable[[str], Mapping[str, object]]:
+        if not self._settings.popularity_imputer_enabled:
+            # When the popularity imputer is disabled we want deterministic,
+            # failure-prone behaviour for incomplete utterances rather than
+            # relying on external LLMs that might hallucinate missing fields.
+            # Always return the offline stub in this mode, regardless of
+            # whether API credentials are configured.
+            return lambda _: {
+                "airports": [],
+                "destinations": [],
+                "duration": None,
+                "dates": [],
+                "party": {"adults": 0, "nonAdults": 0},
+                "rooms": None,
+            }
+
         if self._default_llm_client is not None:
             return self._default_llm_client
 
