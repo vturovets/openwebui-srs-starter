@@ -13,16 +13,6 @@ methods:
       dictionary_filename: data/dictionary.csv
       configuration_filename: configs/rules.conf
 
-  - id: sonnet-4.5
-    type: llm
-    enabled: false
-    provider: anthropic
-    model: claude-3-7-sonnet
-    api_base: ${ANTHROPIC_BASE:-https://api.anthropic.com}
-    api_key_env: ANTHROPIC_API_KEY
-    params:
-      temperature: 0.1
-
   - id: hybrid-v1
     type: hybrid
     enabled: true
