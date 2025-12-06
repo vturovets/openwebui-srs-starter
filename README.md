@@ -107,7 +107,7 @@ serving traffic. Key options mirror the SRS:
 | `POPULARITY_DATA_PATH` | `fixtures/popularity_stats.json` | Location of the persisted popularity statistics. Relative paths are resolved under `FIXTURES_DIR`. |
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
-| `SHOW_FAILED_ONLY` | `true` | When importing CSV logs into the UI, hide successful runs unless explicitly requested. |
+| `SHOW_RESULTS` | `SHOW_ALL` | Controls whether imported CSV logs are visible in the UI: `SHOW_ALL` (default) displays everything, `SHOW_FAILED_ONLY` limits visibility to failures, and `SUPPRESS` hides all rows. |
 | `IMPORT_P95_THRESHOLD_MS` | `750` | Target P95 latency (ms) used when flagging slow imported runs in the performance summary. |
 | `IMPORT_P95_SAMPLE_SIZE` | `1000` | Minimum number of imported rows required before computing a P95 value. |
 | `IMPORT_P95_SIGNIFICANCE` | `0.95` | Percentile (0–1) applied when calculating the imported response-time P95 metric. |
@@ -295,7 +295,7 @@ truth for airports, destinations, durations, and configuration defaults. The
 [`FixtureRepository`](backend/app/fixtures/repository.py) exposes typed access to
 these resources so pipeline stages can remain deterministic. The
 `/v1/fixtures` response also reflects runtime toggles such as
-`voiceEnabled` and `showFailedOnly`, mirroring the current [`Settings`](backend/app/config.py).
+`voiceEnabled` and `showResults`, mirroring the current [`Settings`](backend/app/config.py).
 
 ### Voice capture
 
@@ -345,7 +345,7 @@ and Playwright suites live under [`frontend/tests`](frontend/tests).
 | `GET /health` | Returns `{ "status": "ok" }` plus the active interaction mode for readiness checks. |
 | `POST /v1/parse` | Parses a natural-language utterance and responds with structured holiday parameters, validation metadata, and timing metrics. |
 | `POST /v1/dialog` | Maintains clarification sessions, returning prompts and accumulating transcript context when `INTERACTION_MODE=dialog`. |
-| `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, configuration defaults, enabled methods, and UI hints such as `voiceEnabled`/`showFailedOnly`. |
+| `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, configuration defaults, enabled methods, and UI hints such as `voiceEnabled`/`showResults`. |
 | `POST /v1/import/summary` | Accepts previously captured import metadata and returns performance/accuracy/usage roll-ups aligned with the UI dashboards. |
 | `POST /v1/voice` | Streams uploaded audio to the configured STT engine, returns the transcript with timing data, and forwards the utterance into the holiday search pipeline. |
 

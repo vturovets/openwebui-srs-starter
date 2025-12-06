@@ -14,6 +14,7 @@
     ImportSummaryResponse,
     UsageSummary as ImportUsageSummary,
     VoiceResponse,
+    ShowResults,
   } from './lib/types';
   import { CSV_LOG_FIELDS } from './lib/types';
   import { getExtractedValueRows } from './lib/extractedValues';
@@ -26,7 +27,7 @@
   let fixtures: Fixtures | null = null;
   let fixtureError = '';
   let loadingFixtures = true;
-  let showFailedOnly = true;
+  let showResults: ShowResults = 'SHOW_ALL';
   let query = '';
   let history: HolidayResultEntry[] = [];
   type MethodOption = { id: string; label: string };
@@ -43,6 +44,7 @@
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const SUCCESS_STATUSES = new Set(['success', 'ok', 'passed']);
+  const SHOW_RESULTS_VALUES: ShowResults[] = ['SHOW_FAILED_ONLY', 'SUPPRESS', 'SHOW_ALL'];
 
   type PerformanceSummary = ImportSummaryResponse['performance'];
   type UsageSummary = ImportUsageSummary;
@@ -154,11 +156,26 @@
     return typeof value === 'string' && value.trim().toLowerCase() === 'dialog';
   }
 
+  function normaliseShowResults(value: unknown): ShowResults {
+    if (typeof value === 'boolean') {
+      return value ? 'SHOW_FAILED_ONLY' : 'SHOW_ALL';
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toUpperCase();
+      if (SHOW_RESULTS_VALUES.includes(normalized as ShowResults)) {
+        return normalized as ShowResults;
+      }
+    }
+
+    return 'SHOW_ALL';
+  }
+
   onMount(async () => {
     try {
       const data = await fetchFixtures(baseUrl);
       fixtures = data;
-      showFailedOnly = typeof data.showFailedOnly === 'boolean' ? data.showFailedOnly : true;
+      showResults = normaliseShowResults(data?.showResults ?? (data as { showFailedOnly?: boolean })?.showFailedOnly);
       mode = data.mode;
       dialogOverrideAllowed = isDialogMode(data.mode);
       methodOptions = normaliseMethodOptions(data?.availableMethods);
@@ -226,11 +243,15 @@
   }
 
   function shouldDisplayImportedEntry(entry: HolidayResultEntry): boolean {
-    if (!showFailedOnly) {
-      return true;
+    if (showResults === 'SUPPRESS') {
+      return false;
     }
 
-    return isFailureStatus(entry?.result?.status);
+    if (showResults === 'SHOW_FAILED_ONLY') {
+      return isFailureStatus(entry?.result?.status);
+    }
+
+    return true;
   }
 
   function addEntry(entry: HolidayResultEntry) {
