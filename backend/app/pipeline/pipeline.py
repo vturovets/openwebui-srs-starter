@@ -280,6 +280,30 @@ class HolidaySearchPipeline:
                 stage_summaries.append(stage_summary)
                 combined_attempts.extend(dict(attempt) for attempt in outcome.attempts)
                 last_outcome = outcome
+                if outcome.status != "success" and self._imputer is not None:
+                    outcome = self._apply_imputation_and_revalidate(
+                        outcome, language, timings
+                    )
+                    stage_summaries[-1]["status"] = outcome.status
+                    if outcome.detail:
+                        stage_summaries[-1]["detail"] = outcome.detail
+                    elif "detail" in stage_summaries[-1]:
+                        stage_summaries[-1].pop("detail", None)
+                    combined_attempts = list(outcome.attempts)
+                    last_outcome = outcome
+                    if outcome.status == "success":
+                        metadata = dict(outcome.metadata)
+                        metadata.update({"methodId": method.id, "methodType": method.kind})
+                        metadata["hybrid"] = {
+                            "methodId": method.id,
+                            "strategy": method.strategy,
+                            "stages": stage_summaries,
+                            "selectedStage": stage.method.id,
+                            "fallbackTriggered": False,
+                        }
+                        outcome.metadata = metadata
+                        outcome.attempts = combined_attempts
+                        return outcome
                 if outcome.status == "success":
                     metadata = dict(outcome.metadata)
                     metadata.update({"methodId": method.id, "methodType": method.kind})
