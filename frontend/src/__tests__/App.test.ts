@@ -534,6 +534,85 @@ describe('Holiday search console', () => {
     component.$destroy();
   });
 
+  it('copies summaries to the clipboard as two-column tables', async () => {
+    parseTextMock.mockResolvedValue(clone(PARSE_SUCCESS));
+    const originalClipboard = (navigator as { clipboard?: Clipboard }).clipboard;
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextMock },
+      configurable: true,
+    });
+
+    try {
+      const { component } = render(App);
+      await tick();
+      component.$$.on_mount.forEach((fn) => fn());
+      await tick();
+      await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+      await screen.findByTestId('fixtures-loaded');
+
+      const csvContent = 'User input,Expected values\n"Find a trip",""\n';
+      const file = {
+        name: 'requests.csv',
+        type: 'text/csv',
+        text: () => Promise.resolve(csvContent),
+      } as unknown as File;
+
+      const importInput = screen.getByTestId('import-input') as HTMLInputElement;
+      Object.defineProperty(importInput, 'files', {
+        value: [file],
+        configurable: true,
+      });
+
+      await fireEvent.change(importInput);
+
+      await waitFor(() => expect(screen.getByTestId('performance-summary')).toBeInTheDocument());
+      const performanceCopy = screen.getByTestId('performance-copy-button');
+      expect(performanceCopy).toBeEnabled();
+
+      await fireEvent.click(performanceCopy);
+
+      const expectedPerformanceTable = [
+        'Method\trules-basic',
+        'Requests processed\t1',
+        'Mean response time\t34 ms',
+        'P95 response time\t34 ms',
+        'P95 threshold\t750 ms',
+        'Inference\tInsufficient data',
+        'Accuracy\t100%',
+        'Accuracy threshold\t85%',
+        'Accuracy inference\tInsufficient data',
+      ].join('\n');
+
+      await waitFor(() => expect(writeTextMock).toHaveBeenCalledWith(expectedPerformanceTable));
+
+      const usageCopy = screen.getByTestId('usage-copy-button');
+      expect(usageCopy).toBeEnabled();
+
+      await fireEvent.click(usageCopy);
+
+      const expectedUsageTable = [
+        'Method\trules-basic',
+        'Total tokens in\t50',
+        'Total tokens out\t10',
+        'API calls\t1',
+        'CPU time\t20 ms',
+        'RAM footprint\t5.5 MB·s',
+      ].join('\n');
+
+      await waitFor(() => expect(writeTextMock).toHaveBeenLastCalledWith(expectedUsageTable));
+      expect(writeTextMock).toHaveBeenCalledTimes(2);
+
+      component.$destroy();
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, 'clipboard', { value: originalClipboard, configurable: true });
+      } else {
+        delete (navigator as { clipboard?: Clipboard }).clipboard;
+      }
+    }
+  });
+
   it('omits successful imports when configured to show failures only', async () => {
     fetchFixturesMock.mockResolvedValueOnce({
       ...FIXTURE_RESPONSE,
