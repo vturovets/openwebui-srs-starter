@@ -89,6 +89,8 @@ class PopularityImputer:
         if not self._enabled or not self._stats:
             return payload, metadata
 
+        allow_intersection = bool(payload.pop("allowIntersection", True))
+
         request_was_unpopulated = self._is_unpopulated_request(payload)
 
         if request_was_unpopulated:
@@ -129,7 +131,9 @@ class PopularityImputer:
                 imputed_meta["from"] = {"source": source, "value": airport}
 
         if self._needs_departure_date(payload):
-            interval, source = self._select_interval(destinations)
+            interval, source = self._select_interval(
+                destinations, allow_intersection=allow_intersection
+            )
             if interval:
                 payload["departureDate"] = [interval[0]]
                 imputed_meta["departureDate"] = {
@@ -302,7 +306,9 @@ class PopularityImputer:
 
         return best_label
 
-    def _select_interval(self, destinations: Sequence[str]) -> tuple[tuple[str, str] | None, str]:
+    def _select_interval(
+        self, destinations: Sequence[str], *, allow_intersection: bool = True
+    ) -> tuple[tuple[str, str] | None, str]:
         if not destinations:
             interval = self._extract_interval(self._global_stats.get("interval"))
             if interval:
@@ -319,14 +325,17 @@ class PopularityImputer:
                 return interval, "global"
             return None, "configuration"
 
-        normalized = tuple(sorted(dest.lower() for dest in destinations if dest.lower() in self._destination_stats))
-        if normalized:
-            combo = self._intersection_stats.get(normalized)
-            if combo:
-                interval = self._extract_interval(combo)
-                if interval:
-                    label = self._intersection_labels.get(normalized, "||".join(destinations))
-                    return interval, f"intersection:{label}"
+        if allow_intersection:
+            normalized = tuple(
+                sorted(dest.lower() for dest in destinations if dest.lower() in self._destination_stats)
+            )
+            if normalized:
+                combo = self._intersection_stats.get(normalized)
+                if combo:
+                    interval = self._extract_interval(combo)
+                    if interval:
+                        label = self._intersection_labels.get(normalized, "||".join(destinations))
+                        return interval, f"intersection:{label}"
         interval = self._extract_interval(self._global_stats.get("interval"))
         if interval:
             return interval, "global"
