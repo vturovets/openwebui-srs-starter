@@ -6,7 +6,7 @@
       "from": [
         "CHARLEROI"
       ],
-      "to": [],
+      "to": ["d7b4bb39-2000-1234-aaab-1234567h:COUNTRY"],
       "departureDate": [
         "2026-02-16",
         "2026-02-22"
