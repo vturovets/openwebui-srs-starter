@@ -48,6 +48,7 @@
 
   type PerformanceSummary = ImportSummaryResponse['performance'];
   type UsageSummary = ImportUsageSummary;
+  type SummaryRow = { label: string; value: string };
 
   let importPerformanceSummary: PerformanceSummary | null = null;
   let importUsageSummary: UsageSummary | null = null;
@@ -108,6 +109,78 @@
       return '—';
     }
     return `${formatMetric(value, decimals)} ${unit}`;
+  }
+
+  function buildPerformanceSummaryRows(summary: PerformanceSummary | null): SummaryRow[] {
+    return [
+      { label: 'Method', value: summary?.method ?? '—' },
+      {
+        label: 'Requests processed',
+        value: summary ? summary.requestCount.toString() : '—',
+      },
+      {
+        label: 'Mean response time',
+        value: summary ? `${formatMetric(summary.meanResponseMs)} ms` : '—',
+      },
+      {
+        label: 'P95 response time',
+        value:
+          summary && summary.p95.valueMs !== null ? `${formatMetric(summary.p95.valueMs)} ms` : '—',
+      },
+      {
+        label: 'P95 threshold',
+        value: summary ? `${formatMetric(summary.p95.thresholdMs)} ms` : '—',
+      },
+      { label: 'Inference', value: formatP95Inference(summary) },
+      {
+        label: 'Accuracy',
+        value:
+          summary && typeof summary.accuracy.value === 'number'
+            ? `${formatMetric(summary.accuracy.value * 100)}%`
+            : '—',
+      },
+      {
+        label: 'Accuracy threshold',
+        value: summary ? `${formatMetric(summary.accuracy.threshold * 100)}%` : '—',
+      },
+      { label: 'Accuracy inference', value: formatAccuracyInference(summary) },
+    ];
+  }
+
+  function buildUsageSummaryRows(summary: UsageSummary | null): SummaryRow[] {
+    return [
+      { label: 'Method', value: importMethod ?? '—' },
+      { label: 'Total tokens in', value: formatUsageValue(summary?.tokensIn, 0) },
+      { label: 'Total tokens out', value: formatUsageValue(summary?.tokensOut, 0) },
+      { label: 'API calls', value: formatUsageValue(summary?.apiCalls, 0) },
+      { label: 'CPU time', value: formatUsageValueWithUnit(summary?.cpuMs, 'ms') },
+      { label: 'RAM footprint', value: formatUsageValueWithUnit(summary?.ramMbSeconds, 'MB·s') },
+    ];
+  }
+
+  function buildSummaryTable(rows: SummaryRow[]): string {
+    return rows
+      .map(({ label, value }) => `${label}\t${value}`)
+      .join('\n');
+  }
+
+  async function copySummaryToClipboard(section: 'performance' | 'usage') {
+    const isBrowser = typeof navigator !== 'undefined';
+    const clipboard = isBrowser ? navigator.clipboard : undefined;
+    if (!clipboard?.writeText) {
+      return;
+    }
+
+    const rows =
+      section === 'performance'
+        ? buildPerformanceSummaryRows(importPerformanceSummary)
+        : buildUsageSummaryRows(importUsageSummary);
+
+    try {
+      await clipboard.writeText(buildSummaryTable(rows));
+    } catch (error) {
+      console.error('Failed to copy summary to clipboard', error);
+    }
   }
 
   function normaliseMethodOptions(value: unknown): MethodOption[] {
@@ -678,7 +751,20 @@
     {#if importPerformanceSummary || importUsageSummary}
       <div class="summary-row">
         <section class="summary-card performance-summary" data-testid="performance-summary">
-          <h2>Performance summary</h2>
+          <div class="summary-header">
+            <h2>Performance summary</h2>
+            <button
+              type="button"
+              class="summary-copy-button"
+              on:click={() => copySummaryToClipboard('performance')}
+              aria-label="Copy performance summary"
+              data-testid="performance-copy-button"
+              title="Copy summary as table"
+              disabled={!importPerformanceSummary}
+            >
+              Copy
+            </button>
+          </div>
           <dl>
             <div class="metric-row">
               <dt>Method</dt>
@@ -766,7 +852,20 @@
         </section>
 
         <section class="summary-card usage-summary" data-testid="usage-summary">
-          <h2>Usage footprint summary</h2>
+          <div class="summary-header">
+            <h2>Usage footprint summary</h2>
+            <button
+              type="button"
+              class="summary-copy-button"
+              on:click={() => copySummaryToClipboard('usage')}
+              aria-label="Copy usage summary"
+              data-testid="usage-copy-button"
+              title="Copy summary as table"
+              disabled={!importUsageSummary}
+            >
+              Copy
+            </button>
+          </div>
           <dl>
             <div class="metric-row">
               <dt>Method</dt>
@@ -902,16 +1001,46 @@
     padding: 1.1rem 1.3rem;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     gap: 0.8rem;
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.4);
+  }
+
+  .summary-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
   }
 
   .summary-card h2 {
     margin: 0;
     font-size: 1.2rem;
-    text-align: center;
+    text-align: left;
     letter-spacing: 0.02em;
+    flex: 1;
+  }
+
+  .summary-copy-button {
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    border-radius: 8px;
+    background: rgba(59, 130, 246, 0.15);
+    color: #bfdbfe;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+
+  .summary-copy-button:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.6);
+  }
+
+  .summary-copy-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: rgba(148, 163, 184, 0.15);
   }
 
   .summary-card dl {
