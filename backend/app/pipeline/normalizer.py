@@ -148,7 +148,7 @@ class Normalizer:
 
         rooms_cfg = self._config.rooms_configuration
         if rooms_cfg.get("autoRoomAllocationSwitch"):
-            return None
+            return rooms_cfg.get("defaultNoOfRooms")
         return rooms_cfg.get("defaultNoOfRooms")
 
     def normalize(self, language: str, extraction: ExtractionResult) -> NormalizedResult:
