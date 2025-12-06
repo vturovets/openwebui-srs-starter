@@ -82,6 +82,8 @@ export type FixturesConfiguration = {
   [key: string]: unknown;
 };
 
+export type ShowResults = 'SHOW_FAILED_ONLY' | 'SUPPRESS' | 'SHOW_ALL';
+
 export type FixturesPerformanceTargets = {
   importP95ThresholdMs?: number;
   importP95SampleSize?: number;
@@ -93,7 +95,7 @@ export type Fixtures = {
   destinations: string[];
   durations?: Array<{ id: string; name: string }>;
   voiceEnabled: boolean;
-  showFailedOnly?: boolean;
+  showResults?: ShowResults;
   mode: string;
   llmMethod: string | null;
   llmMethodAlias?: string | null;

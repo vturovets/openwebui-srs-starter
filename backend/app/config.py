@@ -123,12 +123,13 @@ class Settings(BaseSettings):
         alias="VOICE_ENABLED",
         description="Toggle voice capture support for the UI and pipelines.",
     )
-    show_failed_only: bool = Field(
-        default=True,
-        alias="SHOW_FAILED_ONLY",
+    show_results: str = Field(
+        default="SHOW_ALL",
+        alias="SHOW_RESULTS",
         description=(
-            "When importing request logs, limit the UI to displaying only entries "
-            "that did not succeed."
+            "Controls whether imported request logs are visible in the UI: "
+            "'SHOW_ALL' (default) displays all rows, 'SHOW_FAILED_ONLY' limits "
+            "visibility to failures, and 'SUPPRESS' hides all rows."
         ),
     )
     import_worker_concurrency: int = Field(
@@ -290,6 +291,29 @@ class Settings(BaseSettings):
         # blank values by skipping automatic decoding in the settings sources.
         enable_decoding=False,
     )
+
+    @field_validator("show_results", mode="before")
+    @classmethod
+    def _normalise_show_results(cls, value: object) -> str:
+        allowed_values = {"SHOW_ALL", "SHOW_FAILED_ONLY", "SUPPRESS"}
+
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+
+        if value is None:
+            return "SHOW_ALL"
+
+        if isinstance(value, bool):
+            return "SHOW_FAILED_ONLY" if value else "SHOW_ALL"
+
+        if isinstance(value, str):
+            normalised = value.strip().upper()
+            if not normalised:
+                return "SHOW_ALL"
+            if normalised in allowed_values:
+                return normalised
+
+        raise ValueError("SHOW_RESULTS must be one of 'SHOW_ALL', 'SHOW_FAILED_ONLY', or 'SUPPRESS'")
 
     @field_validator("allowed_langs", mode="before")
     @classmethod

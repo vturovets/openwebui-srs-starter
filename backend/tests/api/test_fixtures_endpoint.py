@@ -14,6 +14,7 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
     monkeypatch.setenv("VOICE_ENABLED", "true")
     monkeypatch.setenv("INTERACTION_MODE", "dialog")
     monkeypatch.setenv("LLM_METHOD", "rules")
+    monkeypatch.setenv("SHOW_RESULTS", "SHOW_FAILED_ONLY")
     monkeypatch.setenv("IMPORT_P95_THRESHOLD_MS", "2500")
     monkeypatch.setenv("IMPORT_P95_SAMPLE_SIZE", "1500")
     monkeypatch.setenv("IMPORT_P95_SIGNIFICANCE", "0.9")
@@ -30,7 +31,7 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
 
         payload = response.json()
         assert payload["voiceEnabled"] is True
-        assert payload["showFailedOnly"] is True
+        assert payload["showResults"] == "SHOW_FAILED_ONLY"
         assert payload["mode"] == "dialog"
         assert payload["llmMethod"] == "rules-basic"
         assert payload["llmMethodAlias"] == "rules"

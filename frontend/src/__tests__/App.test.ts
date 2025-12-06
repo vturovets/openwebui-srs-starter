@@ -26,7 +26,7 @@ const FIXTURE_RESPONSE = {
   airports: ['Amsterdam', 'London Gatwick'],
   destinations: ['Italy'],
   voiceEnabled: true,
-  showFailedOnly: true,
+  showResults: 'SHOW_ALL',
   mode: 'dialog',
   llmMethod: 'rules-basic',
   availableMethods: [
@@ -535,6 +535,10 @@ describe('Holiday search console', () => {
   });
 
   it('omits successful imports when configured to show failures only', async () => {
+    fetchFixturesMock.mockResolvedValueOnce({
+      ...FIXTURE_RESPONSE,
+      showResults: 'SHOW_FAILED_ONLY',
+    });
     parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
     const { component } = render(App);
     await tick();
@@ -572,10 +576,10 @@ describe('Holiday search console', () => {
     component.$destroy();
   });
 
-  it('displays successful imports when showFailedOnly is disabled', async () => {
+  it('displays successful imports when showResults allows all entries', async () => {
     fetchFixturesMock.mockResolvedValueOnce({
       ...FIXTURE_RESPONSE,
-      showFailedOnly: false,
+      showResults: 'SHOW_ALL',
     });
     parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
 
