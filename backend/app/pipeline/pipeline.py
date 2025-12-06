@@ -154,6 +154,8 @@ class HolidaySearchPipeline:
         utterance: str,
         language: str,
         timings: Dict[str, float],
+        *,
+        apply_imputation: bool = True,
     ) -> ExtractorOutcome:
         runtime_kind = method.kind
         metadata_payload: Dict[str, Any] = {
@@ -210,9 +212,10 @@ class HolidaySearchPipeline:
             "imputed": {},
         }
 
-        imputation_meta = self._apply_imputation(extraction)
-        metadata_payload["imputation"] = dict(imputation_meta)
-        metadata_payload["imputed"] = dict(imputation_meta.get("imputed", {}))
+        if apply_imputation:
+            imputation_meta = self._apply_imputation(extraction)
+            metadata_payload["imputation"] = dict(imputation_meta)
+            metadata_payload["imputed"] = dict(imputation_meta.get("imputed", {}))
 
         normalized = self._measure(
             "normalizationMs",
@@ -274,7 +277,20 @@ class HolidaySearchPipeline:
         last_outcome: Optional[ExtractorOutcome] = None
         try:
             for stage in method.stages:
-                outcome = self._execute_method(stage.method, utterance, language, timings, visited=visited)
+                outcome = self._execute_method(
+                    stage.method,
+                    utterance,
+                    language,
+                    timings,
+                    visited=visited,
+                    apply_imputation=False,
+                )
+
+                if stage.method.kind == "llm" and self._imputer is not None:
+                    outcome = self._apply_imputation_and_revalidate(
+                        outcome, language, timings
+                    )
+
                 stage_summary: Dict[str, Any] = {
                     "id": stage.method.id,
                     "type": stage.method.kind,
@@ -285,43 +301,7 @@ class HolidaySearchPipeline:
                 stage_summaries.append(stage_summary)
                 combined_attempts.extend(dict(attempt) for attempt in outcome.attempts)
                 last_outcome = outcome
-                if outcome.status != "success" and self._imputer is None:
-                    metadata = dict(outcome.metadata)
-                    metadata.update({"methodId": method.id, "methodType": method.kind})
-                    metadata["hybrid"] = {
-                        "methodId": method.id,
-                        "strategy": method.strategy,
-                        "stages": stage_summaries,
-                        "selectedStage": stage.method.id,
-                        "fallbackTriggered": False,
-                    }
-                    outcome.metadata = metadata
-                    outcome.attempts = combined_attempts
-                    return outcome
-                if outcome.status != "success" and self._imputer is not None:
-                    outcome = self._apply_imputation_and_revalidate(
-                        outcome, language, timings
-                    )
-                    stage_summaries[-1]["status"] = outcome.status
-                    if outcome.detail:
-                        stage_summaries[-1]["detail"] = outcome.detail
-                    elif "detail" in stage_summaries[-1]:
-                        stage_summaries[-1].pop("detail", None)
-                    combined_attempts = list(outcome.attempts)
-                    last_outcome = outcome
-                    if outcome.status == "success":
-                        metadata = dict(outcome.metadata)
-                        metadata.update({"methodId": method.id, "methodType": method.kind})
-                        metadata["hybrid"] = {
-                            "methodId": method.id,
-                            "strategy": method.strategy,
-                            "stages": stage_summaries,
-                            "selectedStage": stage.method.id,
-                            "fallbackTriggered": False,
-                        }
-                        outcome.metadata = metadata
-                        outcome.attempts = combined_attempts
-                        return outcome
+
                 if outcome.status == "success":
                     metadata = dict(outcome.metadata)
                     metadata.update({"methodId": method.id, "methodType": method.kind})
@@ -337,7 +317,14 @@ class HolidaySearchPipeline:
                     return outcome
 
             if method.fallback is not None:
-                fallback_outcome = self._execute_method(method.fallback, utterance, language, timings, visited=visited)
+                fallback_outcome = self._execute_method(
+                    method.fallback,
+                    utterance,
+                    language,
+                    timings,
+                    visited=visited,
+                    apply_imputation=False,
+                )
                 fallback_summary: Dict[str, Any] = {
                     "id": method.fallback.id,
                     "type": method.fallback.kind,
@@ -349,7 +336,7 @@ class HolidaySearchPipeline:
                 stage_summaries.append(fallback_summary)
                 combined_attempts.extend(dict(attempt) for attempt in fallback_outcome.attempts)
 
-                if fallback_outcome.status != "success" and self._imputer is not None:
+                if method.fallback.kind == "llm" and self._imputer is not None:
                     fallback_outcome = self._apply_imputation_and_revalidate(
                         fallback_outcome, language, timings
                     )
@@ -401,13 +388,20 @@ class HolidaySearchPipeline:
         timings: Dict[str, float],
         *,
         visited: Optional[Set[str]] = None,
+        apply_imputation: bool = True,
     ) -> ExtractorOutcome:
         visited_set = visited or set()
         if isinstance(method, HybridMethodConfig):
             return self._execute_hybrid(method, utterance, language, timings, visited=visited_set)
         if method.kind not in {"rules", "llm"}:
             raise ValueError(f"Unsupported method kind '{method.kind}' requested")
-        return self._run_single_pass(method, utterance, language, timings)
+        return self._run_single_pass(
+            method,
+            utterance,
+            language,
+            timings,
+            apply_imputation=apply_imputation,
+        )
 
     def _resolve_method(self, override: str | None) -> tuple[str | None, MethodConfig]:
         candidate = override or self._settings.llm_method
@@ -475,12 +469,15 @@ class HolidaySearchPipeline:
     def _get_llm_client_for_method(
         self, method: MethodConfig
     ) -> Callable[[str], Mapping[str, object]]:
+        if self._default_llm_client is not None:
+            return self._default_llm_client
+
         if not self._settings.popularity_imputer_enabled:
             # When the popularity imputer is disabled we want deterministic,
             # failure-prone behaviour for incomplete utterances rather than
             # relying on external LLMs that might hallucinate missing fields.
-            # Always return the offline stub in this mode, regardless of
-            # whether API credentials are configured.
+            # Fall back to the offline stub only when no explicit client is
+            # configured.
             return lambda _: {
                 "airports": [],
                 "destinations": [],
@@ -489,9 +486,6 @@ class HolidaySearchPipeline:
                 "party": {"adults": 0, "nonAdults": 0},
                 "rooms": None,
             }
-
-        if self._default_llm_client is not None:
-            return self._default_llm_client
 
         if method.id in self._llm_clients:
             return self._llm_clients[method.id]
