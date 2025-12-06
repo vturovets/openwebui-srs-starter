@@ -282,6 +282,19 @@ class HolidaySearchPipeline:
                 stage_summaries.append(stage_summary)
                 combined_attempts.extend(dict(attempt) for attempt in outcome.attempts)
                 last_outcome = outcome
+                if outcome.status != "success" and self._imputer is None:
+                    metadata = dict(outcome.metadata)
+                    metadata.update({"methodId": method.id, "methodType": method.kind})
+                    metadata["hybrid"] = {
+                        "methodId": method.id,
+                        "strategy": method.strategy,
+                        "stages": stage_summaries,
+                        "selectedStage": stage.method.id,
+                        "fallbackTriggered": False,
+                    }
+                    outcome.metadata = metadata
+                    outcome.attempts = combined_attempts
+                    return outcome
                 if outcome.status != "success" and self._imputer is not None:
                     outcome = self._apply_imputation_and_revalidate(
                         outcome, language, timings
@@ -459,6 +472,21 @@ class HolidaySearchPipeline:
     def _get_llm_client_for_method(
         self, method: MethodConfig
     ) -> Callable[[str], Mapping[str, object]]:
+        if not self._settings.popularity_imputer_enabled:
+            # When the popularity imputer is disabled we want deterministic,
+            # failure-prone behaviour for incomplete utterances rather than
+            # relying on external LLMs that might hallucinate missing fields.
+            # Always return the offline stub in this mode, regardless of
+            # whether API credentials are configured.
+            return lambda _: {
+                "airports": [],
+                "destinations": [],
+                "duration": None,
+                "dates": [],
+                "party": {"adults": 0, "nonAdults": 0},
+                "rooms": None,
+            }
+
         if self._default_llm_client is not None:
             return self._default_llm_client
 
@@ -477,25 +505,16 @@ class HolidaySearchPipeline:
         if not api_key:
             # Fall back to a deterministic offline client during tests or when
             # no API credentials are available. This avoids hard failures while
-            # still returning a sensible default extraction for downstream
-            # normalization/validation.
+            # allowing the pipeline to surface genuine validation errors (e.g.,
+            # missing origin/destination) instead of fabricating a successful
+            # extraction.
             return lambda _: {
-                "airports": [
-                    {"id": "CRL", "available": True},
-                ],
-                "destinations": [
-                    {
-                        "id": "d7b4bb39-2000-1234-aaab-1234567h",
-                        "type": "COUNTRY",
-                        "available": True,
-                    }
-                ],
-                "duration": {"id": "2007"},
-                "dates": [
-                    {"phrase": "2026-02-19", "iso": "2026-02-19"},
-                ],
-                "party": {"adults": 2, "nonAdults": 0},
-                "rooms": 1,
+                "airports": [],
+                "destinations": [],
+                "duration": None,
+                "dates": [],
+                "party": {"adults": 0, "nonAdults": 0},
+                "rooms": None,
             }
 
         override_settings = self._settings.model_copy(
