@@ -337,10 +337,14 @@ def test_pipeline_imputes_multi_destination_without_intersection(
 
     extraction = result.extraction
     assert extraction is not None
-    assert len(extraction.destinations) == 2
+    # When no clear intersection exists for multiple destinations, the pipeline
+    # falls back to a popularity-based suggestion to avoid returning an empty
+    # result set.
+    assert len(extraction.destinations) == 1
 
     metadata = result.metadata.get("imputed", {})
-    assert metadata.get("departureDate", {}).get("source", "").startswith("intersection:")
+    assert metadata.get("to", {}).get("source") == "popularity"
+    assert metadata.get("departureDate", {}).get("source", "").startswith("destination:")
 
 
 def _call_parse(
