@@ -277,18 +277,16 @@ class HolidaySearchPipeline:
         last_outcome: Optional[ExtractorOutcome] = None
         try:
             for stage in method.stages:
-                # Apply imputation to deterministic stages (e.g., rules) so we can
-                # rescue extractions that are structurally valid but missing
-                # required fields. LLM stages are handled separately to avoid
-                # double-imputing.
-                apply_imputation = stage.method.kind != "llm"
                 outcome = self._execute_method(
                     stage.method,
                     utterance,
                     language,
                     timings,
                     visited=visited,
-                    apply_imputation=apply_imputation,
+                    # Hybrid runs should defer imputation until after an LLM
+                    # stage succeeds so that we don't prematurely accept a
+                    # rules-based extraction populated from popularity stats.
+                    apply_imputation=False,
                 )
 
                 if stage.method.kind == "llm" and self._imputer is not None:
