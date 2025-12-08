@@ -119,7 +119,18 @@ def test_language_detector_recovers_from_misclassified_lang(monkeypatch) -> None
     assert detection.confidence > 0.0
 
 
-def test_pipeline_imputes_unspecified_search(pipeline: HolidaySearchPipeline) -> None:
+def test_pipeline_imputes_unspecified_search(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("POPULARITY_IMPUTER_ENABLED", "true")
+
+    settings = Settings(
+        fixtures_dir=FIXTURES_DIR,
+        csv_path=tmp_path / "log.csv",
+        allowed_langs=["en", "nl", "fr"],
+    )
+    pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
+
     result = pipeline.run("Show me the cheapest offers")
 
     assert result.status == "success"
