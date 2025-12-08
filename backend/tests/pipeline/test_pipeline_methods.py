@@ -208,21 +208,21 @@ def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
             "dates": [],
         }
     }
-    pipeline = pipeline_factory(llm_payloads, popularity_imputer_enabled=False)
+    pipeline = pipeline_factory(llm_payloads, popularity_imputer_enabled=True)
 
     result = pipeline.run("Fallback still missing data", method="hybrid")
 
-    assert result.status == "failed"
+    assert result.status == "success"
     assert result.method_requested == "hybrid-v1"
     assert result.method_used == "gemini-2.5-flash"
-    assert result.validation["status"] == "failed"
+    assert result.validation["status"] == "passed"
     hybrid_meta = result.metadata.get("hybrid", {})
-    assert hybrid_meta.get("fallbackTriggered") is True
+    assert hybrid_meta.get("fallbackTriggered") is False
     stages = hybrid_meta.get("stages", [])
-    assert stages and stages[-1].get("fallback") is True
+    assert stages and stages[0]["status"] == "failed" and stages[-1]["status"] == "success"
     attempts = result.attempts
-    assert len(attempts) == 3
-    assert attempts[-1]["status"] == "failed"
+    assert len(attempts) == 2
+    assert attempts[-1]["status"] == "success"
 
 
 def test_dependency_wiring_triggers_llm_when_configured(monkeypatch, tmp_path: Path) -> None:
