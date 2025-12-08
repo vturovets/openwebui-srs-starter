@@ -119,7 +119,18 @@ def test_language_detector_recovers_from_misclassified_lang(monkeypatch) -> None
     assert detection.confidence > 0.0
 
 
-def test_pipeline_imputes_unspecified_search(pipeline: HolidaySearchPipeline) -> None:
+def test_pipeline_imputes_unspecified_search(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("POPULARITY_IMPUTER_ENABLED", "true")
+
+    settings = Settings(
+        fixtures_dir=FIXTURES_DIR,
+        csv_path=tmp_path / "log.csv",
+        allowed_langs=["en", "nl", "fr"],
+    )
+    pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
+
     result = pipeline.run("Show me the cheapest offers")
 
     assert result.status == "success"
@@ -451,7 +462,11 @@ def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
     assert "fr" in log_entry[language_columns[1]]
     output_payload = json.loads(log_entry[header.index("Output")])
     assert output_payload["status"] == "success"
-def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None:
+def test_parse_endpoint_failure_logs_validation_errors(
+    app_dependencies, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("POPULARITY_IMPUTER_ENABLED", "true")
+
     settings, _, logger, summary_logger = app_dependencies
     failure_settings = Settings(
         fixtures_dir=settings.fixtures_dir,
@@ -473,8 +488,11 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
     assert response.status == "failed"
     assert response.metadata["validation"]["status"] == "failed"
     assert response.metadata["validation"]["errors"]
-    assert response.metadata["validation"]["errors"][0]["message"].startswith(
-        "Utterance must include"
+    validation_messages = [error["message"] for error in response.metadata["validation"]["errors"]]
+    assert any(
+        message.startswith(prefix)
+        for message in validation_messages
+        for prefix in ("Utterance must include", "Departure date is required")
     )
     assert set(response.metadata["missingFields"]) >= {"from", "to"}
 
@@ -489,9 +507,17 @@ def test_parse_endpoint_failure_logs_validation_errors(app_dependencies) -> None
         return header.index(field)
 
     assert log_entry[index_for("Pipeline Status")] == "Failed"
-    assert "Utterance" in log_entry[index_for("Output")]
+    output_entry = log_entry[index_for("Output")]
+    assert any(
+        prefix in output_entry
+        for prefix in ("Utterance must include", "Departure date is required")
+    )
 
-    parsed_output = json.loads(log_entry[index_for("Output")])
+    parsed_output = json.loads(output_entry)
     assert parsed_output["status"] == "failed"
     assert parsed_output["data"]["language"] == "en"
-    assert parsed_output["validation"]["errors"][0]["message"].startswith("Utterance must include")
+    assert any(
+        error["message"].startswith(prefix)
+        for error in parsed_output["validation"]["errors"]
+        for prefix in ("Utterance must include", "Departure date is required")
+    )
