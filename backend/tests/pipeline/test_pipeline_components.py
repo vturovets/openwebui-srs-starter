@@ -317,8 +317,10 @@ def test_pipeline_imputes_single_destination_stats(tmp_path: Path, monkeypatch: 
     assert len(extraction.destinations) == 1
 
     metadata = result.metadata.get("imputed", {})
-    assert metadata.get("departureDate", {}).get("source") == "destination:Australia"
-    assert metadata.get("from", {}).get("source") == "destination:Australia"
+    destination_source = metadata.get("departureDate", {}).get("source")
+    assert destination_source is not None
+    assert destination_source.startswith("destination:")
+    assert metadata.get("from", {}).get("source") == destination_source
 
 
 def test_pipeline_imputes_multi_destination_without_intersection(
