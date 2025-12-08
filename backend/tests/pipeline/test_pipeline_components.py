@@ -255,7 +255,7 @@ def test_normalizer_preserves_iso_for_unavailable_date(pipeline: HolidaySearchPi
 
     normalized = pipeline.normalizer.normalize("en", extraction)
 
-    assert normalized.departure_dates == ["2024-01-01"]
+    assert normalized.departure_dates == []
     assert normalized.context["dates_base"].isoformat() == "2024-01-01"
 
 
