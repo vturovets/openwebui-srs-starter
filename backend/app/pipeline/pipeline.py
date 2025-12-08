@@ -472,21 +472,6 @@ class HolidaySearchPipeline:
         if self._default_llm_client is not None:
             return self._default_llm_client
 
-        if not self._settings.popularity_imputer_enabled:
-            # When the popularity imputer is disabled we want deterministic,
-            # failure-prone behaviour for incomplete utterances rather than
-            # relying on external LLMs that might hallucinate missing fields.
-            # Fall back to the offline stub only when no explicit client is
-            # configured.
-            return lambda _: {
-                "airports": [],
-                "destinations": [],
-                "duration": None,
-                "dates": [],
-                "party": {"adults": 0, "nonAdults": 0},
-                "rooms": None,
-            }
-
         if method.id in self._llm_clients:
             return self._llm_clients[method.id]
 
@@ -504,7 +489,9 @@ class HolidaySearchPipeline:
             # no API credentials are available. This avoids hard failures while
             # allowing the pipeline to surface genuine validation errors (e.g.,
             # missing origin/destination) instead of fabricating a successful
-            # extraction.
+            # extraction. When the popularity imputer is disabled, this
+            # behaviour ensures we still fail fast for incomplete requests
+            # unless explicit credentials are configured.
             return lambda _: {
                 "airports": [],
                 "destinations": [],

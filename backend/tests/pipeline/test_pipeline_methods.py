@@ -183,6 +183,48 @@ def test_pipeline_llm_metadata_propagates(pipeline_factory) -> None:
     assert result.method_used == "gemini-2.5-flash"
 
 
+def test_pipeline_prefers_external_llm_when_imputer_disabled(monkeypatch, tmp_path: Path) -> None:
+    """Disabling the imputer should not block configured LLM clients."""
+
+    calls: list[str] = []
+
+    class DummyLLMClient:
+        def __init__(self, *, settings, fixtures_dir):  # type: ignore[no-untyped-def]
+            calls.append("init")
+
+        def __call__(self, text: str) -> Mapping[str, object]:
+            calls.append(text)
+            return {
+                "airports": ["AMS"],
+                "destinations": ["d7b4bb39-2000-1234-aaac-1234567d"],
+                "dates": ["2025-11-25"],
+            }
+
+    monkeypatch.setattr(
+        "backend.app.pipeline.pipeline.GeminiStructuredLLMClient", DummyLLMClient
+    )
+
+    settings = Settings(
+        fixtures_dir=FIXTURES_DIR,
+        csv_path=tmp_path / "pipeline-log.csv",
+        popularity_imputer_enabled=False,
+        llm_api_key="token-123",
+        llm_method="llm",
+    )
+
+    pipeline = HolidaySearchPipeline(
+        settings=settings,
+        fixtures_dir=settings.fixtures_dir,
+        methods_catalog=settings.load_methods_catalog(),
+    )
+
+    result = pipeline.run("Need a getaway from Amsterdam to Japan", method="llm")
+
+    assert calls == ["init", "Need a getaway from Amsterdam to Japan"]
+    assert result.method_used == "gemini-2.5-flash"
+    assert result.validation["status"] == "passed"
+
+
 def test_pipeline_hybrid_fallback_failure(pipeline_factory) -> None:
     llm_payloads = {
         "Fallback still missing data": {
