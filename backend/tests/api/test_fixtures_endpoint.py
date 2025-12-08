@@ -12,7 +12,7 @@ from backend.app.main import create_app
 
 def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
     monkeypatch.setenv("VOICE_ENABLED", "true")
-    monkeypatch.setenv("INTERACTION_MODE", "dialog")
+    monkeypatch.setenv("INTERACTION_MODE", "direct-parse")
     monkeypatch.setenv("LLM_METHOD", "rules")
     monkeypatch.setenv("SHOW_RESULTS", "SHOW_FAILED_ONLY")
     monkeypatch.setenv("IMPORT_P95_THRESHOLD_MS", "2500")
@@ -32,11 +32,11 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
         payload = response.json()
         assert payload["voiceEnabled"] is True
         assert payload["showResults"] == "SHOW_FAILED_ONLY"
-        assert payload["mode"] == "dialog"
+        assert payload["mode"] == "direct-parse"
         assert payload["llmMethod"] == "rules-basic"
         assert payload["llmMethodAlias"] == "rules"
         assert isinstance(payload["availableMethods"], list)
-        assert payload["defaultMethod"] == "rules-basic"
+        assert payload["defaultMethod"] == "hybrid-v1"
         assert isinstance(payload["methodDefaults"], dict)
         performance_targets = payload["performanceTargets"]
         assert performance_targets == {

@@ -275,7 +275,7 @@ def test_validator_requires_departure_or_destination_with_date(pipeline: Holiday
     with pytest.raises(ValidationError) as exc:
         pipeline.validator.validate(normalized)
 
-    assert "Utterance must include departure date" in str(exc.value)
+    assert "Destination is required" in str(exc.value)
 
 
 def _run_pipeline_scenario(

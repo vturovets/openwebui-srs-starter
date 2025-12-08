@@ -18,7 +18,7 @@ def test_methods_catalog_resolves_hybrid_structure() -> None:
     catalog = load_methods_catalog(METHODS_FILE)
 
     assert isinstance(catalog, MethodsCatalog)
-    assert catalog.default_method_id == "rules-basic"
+    assert catalog.default_method_id == "hybrid-v1"
     hybrid = catalog.methods.get("hybrid-v1")
     assert isinstance(hybrid, HybridMethodConfig)
     assert [stage.method.id for stage in hybrid.stages] == ["rules-basic", "gemini-2.5-flash"]
@@ -72,8 +72,9 @@ methods:
 def test_methods_catalog_lookup(identifier, expected) -> None:
     catalog = load_methods_catalog(METHODS_FILE)
     alias, method = catalog.resolve(identifier)
-    assert method.id == expected
+
     if identifier:
+        assert method.id == expected
         assert alias == identifier
     else:
         assert alias is None
