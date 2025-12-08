@@ -300,7 +300,16 @@ def _run_pipeline_scenario(
     return result
 
 
-def test_pipeline_imputes_single_destination_stats(pipeline: HolidaySearchPipeline) -> None:
+def test_pipeline_imputes_single_destination_stats(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+
+    monkeypatch.setenv("POPULARITY_IMPUTER_ENABLED", "true")
+    settings = Settings(
+        fixtures_dir=FIXTURES_DIR,
+        csv_path=tmp_path / "log.csv",
+        allowed_langs=["en", "nl", "fr"],
+    )
+    pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
+
     result = _run_pipeline_scenario(pipeline, "Best cheap hotels in Australia")
 
     extraction = result.extraction
@@ -313,8 +322,17 @@ def test_pipeline_imputes_single_destination_stats(pipeline: HolidaySearchPipeli
 
 
 def test_pipeline_imputes_multi_destination_without_intersection(
-    pipeline: HolidaySearchPipeline,
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+
+    monkeypatch.setenv("POPULARITY_IMPUTER_ENABLED", "true")
+    settings = Settings(
+        fixtures_dir=FIXTURES_DIR,
+        csv_path=tmp_path / "log.csv",
+        allowed_langs=["en", "nl", "fr"],
+    )
+    pipeline = HolidaySearchPipeline(settings=settings, fixtures_dir=settings.fixtures_dir)
+
     result = _run_pipeline_scenario(pipeline, "Cheapest offers for Kenya and Japan")
 
     extraction = result.extraction
@@ -465,7 +483,7 @@ def test_parse_endpoint_supports_french_input(app_dependencies) -> None:
 def test_parse_endpoint_failure_logs_validation_errors(
     app_dependencies, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("POPULARITY_IMPUTER_ENABLED", "true")
+    monkeypatch.setenv("POPULARITY_IMPUTER_ENABLED", "false")
 
     settings, _, logger, summary_logger = app_dependencies
     failure_settings = Settings(
