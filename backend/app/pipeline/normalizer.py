@@ -60,10 +60,13 @@ class Normalizer:
         phrase, dt = extraction.dates[0]
         base_date = dt.date()
         flex_option = extraction.flexibility or self._config.default_flex_option
+        base_iso = base_date.isoformat()
 
         if not flex_option or not self._config.flexibility_allowed:
+            if self._available_dates and base_iso not in self._available_dates:
+                return {"dates": [], "base": base_date, "flex": None}
             return {
-                "dates": [base_date.isoformat()],
+                "dates": [base_iso],
                 "base": base_date,
                 "flex": None,
             }
@@ -74,7 +77,10 @@ class Normalizer:
             window_days = 0
 
         if window_days <= 0:
-            normalized = [base_date.isoformat()]
+            if self._available_dates and base_iso not in self._available_dates:
+                normalized: list[str] = []
+            else:
+                normalized = [base_iso]
         else:
             start = base_date - timedelta(days=window_days)
             end = base_date + timedelta(days=window_days)
@@ -92,7 +98,7 @@ class Normalizer:
                 elif candidates:
                     normalized = candidates
                 else:
-                    normalized = [base_date.isoformat()]
+                    normalized = []
             else:
                 normalized = [start_iso, end_iso]
 
