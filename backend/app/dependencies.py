@@ -42,6 +42,7 @@ CSV_LOG_FIELDS: tuple[str, ...] = (
 )
 from .pipeline.dialog import DialogOrchestrator
 from .pipeline.pipeline import HolidaySearchPipeline
+from .pipeline.preferences import PreferencesPipeline
 
 
 @lru_cache
@@ -77,6 +78,17 @@ def get_pipeline() -> HolidaySearchPipeline:
         settings=settings,
         fixtures_dir=settings.fixtures_dir,
         llm_client=get_llm_client(),
+        methods_catalog=get_methods_catalog(),
+    )
+
+
+@lru_cache
+def get_preferences_pipeline() -> PreferencesPipeline:
+    """Provide a shared preferences pipeline instance."""
+
+    settings = get_settings()
+    return PreferencesPipeline(
+        settings=settings,
         methods_catalog=get_methods_catalog(),
     )
 
@@ -171,4 +183,5 @@ __all__ = [
     "get_dialog_orchestrator",
     "get_stt_client",
     "IMPORT_SUMMARY_LOG_FIELDS",
+    "get_preferences_pipeline",
 ]
