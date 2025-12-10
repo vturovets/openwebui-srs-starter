@@ -12,6 +12,7 @@ __all__ = [
     "ImportSummaryResult",
     "JobMetrics",
     "PopularityImputer",
+    "SynonymStore",
 ]
 
 from .import_runner import (
@@ -24,4 +25,5 @@ from .import_runner import (
 )
 from .import_summary import ImportSummaryReporter, ImportSummaryResult
 from .popularity_imputer import PopularityImputer
+from .synonym_store import SynonymStore
 
