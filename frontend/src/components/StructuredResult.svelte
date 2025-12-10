@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { HolidayResultEntry } from '../lib/types';
+  import type { HolidayResultEntry, MappedFilter } from '../lib/types';
   import { getExtractedValueRows } from '../lib/extractedValues';
 
   export let entry: HolidayResultEntry;
@@ -10,6 +10,9 @@
   const missing = metadata.missingFields ?? [];
   const invalid = metadata.invalidFields ?? [];
   const mismatches = metadata.expectedValueMismatches ?? [];
+  const mappedFilters = Array.isArray(entry.result.filters)
+    ? (entry.result.filters as MappedFilter[])
+    : [];
 
   const errorMessage = (() => {
     const metadataMessage = typeof metadata.message === 'string' ? metadata.message.trim() : '';
@@ -87,6 +90,13 @@
     return value;
   }
 
+  function formatConfidence(value: unknown): string {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return '';
+    }
+    return `${formatNumber(value * 100)}%`;
+  }
+
   function formatValue(value: unknown): string {
     if (typeof value === 'number' && Number.isFinite(value)) {
       return formatNumber(value);
@@ -162,6 +172,41 @@
       </tbody>
     </table>
   </section>
+
+  {#if mappedFilters.length}
+    <section class="mapped-filters" data-testid="mapped-filters">
+      <h3>Mapped filters</h3>
+      {#each mappedFilters as filter, index (filter.filterId ?? filter.filterLabel ?? `filter-${index}`)}
+        <div class="filter-group" data-testid="filter-group">
+          <h4>{filter.filterLabel ?? filter.filterId}</h4>
+          <ul>
+            {#if (filter.options ?? []).length === 0}
+              <li class="empty">No options mapped</li>
+            {:else}
+              {#each filter.options ?? [] as option, optionIndex (option.optionId ?? option.optionLabel ?? `option-${optionIndex}`)}
+                <li class:selected={option.selected} class="filter-option" data-testid="filter-option">
+                  <div class="option-row">
+                    <span class="option-label">{option.optionLabel ?? option.optionId}</span>
+                    {#if option.selected}
+                      <span class="badge" aria-label="Selected option">Selected</span>
+                    {/if}
+                    {#if typeof option.confidence === 'number'}
+                      <span class="confidence">{formatConfidence(option.confidence)}</span>
+                    {/if}
+                  </div>
+                  {#if option.spans?.length}
+                    <div class="span-hints">
+                      {option.spans.map((span) => span.text).filter(Boolean).join(' · ')}
+                    </div>
+                  {/if}
+                </li>
+              {/each}
+            {/if}
+          </ul>
+        </div>
+      {/each}
+    </section>
+  {/if}
 
   {#if missing.length || invalid.length || mismatches.length}
     <section class="issues" data-testid="issue-summary">
@@ -321,6 +366,76 @@
     margin: 0.35rem 0 0;
     color: #fca5a5;
     font-size: 0.9rem;
+  }
+
+  .mapped-filters {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 1rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .mapped-filters h3 {
+    margin: 0;
+  }
+
+  .filter-group {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .filter-group h4 {
+    margin: 0;
+  }
+
+  .filter-group ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .filter-option {
+    background: rgba(15, 23, 42, 0.4);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .filter-option.selected {
+    border: 1px solid #38bdf8;
+  }
+
+  .option-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .option-label {
+    font-weight: 600;
+  }
+
+  .span-hints {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+  }
+
+  .badge {
+    background: #0ea5e9;
+    color: #0b1224;
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .confidence {
+    color: #94a3b8;
+    font-size: 0.85rem;
   }
 
   .mismatches ul {
