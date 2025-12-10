@@ -98,6 +98,8 @@ class PreferencesPipeline:
 
         total_ms = (perf_counter() - total_start) * 1000
         timings["totalMs"] = total_ms
+        threshold_ms = self._settings.processing_threshold_ms
+        timings["thresholdBreached"] = total_ms > threshold_ms
 
         metadata: dict[str, object] = {
             "methodId": resolved_method.id,
