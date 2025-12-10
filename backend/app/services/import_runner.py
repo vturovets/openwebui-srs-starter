@@ -14,7 +14,9 @@ from typing import Any, Mapping, Sequence
 
 from ..config import Settings
 from ..logging.csv_logger import CSVLogger
+from ..pipeline.language import LanguageNotPermittedError
 from ..pipeline.pipeline import HolidaySearchPipeline
+from ..pipeline.preferences import PreferencesPipeline
 from ..telemetry.resource_monitor import ResourceMonitor
 from typing import TYPE_CHECKING
 
@@ -196,11 +198,13 @@ class ImportJobRunner:
         self,
         *,
         pipeline: HolidaySearchPipeline,
+        preferences_pipeline: PreferencesPipeline | None = None,
         settings: Settings,
         logger: CSVLogger | None = None,
         concurrency_limit: int | None = None,
     ) -> None:
         self._pipeline = pipeline
+        self._preferences_pipeline = preferences_pipeline
         self._settings = settings
         self._logger = logger
         requested = concurrency_limit or settings.import_worker_concurrency
@@ -294,29 +298,62 @@ class ImportJobRunner:
                         log_entry: Mapping[str, Any] | None = None
                         error_detail: str | None = None
                         total_ms = 0.0
+                        use_preferences = (
+                            payload.mode == "preferences"
+                            and self._preferences_pipeline is not None
+                        )
                         try:
-                            result = await asyncio.to_thread(
-                                self._pipeline.run,
-                                payload.text,
-                                method=payload.method,
-                            )
-                            transcript_log = [{"role": "user", "text": payload.text}]
-                            (
-                                status,
-                                _data_payload,
-                                metadata,
-                                log_entry,
-                                error_detail,
-                            ) = api_routes._format_pipeline_response(
-                                result=result,
-                                settings=self._settings,
-                                mode=payload.mode,
-                                input_text=payload.text,
-                                stt_source_override=None,
-                                transcript_log=transcript_log,
-                            )
+                            if use_preferences:
+                                result = await asyncio.to_thread(
+                                    self._preferences_pipeline.run,
+                                    payload.text,
+                                    method=payload.method,
+                                )
+                                (
+                                    status,
+                                    _filters,
+                                    metadata,
+                                    log_entry,
+                                    error_detail,
+                                ) = api_routes._format_preferences_response(
+                                    result=result,
+                                    settings=self._settings,
+                                    mode=payload.mode,
+                                    input_text=payload.text,
+                                )
+                            else:
+                                result = await asyncio.to_thread(
+                                    self._pipeline.run,
+                                    payload.text,
+                                    method=payload.method,
+                                )
+                                transcript_log = [
+                                    {"role": "user", "text": payload.text}
+                                ]
+                                (
+                                    status,
+                                    _data_payload,
+                                    metadata,
+                                    log_entry,
+                                    error_detail,
+                                ) = api_routes._format_pipeline_response(
+                                    result=result,
+                                    settings=self._settings,
+                                    mode=payload.mode,
+                                    input_text=payload.text,
+                                    stt_source_override=None,
+                                    transcript_log=transcript_log,
+                                )
                             timings = _ensure_timings(metadata)
                             total_ms = _coerce_total_ms(timings)
+                        except LanguageNotPermittedError:
+                            metadata = None
+                            log_entry = None
+                            error_detail = "language-not-permitted"
+                        except ValueError:
+                            metadata = None
+                            log_entry = None
+                            error_detail = "validation-error"
                         except Exception:
                             metadata = None
                             log_entry = None
@@ -331,7 +368,17 @@ class ImportJobRunner:
                                 await asyncio.sleep(sleep_for)
                             continue
 
-                        final_status = status if status in {"success", "failed"} else "error"
+                        if use_preferences:
+                            if status == "success":
+                                final_status = "success"
+                            elif status == "error":
+                                final_status = "error"
+                            else:
+                                final_status = "failed"
+                        else:
+                            final_status = (
+                                status if status in {"success", "failed"} else "error"
+                            )
                         if is_transient and final_status == "error":
                             metrics_state["permanent_failures"] += 1
 

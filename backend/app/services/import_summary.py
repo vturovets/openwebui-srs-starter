@@ -235,6 +235,34 @@ def _has_expected_value_mismatches(metadata: Mapping[str, object] | None) -> boo
     return len(mismatches) > 0
 
 
+def _is_success_status(status: object) -> bool:
+    if not isinstance(status, str):
+        return True
+    return status.lower() == "success"
+
+
+def _resolve_method(operations: Sequence[Mapping[str, Any]]) -> str | None:
+    candidates: dict[str, int] = {}
+    for operation in operations:
+        metadata = operation.get("metadata") if isinstance(operation, Mapping) else None
+        method_value = None
+        if isinstance(metadata, Mapping):
+            for key in ("method", "methodId", "method_id", "methodUsed"):
+                value = metadata.get(key)
+                if isinstance(value, str) and value.strip():
+                    method_value = value.strip()
+                    break
+        if method_value is None:
+            raw_status_method = operation.get("method") if isinstance(operation, Mapping) else None
+            if isinstance(raw_status_method, str) and raw_status_method.strip():
+                method_value = raw_status_method.strip()
+        if method_value:
+            candidates[method_value] = candidates.get(method_value, 0) + 1
+    if not candidates:
+        return None
+    return max(candidates, key=candidates.get)
+
+
 def _extract_total_ms(metadata: Mapping[str, object] | None) -> float | None:
     if not isinstance(metadata, Mapping):
         return None
@@ -373,9 +401,13 @@ class ImportSummaryReporter:
         latencies: list[float] = []
         usage_accumulator = UsageAccumulator()
 
+        resolved_method = method or _resolve_method(operations)
+
         for operation in operations:
             metadata = operation.get("metadata") if isinstance(operation, Mapping) else None
             if _has_expected_value_mismatches(metadata):
+                mismatch_count += 1
+            elif not _is_success_status(operation.get("status")):
                 mismatch_count += 1
             total_ms = _extract_total_ms(metadata)
             if total_ms is not None and total_ms >= 0 and total_ms <= self._settings.p95_outliers_threshold:
@@ -440,7 +472,7 @@ class ImportSummaryReporter:
         )
 
         performance = PerformanceSummary(
-            method=method,
+            method=resolved_method,
             request_count=request_count,
             mean_response_ms=mean_response_ms,
             p95=p95_assessment,
