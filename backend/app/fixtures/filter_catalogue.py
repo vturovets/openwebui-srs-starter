@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
@@ -14,7 +15,9 @@ class FilterOption:
 
     id: str
     label: str
+    normalized_label: str
     synonyms: Tuple[str, ...] = ()
+    normalized_synonyms: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,7 @@ class FilterDefinition:
 
     id: str
     label: str
+    normalized_label: str
     options: Tuple[FilterOption, ...]
 
     def get_option(self, option_id: str) -> FilterOption:
@@ -36,6 +40,8 @@ class FiltersCatalogue:
     """Load and cache filters/options from ``filters_options.csv``."""
 
     REQUIRED_COLUMNS = ("filterId", "filterLabel", "optionId", "optionLabel")
+
+    _NORMALIZE_PATTERN = re.compile(r"[^\w\s]+")
 
     def __init__(self, path: str | Path, *, delimiter: str = ",") -> None:
         self._path = Path(path)
@@ -80,7 +86,7 @@ class FiltersCatalogue:
 
             synonyms_raw = entry.get("synonyms") or ""
             synonyms: Tuple[str, ...] = tuple(
-                synonym.strip().lower()
+                synonym.strip()
                 for synonym in synonyms_raw.split("|")
                 if synonym.strip()
             )
@@ -98,7 +104,10 @@ class FiltersCatalogue:
             filter_label = entries[0]["filterLabel"]
             options = self._build_options(entries)
             self._filters[filter_id] = FilterDefinition(
-                id=filter_id, label=filter_label, options=tuple(options)
+                id=filter_id,
+                label=filter_label,
+                normalized_label=self.normalize_label(filter_label),
+                options=tuple(options),
             )
 
     def _validate_columns(self, columns: Sequence[str] | None) -> None:
@@ -126,14 +135,31 @@ class FiltersCatalogue:
                     f"Duplicate option identifier '{option_id}' detected for filter '{entry['filterId']}'"
                 )
             seen.add(option_id.lower())
+            option_label = str(entry["optionLabel"])
+            synonyms = tuple(entry.get("synonyms", ()) or ())
+            normalized_synonyms = tuple(
+                self.normalize_label(synonym) for synonym in synonyms if synonym
+            )
             options.append(
                 FilterOption(
                     id=option_id,
-                    label=str(entry["optionLabel"]),
-                    synonyms=tuple(entry.get("synonyms", ()) or ()),
+                    label=option_label,
+                    normalized_label=self.normalize_label(option_label),
+                    synonyms=synonyms,
+                    normalized_synonyms=normalized_synonyms,
                 )
             )
         return options
+
+    @classmethod
+    def normalize_label(cls, label: str) -> str:
+        """Normalize labels and synonyms for consistent matching."""
+
+        normalized = cls._NORMALIZE_PATTERN.sub(" ", label.lower())
+        normalized = " ".join(normalized.split())
+        if not normalized:
+            raise ValueError("Normalized label must not be empty")
+        return normalized
 
     def list_filters(self) -> Tuple[FilterDefinition, ...]:
         return tuple(self._filters.values())

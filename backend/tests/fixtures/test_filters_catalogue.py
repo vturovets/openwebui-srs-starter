@@ -20,6 +20,17 @@ def test_filters_catalogue_loads_fixture() -> None:
     assert {"wifi", "scuba"}.issubset(option_ids)
 
 
+def test_filters_catalogue_normalizes_labels() -> None:
+    catalogue = FiltersCatalogue(REPO_ROOT / "fixtures" / "filters_options.csv")
+
+    facilities = catalogue.get_filter("facilities")
+    assert facilities.normalized_label == "facilities"
+
+    wifi = facilities.get_option("wifi")
+    assert wifi.normalized_label == "free wi fi"
+    assert "wi fi" in wifi.normalized_synonyms
+
+
 def test_filters_catalogue_missing_file(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         FiltersCatalogue(tmp_path / "filters_options.csv")

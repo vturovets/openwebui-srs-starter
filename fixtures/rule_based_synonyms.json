@@ -1,0 +1,9 @@
+{
+  "facilities": {
+    "wifi": ["wireless internet", "hotel wifi"],
+    "scuba": ["scuba diving", "diving facilities"]
+  },
+  "boards": {
+    "room_only": ["no meals", "without catering"]
+  }
+}
