@@ -182,6 +182,44 @@ const PARSE_FAILED = {
   ],
 };
 
+const PREFERENCES_PARSE_SUCCESS = {
+  status: 'success',
+  data: {},
+  filters: [
+    {
+      filterId: 'F2',
+      filterLabel: 'Boards',
+      options: [
+        {
+          optionId: 'O3',
+          optionLabel: 'Room only',
+          selected: true,
+          confidence: 0.93,
+          spans: [{ text: 'no catering' }],
+        },
+      ],
+    },
+    {
+      filterId: 'F5',
+      filterLabel: 'Facilities',
+      options: [
+        {
+          optionId: 'O9',
+          optionLabel: 'Scuba',
+          selected: true,
+        },
+      ],
+    },
+  ],
+  metadata: {
+    mode: 'preferences',
+    method: 'rules-preferences',
+    timings: {
+      totalMs: 120,
+    },
+  },
+};
+
 const BASE_SUMMARY: ImportSummaryResponse = {
   performance: {
     method: 'rules-basic',
@@ -320,6 +358,49 @@ describe('Holiday search console', () => {
     await screen.findByTestId('fixtures-loaded');
 
     expect(screen.queryByTestId('mode-select')).not.toBeInTheDocument();
+  });
+
+  it('switches to preferences mode and updates labels', async () => {
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    await fireEvent.click(screen.getByTestId('mode-toggle-preferences'));
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Preferences Console');
+    expect(screen.queryByTestId('fixtures-loaded')).not.toBeInTheDocument();
+    expect(screen.getByText('Add your preferences')).toBeInTheDocument();
+    expect(screen.queryByTestId('mode-select')).not.toBeInTheDocument();
+  });
+
+  it('renders mapped filters when parsing preferences', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PREFERENCES_PARSE_SUCCESS));
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    await fireEvent.click(screen.getByTestId('mode-toggle-preferences'));
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'No catering but scuba required' } });
+    await fireEvent.submit(screen.getByTestId('parse-form'));
+
+    await waitFor(() => expect(parseTextMock).toHaveBeenCalled());
+    expect(parseTextMock.mock.calls[0][2].mode).toBe('preferences');
+
+    await waitFor(() => expect(screen.getByTestId('mapped-filters')).toBeInTheDocument());
+    expect(screen.getByText('Boards')).toBeInTheDocument();
+    expect(screen.getByText('Facilities')).toBeInTheDocument();
+    expect(screen.getAllByTestId('filter-option').length).toBeGreaterThan(0);
   });
 
   it('shows structured results with timings after parsing text', async () => {

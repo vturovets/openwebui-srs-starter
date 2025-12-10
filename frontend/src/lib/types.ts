@@ -5,6 +5,26 @@ export const CSV_LOG_FIELDS = [
 
 export type CsvLogField = (typeof CSV_LOG_FIELDS)[number];
 
+export type FilterSpan = {
+  text?: string;
+  start?: number;
+  end?: number;
+};
+
+export type MappedFilterOption = {
+  optionId: string;
+  optionLabel?: string;
+  selected?: boolean;
+  confidence?: number | null;
+  spans?: FilterSpan[];
+};
+
+export type MappedFilter = {
+  filterId: string;
+  filterLabel?: string;
+  options?: MappedFilterOption[];
+};
+
 export type HolidayResult = {
   status: string;
   data: Record<string, unknown> | null;
@@ -25,6 +45,7 @@ export type HolidayResult = {
       actual: string;
     }>;
   };
+  filters?: MappedFilter[];
   clarifications?: Array<{ parameter: string; message: string; reason: string }>;
   transcript?: string;
 };

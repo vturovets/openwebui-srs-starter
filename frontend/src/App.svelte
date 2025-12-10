@@ -32,7 +32,12 @@
   let history: HolidayResultEntry[] = [];
   type MethodOption = { id: string; label: string };
 
+  type InterpretationMode = 'holiday' | 'preferences';
+
   let mode = 'direct-parse';
+  let interpretationMode: InterpretationMode = 'holiday';
+  let parseMode = mode;
+  let isPreferencesMode = false;
   let dialogOverrideAllowed = false;
   let method = '';
   let methodOptions: MethodOption[] = [];
@@ -249,8 +254,11 @@
       const data = await fetchFixtures(baseUrl);
       fixtures = data;
       showResults = normaliseShowResults(data?.showResults ?? (data as { showFailedOnly?: boolean })?.showFailedOnly);
-      mode = data.mode;
-      dialogOverrideAllowed = isDialogMode(data.mode);
+
+      const initialMode = typeof data.mode === 'string' ? data.mode : '';
+      interpretationMode = initialMode === 'preferences' ? 'preferences' : 'holiday';
+      mode = interpretationMode === 'holiday' && initialMode ? initialMode : 'direct-parse';
+      dialogOverrideAllowed = isDialogMode(initialMode);
       methodOptions = normaliseMethodOptions(data?.availableMethods);
       method = typeof data.llmMethod === 'string' ? data.llmMethod : '';
       if (method && !methodOptions.some((option) => option.id === method)) {
@@ -263,9 +271,13 @@
     }
   });
 
-  $: if (!dialogOverrideAllowed && mode !== 'direct-parse') {
+  $: isPreferencesMode = interpretationMode === 'preferences';
+
+  $: if (!dialogOverrideAllowed && !isPreferencesMode && mode !== 'direct-parse') {
     mode = 'direct-parse';
   }
+
+  $: parseMode = isPreferencesMode ? 'preferences' : mode;
 
   function buildClarificationPrompt(result: HolidayResult): string {
     const clarifications = result.clarifications ?? [];
@@ -395,7 +407,7 @@
     busy = true;
     try {
       const payload = await parseText(baseUrl, query, {
-        mode,
+        mode: parseMode,
         method: method || undefined,
       });
       trackEntry('text', payload, query);
@@ -485,7 +497,7 @@
 
         try {
           const payload = await parseText(baseUrl, userInput, {
-            mode,
+            mode: parseMode,
             method: method || undefined,
           });
 
@@ -639,12 +651,12 @@
 <main class="app">
   <section class="panel">
     <header>
-      <h1>Holiday Search Console</h1>
+      <h1>{isPreferencesMode ? 'Preferences Console' : 'Holiday Search Console'}</h1>
       {#if loadingFixtures}
         <p data-testid="fixtures-loading">Loading fixtures…</p>
       {:else if fixtureError}
         <p class="error" data-testid="fixtures-error">{fixtureError}</p>
-      {:else if fixtures}
+      {:else if fixtures && !isPreferencesMode}
         <div class="fixtures" data-testid="fixtures-loaded">
           <div>
             <strong>Default Participants:</strong>
@@ -665,6 +677,24 @@
         </div>
       {/if}
     </header>
+    <div class="mode-toggle" role="group" aria-label="Console mode" data-testid="mode-toggle">
+      <button
+        type="button"
+        class:selected={!isPreferencesMode}
+        on:click={() => (interpretationMode = 'holiday')}
+        data-testid="mode-toggle-holiday"
+      >
+        Holiday request
+      </button>
+      <button
+        type="button"
+        class:selected={isPreferencesMode}
+        on:click={() => (interpretationMode = 'preferences')}
+        data-testid="mode-toggle-preferences"
+      >
+        Preferences
+      </button>
+    </div>
     <form class="query" on:submit|preventDefault={handleSubmit} data-testid="parse-form">
       <label>
         Method
@@ -683,7 +713,7 @@
         </select>
       </label>
 
-      {#if dialogOverrideAllowed}
+      {#if dialogOverrideAllowed && !isPreferencesMode}
         <label>
           Interaction mode
           <select bind:value={mode} data-testid="mode-select">
@@ -694,11 +724,15 @@
       {/if}
 
       <label class="full-width">
-        Ask for a holiday
+        {isPreferencesMode ? 'Add your preferences' : 'Ask for a holiday'}
         <textarea
           bind:value={query}
           rows="3"
-          placeholder="Find me a trip from Amsterdam to Chile next October"
+          placeholder={
+            isPreferencesMode
+              ? 'Add preferences like no catering, scuba required, wifi everywhere'
+              : 'Find me a trip from Amsterdam to Chile next October'
+          }
           data-testid="query-input"
         ></textarea>
       </label>
@@ -729,7 +763,7 @@
     <MicrophoneWidget
       on:voiceResult={handleVoice}
       {handleVoiceUpload}
-      mode={mode}
+      mode={parseMode}
       voiceEnabled={fixtures?.voiceEnabled ?? true}
     />
 
@@ -958,6 +992,28 @@
     align-self: start;
     max-height: calc(100vh - 3rem);
     overflow-y: auto;
+  }
+
+  .mode-toggle {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .mode-toggle button {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .mode-toggle button.selected {
+    background: #0ea5e9;
+    border-color: #22d3ee;
+    color: #0b1224;
   }
 
   .panel h1 {
