@@ -1,0 +1,6 @@
+filterId,filterLabel,optionId,optionLabel,synonyms
+facilities,Facilities,wifi,Free Wi-Fi,wifi|wi-fi|internet
+facilities,Facilities,scuba,Scuba,scuba|diving
+facilities,Facilities,scuba_info,Scuba - additional info,scuba info|equipment
+boards,Boards,room_only,Room Only,room only|no catering|without catering
+boards,Boards,all_inclusive,All Inclusive,all inclusive
