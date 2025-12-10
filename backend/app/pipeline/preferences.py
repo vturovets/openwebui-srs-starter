@@ -42,7 +42,9 @@ class PreferencesPipeline:
         methods_catalog: MethodsCatalog | None = None,
     ) -> None:
         self._settings = settings or Settings()
-        self._language = LanguageDetector(self._settings.allowed_langs)
+        self._language = LanguageDetector(
+            self._settings.preferences_rules_langs or self._settings.allowed_langs
+        )
         self._methods_catalog = methods_catalog or self._settings.load_methods_catalog()
         self._filters_catalogue = FiltersCatalogue(
             self._settings.resolve_filters_options_path(),

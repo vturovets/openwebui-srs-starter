@@ -103,6 +103,11 @@ serving traffic. Key options mirror the SRS:
 | `VOICE_MAX_BYTES` | `10000000` | Maximum audio payload size accepted by `/v1/voice` in bytes. |
 | `VOICE_ALLOWED_CONTENT_TYPES` | see code | Comma-separated list of MIME types accepted by `/v1/voice` (defaults cover WAV, MP3, OGG, WebM, and FLAC). |
 | `FIXTURES_DIR` | `fixtures` | Directory containing the JSON fixture files. |
+| `FILTERS_OPTIONS_PATH` | `fixtures/filters_options.csv` | Catalogue used by preference mappers; relative paths resolve under `FIXTURES_DIR`. |
+| `PREFERENCES_RULES_SYNONYMS_PATH` | `fixtures/rule_based_synonyms.json` | Synonym dictionary consumed by the rule-based preferences mapper. |
+| `PREFERENCES_RULES_LANGS` | `en` | Languages accepted by the rule-based preferences pipeline (comma-separated list). |
+| `PREFERENCES_RULES_THRESHOLD` | `0.6` | Confidence cut-off for marking rule-based preference options as selected. |
+| `PREFERENCES_RULES_NEGATION_PENALTY` | `0.25` | Penalty applied per negated hit when scoring rule-based matches. |
 | `POPULARITY_IMPUTER_ENABLED` | `true` | Enable or disable the popularity-based imputer that fills missing dates, airports, and party values using historic stats. Only applied when `LLM_METHOD=hybrid`. |
 | `POPULARITY_DATA_PATH` | `fixtures/popularity_stats.json` | Location of the persisted popularity statistics. Relative paths are resolved under `FIXTURES_DIR`. |
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
@@ -144,6 +149,11 @@ LLM_API_KEY=sk-your-key
 LLM_MODEL=gemini-2.5-flash
 # Optional when routing through a proxy/self-hosted gateway
 # LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta
+# Rule-based preferences configuration
+PREFERENCES_RULES_SYNONYMS_PATH=fixtures/rule_based_synonyms.json
+PREFERENCES_RULES_LANGS=en
+PREFERENCES_RULES_THRESHOLD=0.6
+PREFERENCES_RULES_NEGATION_PENALTY=0.25
 # Enable the popularity imputer (only used when LLM_METHOD=hybrid) and override the stats filename (relative to FIXTURES_DIR)
 POPULARITY_IMPUTER_ENABLED=true
 POPULARITY_DATA_PATH=popularity_stats.json

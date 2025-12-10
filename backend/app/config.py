@@ -289,6 +289,13 @@ class Settings(BaseSettings):
             "Path to the rule-based synonyms dictionary consumed by the preference mapper."
         ),
     )
+    preferences_rules_langs: List[str] = Field(
+        default_factory=lambda: ["en"],
+        alias="PREFERENCES_RULES_LANGS",
+        description=(
+            "Language codes accepted by the rule-based preferences pipeline; defaults to English-only."
+        ),
+    )
     preferences_rules_threshold: float = Field(
         default=0.6,
         alias="PREFERENCES_RULES_THRESHOLD",
@@ -355,6 +362,13 @@ class Settings(BaseSettings):
             cleaned = [str(item).strip() for item in value if str(item).strip()]
             return cleaned or ["en"]
         raise TypeError("ALLOWED_LANGS must be provided as a comma-separated string or list")
+
+    @field_validator("preferences_rules_langs", mode="before")
+    @classmethod
+    def _split_preferences_rules_langs(cls, value: object) -> List[str]:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        return cls._split_allowed_langs(value)
 
     @field_validator("voice_allowed_content_types", mode="before")
     @classmethod

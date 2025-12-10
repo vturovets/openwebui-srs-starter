@@ -813,11 +813,13 @@ def _format_preferences_response(
         {"filters": result.filters, "metadata": metadata}, ensure_ascii=False
     )
 
+    method_value = str(metadata.get("methodType") or result.method_used)
+
     log_entry: dict[str, object] = {
         "Timestamp (UTC)": _utc_timestamp(),
         "User input": input_text,
         "Request type": "Preferences",
-        "Method": result.method_used,
+        "Method": method_value,
         "Interaction Mode": metadata["mode"],
         "Pipeline Status": result.status,
         "Language Detection": [
