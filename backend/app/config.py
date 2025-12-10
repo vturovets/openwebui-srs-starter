@@ -257,6 +257,16 @@ class Settings(BaseSettings):
         alias="FIXTURES_DIR",
         description="Directory containing validation fixture data.",
     )
+    filters_options_path: Path = Field(
+        default=Path("fixtures/filters_options.csv"),
+        alias="FILTERS_OPTIONS_PATH",
+        description="Path to the filters and options catalogue used for preference mapping.",
+    )
+    filters_options_delimiter: str = Field(
+        default=",",
+        alias="FILTERS_OPTIONS_DELIMITER",
+        description="Delimiter used when reading filters_options.csv",
+    )
     popularity_imputer_enabled: bool = Field(
         default=True,
         alias="POPULARITY_IMPUTER_ENABLED",
@@ -617,6 +627,20 @@ class Settings(BaseSettings):
             return cleaned
         raise TypeError("LLM_MODEL must be provided as a string value")
 
+    @field_validator("filters_options_delimiter", mode="before")
+    @classmethod
+    def _validate_filters_options_delimiter(cls, value: object) -> str:
+        if value is PydanticUndefined:
+            return value  # type: ignore[return-value]
+        if value in (None, ""):
+            return ","
+        if not isinstance(value, str):
+            raise TypeError("FILTERS_OPTIONS_DELIMITER must be a string")
+        cleaned = value.strip()
+        if len(cleaned) != 1:
+            raise ValueError("FILTERS_OPTIONS_DELIMITER must be a single character")
+        return cleaned
+
     @field_validator("llm_timeout", mode="before")
     @classmethod
     def _validate_llm_timeout(cls, value: object) -> float:
@@ -693,6 +717,23 @@ class Settings(BaseSettings):
         relative_path = data_path
         try:
             relative_path = data_path.relative_to(default_root)
+        except ValueError:
+            pass
+
+        return (fixtures_dir / relative_path).resolve()
+
+    def resolve_filters_options_path(self) -> Path:
+        """Return an absolute path to the filters/options catalogue."""
+
+        path = self.filters_options_path
+        if path.is_absolute():
+            return path
+
+        fixtures_dir = self.fixtures_dir
+        default_root = Path("fixtures")
+        relative_path = path
+        try:
+            relative_path = path.relative_to(default_root)
         except ValueError:
             pass
 
