@@ -13,6 +13,10 @@ __all__ = [
     "JobMetrics",
     "PopularityImputer",
     "SynonymStore",
+    "NegationHandler",
+    "NegationSpan",
+    "PreprocessResult",
+    "TextPreprocessor",
 ]
 
 from .import_runner import (
@@ -26,4 +30,5 @@ from .import_runner import (
 from .import_summary import ImportSummaryReporter, ImportSummaryResult
 from .popularity_imputer import PopularityImputer
 from .synonym_store import SynonymStore
+from .text_processing import NegationHandler, NegationSpan, PreprocessResult, TextPreprocessor
 

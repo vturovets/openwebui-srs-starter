@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Mapping, Tuple
 
 from ..fixtures.filter_catalogue import FilterDefinition, FilterOption, FiltersCatalogue
+from ..services.text_processing import NegationHandler, TextPreprocessor
 
 
 @dataclass(frozen=True)
@@ -93,27 +93,14 @@ class PreferenceMappingStrategy:
     def map(self, utterance: str, *, language: str) -> Tuple[str, List[FilterSelection], List[Mapping[str, object]]]:
         raise NotImplementedError
 
-    def _match_synonyms(
-        self,
-        utterance: str,
-        option: FilterOption,
-        extra_synonyms: Iterable[str] | None = None,
-    ) -> bool:
-        synonyms = list(option.synonyms)
-        if extra_synonyms:
-            synonyms.extend(extra_synonyms)
-        lowered = utterance.lower()
-        for synonym in synonyms:
-            pattern = r"\b" + re.escape(synonym) + r"\b"
-            if re.search(pattern, lowered, flags=re.IGNORECASE):
-                return True
-        return False
-
 
 class RulesPreferenceMapper(PreferenceMappingStrategy):
     """Lightweight heuristic mapper for baseline coverage."""
 
-    NEGATIVE_HINTS = ("no catering", "without catering", "no meals")
+    def __init__(self, catalogue: FiltersCatalogue) -> None:
+        super().__init__(catalogue)
+        self._preprocessor = TextPreprocessor(normalizer=self._catalogue.normalize_label)
+        self._negation = NegationHandler()
 
     def map(
         self, utterance: str, *, language: str
@@ -121,35 +108,29 @@ class RulesPreferenceMapper(PreferenceMappingStrategy):
         selections: Dict[str, List[FilterOption]] = {}
         mappings: List[Mapping[str, object]] = []
 
+        negation_cleaned, _negation_spans = self._negation.apply(
+            utterance, normalizer=self._catalogue.normalize_label
+        )
+        processed = self._preprocessor.preprocess(negation_cleaned)
+        ngram_set = set(processed.ngrams)
+
         for definition in self._catalogue.list_filters():
             for option in definition.options:
-                if self._match_synonyms(utterance, option):
+                normalized_synonyms = {option.normalized_label, *option.normalized_synonyms}
+                if self._match_synonyms(ngram_set, normalized_synonyms):
                     selections.setdefault(definition.id, []).append(option)
                     mappings.append(
                         {
                             "filterId": definition.id,
                             "optionId": option.id,
-                            "spans": [{"text": option.label}],
+                            "spans": [
+                                {
+                                    "text": option.label,
+                                    "normalized": next(iter(normalized_synonyms)),
+                                }
+                            ],
                         }
                     )
-
-        lowered = utterance.lower()
-        for hint in self.NEGATIVE_HINTS:
-            if hint in lowered:
-                try:
-                    boards = self._catalogue.get_filter("boards")
-                    room_only = boards.get_option("room_only")
-                except KeyError:
-                    break
-                selections.setdefault(boards.id, []).append(room_only)
-                mappings.append(
-                    {
-                        "filterId": boards.id,
-                        "optionId": room_only.id,
-                        "spans": [{"text": hint}],
-                    }
-                )
-                break
 
         filter_selections: List[FilterSelection] = []
         for filter_id, options in selections.items():
@@ -160,6 +141,14 @@ class RulesPreferenceMapper(PreferenceMappingStrategy):
 
         status = "success" if filter_selections else "no-preferences-detected"
         return status, filter_selections, mappings
+
+    def _match_synonyms(
+        self, normalized_ngrams: set[str], normalized_synonyms: Iterable[str]
+    ) -> bool:
+        for synonym in normalized_synonyms:
+            if synonym in normalized_ngrams:
+                return True
+        return False
 
 
 class LLMPreferenceMapper(RulesPreferenceMapper):
