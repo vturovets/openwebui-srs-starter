@@ -107,12 +107,21 @@ class PreferencesPipeline:
         status: str
         filter_payload: list[Mapping[str, object]]
         mappings: list[Mapping[str, object]] | None
-        strategy = self._strategies.get(resolved_method.kind, RulesPreferenceMapper(self._filters_catalogue))
-        status, selections, mapping_payload = self._measure(
-            "mappingMs",
-            timings,
-            lambda: strategy.map(utterance, language=detection.language),
+        strategy = self._strategies.get(
+            resolved_method.kind, RulesPreferenceMapper(self._filters_catalogue)
         )
+        error: str | None = None
+        try:
+            status, selections, mapping_payload = self._measure(
+                "mappingMs",
+                timings,
+                lambda: strategy.map(utterance, language=detection.language),
+            )
+        except Exception as exc:
+            status = "invalid-catalogue"
+            selections = []
+            mapping_payload = []
+            error = str(exc)
 
         filter_payload = [selection.to_payload() for selection in selections]
         mappings = mapping_payload
@@ -133,17 +142,18 @@ class PreferencesPipeline:
         }
         if requested_alias and requested_alias.lower() != resolved_method.id.lower():
             metadata["requestedAlias"] = requested_alias
+        requested_method = requested_alias or resolved_method.id
 
         return PreferenceRunResult(
             status=status,
-            method_requested=resolved_method.id,
+            method_requested=requested_method,
             method_used=resolved_method.id,
             detection=detection,
             filters=filter_payload,
             timings=timings,
             metadata=metadata,
             mappings=mappings,
-            error=None,
+            error=error,
         )
 
 
