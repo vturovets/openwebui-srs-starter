@@ -14,8 +14,21 @@
     ? (entry.result.filters as MappedFilter[])
     : [];
 
-  const isPreferencesResult =
-    typeof metadata.mode === 'string' && metadata.mode.trim().toLowerCase() === 'preferences';
+  const isPreferencesResult = (() => {
+    const modeLabel = typeof metadata.mode === 'string' ? metadata.mode.trim().toLowerCase() : '';
+    if (modeLabel.includes('preferences')) {
+      return true;
+    }
+
+    const statusLabel = typeof entry.result.status === 'string'
+      ? entry.result.status.trim().toLowerCase()
+      : '';
+    if (statusLabel.includes('preferences')) {
+      return true;
+    }
+
+    return Array.isArray(entry.result.filters);
+  })();
 
   const emptyPreferencesMessage = (() => {
     if (!isPreferencesResult || mappedFilters.length > 0) {
@@ -162,14 +175,56 @@
       <pre>{entry.input}</pre>
     </div>
 
-    <section class="data">
-      <h3>API request parameters</h3>
-      <ul>
-        {#each formattedDataRows as { label, value }}
-          <li><strong>{label}</strong> <span>{value}</span></li>
-        {/each}
-      </ul>
-    </section>
+    {#if isPreferencesResult}
+      {#if mappedFilters.length}
+        <section class="mapped-filters" data-testid="mapped-filters">
+          <h3>Mapped filters</h3>
+          {#each mappedFilters as filter, index (filter.filterId ?? filter.filterLabel ?? `filter-${index}`)}
+            <div class="filter-group" data-testid="filter-group">
+              <h4>{filter.filterLabel ?? filter.filterId}</h4>
+              <ul>
+                {#if (filter.options ?? []).length === 0}
+                  <li class="empty">No options mapped</li>
+                {:else}
+                  {#each filter.options ?? [] as option, optionIndex (option.optionId ?? option.optionLabel ?? `option-${optionIndex}`)}
+                    <li class:selected={option.selected} class="filter-option" data-testid="filter-option">
+                      <div class="option-row">
+                        <span class="option-label">{option.optionLabel ?? option.optionId}</span>
+                        {#if option.selected}
+                          <span class="badge" aria-label="Selected option">Selected</span>
+                        {/if}
+                        {#if typeof option.confidence === 'number'}
+                          <span class="confidence">{formatConfidence(option.confidence)}</span>
+                        {/if}
+                      </div>
+                      {#if option.spans?.length}
+                        <div class="span-hints">
+                          {option.spans.map((span) => span.text).filter(Boolean).join(' · ')}
+                        </div>
+                      {/if}
+                    </li>
+                  {/each}
+                {/if}
+              </ul>
+            </div>
+          {/each}
+        </section>
+      {:else if emptyPreferencesMessage}
+        <section class="mapped-filters empty" data-testid="mapped-filters-empty">
+          <h3>Mapped filters</h3>
+          <p>{emptyPreferencesMessage}</p>
+        </section>
+      {/if}
+    {:else}
+      <section class="data">
+        <h3>API request parameters</h3>
+        <ul>
+          {#each formattedDataRows as { label, value }}
+            <li><strong>{label}</strong> <span>{value}</span></li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
   </section>
 
   <section class="timings">
@@ -193,46 +248,6 @@
       </tbody>
     </table>
   </section>
-
-  {#if mappedFilters.length}
-    <section class="mapped-filters" data-testid="mapped-filters">
-      <h3>Mapped filters</h3>
-      {#each mappedFilters as filter, index (filter.filterId ?? filter.filterLabel ?? `filter-${index}`)}
-        <div class="filter-group" data-testid="filter-group">
-          <h4>{filter.filterLabel ?? filter.filterId}</h4>
-          <ul>
-            {#if (filter.options ?? []).length === 0}
-              <li class="empty">No options mapped</li>
-            {:else}
-              {#each filter.options ?? [] as option, optionIndex (option.optionId ?? option.optionLabel ?? `option-${optionIndex}`)}
-                <li class:selected={option.selected} class="filter-option" data-testid="filter-option">
-                  <div class="option-row">
-                    <span class="option-label">{option.optionLabel ?? option.optionId}</span>
-                    {#if option.selected}
-                      <span class="badge" aria-label="Selected option">Selected</span>
-                    {/if}
-                    {#if typeof option.confidence === 'number'}
-                      <span class="confidence">{formatConfidence(option.confidence)}</span>
-                    {/if}
-                  </div>
-                  {#if option.spans?.length}
-                    <div class="span-hints">
-                      {option.spans.map((span) => span.text).filter(Boolean).join(' · ')}
-                    </div>
-                  {/if}
-                </li>
-              {/each}
-            {/if}
-          </ul>
-        </div>
-      {/each}
-    </section>
-  {:else if emptyPreferencesMessage}
-    <section class="mapped-filters empty" data-testid="mapped-filters-empty">
-      <h3>Mapped filters</h3>
-      <p>{emptyPreferencesMessage}</p>
-    </section>
-  {/if}
 
   {#if missing.length || invalid.length || mismatches.length}
     <section class="issues" data-testid="issue-summary">

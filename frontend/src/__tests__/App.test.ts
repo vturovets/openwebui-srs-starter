@@ -412,6 +412,7 @@ describe('Holiday search console', () => {
     expect(parseTextMock.mock.calls[0][2].mode).toBe('preferences');
 
     await waitFor(() => expect(screen.getByTestId('mapped-filters')).toBeInTheDocument());
+    expect(screen.queryByText('API request parameters')).not.toBeInTheDocument();
     expect(screen.getByText('Boards')).toBeInTheDocument();
     expect(screen.getByText('Facilities')).toBeInTheDocument();
     expect(screen.getAllByTestId('filter-option').length).toBeGreaterThan(0);
@@ -457,6 +458,7 @@ describe('Holiday search console', () => {
 
     await waitFor(() => expect(screen.getAllByTestId('structured-result').length).toBeGreaterThan(0));
     expect(screen.getByText('Total, ms')).toBeInTheDocument();
+    expect(screen.getByText('API request parameters')).toBeInTheDocument();
     expect(screen.getByTestId('status-label')).toHaveTextContent('success');
   });
 
