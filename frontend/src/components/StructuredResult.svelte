@@ -14,6 +14,27 @@
     ? (entry.result.filters as MappedFilter[])
     : [];
 
+  const isPreferencesResult =
+    typeof metadata.mode === 'string' && metadata.mode.trim().toLowerCase() === 'preferences';
+
+  const emptyPreferencesMessage = (() => {
+    if (!isPreferencesResult || mappedFilters.length > 0) {
+      return '';
+    }
+
+    const metadataMessage = typeof metadata.message === 'string' ? metadata.message.trim() : '';
+    if (metadataMessage) {
+      return metadataMessage;
+    }
+
+    const statusLabel = typeof entry.result.status === 'string' ? entry.result.status.trim() : '';
+    if (statusLabel.toLowerCase().includes('no-preferences')) {
+      return 'No preferences detected from your input.';
+    }
+
+    return 'No preferences detected in your request.';
+  })();
+
   const errorMessage = (() => {
     const metadataMessage = typeof metadata.message === 'string' ? metadata.message.trim() : '';
     if (metadataMessage) {
@@ -206,6 +227,11 @@
         </div>
       {/each}
     </section>
+  {:else if emptyPreferencesMessage}
+    <section class="mapped-filters empty" data-testid="mapped-filters-empty">
+      <h3>Mapped filters</h3>
+      <p>{emptyPreferencesMessage}</p>
+    </section>
   {/if}
 
   {#if missing.length || invalid.length || mismatches.length}
@@ -374,6 +400,14 @@
     padding: 1rem;
     display: grid;
     gap: 0.75rem;
+  }
+
+  .mapped-filters.empty {
+    color: #cbd5e1;
+  }
+
+  .mapped-filters.empty p {
+    margin: 0;
   }
 
   .mapped-filters h3 {

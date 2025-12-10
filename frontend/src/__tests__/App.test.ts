@@ -220,6 +220,20 @@ const PREFERENCES_PARSE_SUCCESS = {
   },
 };
 
+const PREFERENCES_NO_FILTERS = {
+  status: 'no-preferences-detected',
+  data: {},
+  filters: [],
+  metadata: {
+    mode: 'preferences',
+    method: 'rules-preferences',
+    message: 'No preferences detected for your request',
+    timings: {
+      totalMs: 75,
+    },
+  },
+};
+
 const BASE_SUMMARY: ImportSummaryResponse = {
   performance: {
     method: 'rules-basic',
@@ -401,6 +415,31 @@ describe('Holiday search console', () => {
     expect(screen.getByText('Boards')).toBeInTheDocument();
     expect(screen.getByText('Facilities')).toBeInTheDocument();
     expect(screen.getAllByTestId('filter-option').length).toBeGreaterThan(0);
+  });
+
+  it('shows empty-state messaging when no preferences are detected', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PREFERENCES_NO_FILTERS));
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    await fireEvent.click(screen.getByTestId('mode-toggle-preferences'));
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'tell me more' } });
+    await fireEvent.submit(screen.getByTestId('parse-form'));
+
+    await waitFor(() => expect(parseTextMock).toHaveBeenCalled());
+    expect(parseTextMock.mock.calls[0][2].mode).toBe('preferences');
+
+    await waitFor(() => expect(screen.getByTestId('mapped-filters-empty')).toBeInTheDocument());
+    expect(screen.getByTestId('mapped-filters-empty')).toHaveTextContent('No preferences detected');
+    expect(screen.queryByTestId('mapped-filters')).not.toBeInTheDocument();
   });
 
   it('shows structured results with timings after parsing text', async () => {
