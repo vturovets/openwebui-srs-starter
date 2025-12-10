@@ -692,13 +692,19 @@ async def parse_text(
     payload: ParseRequest,
     settings: Settings = Depends(get_settings),
     pipeline: HolidaySearchPipeline = Depends(get_pipeline),
+    preferences_pipeline: PreferencesPipeline = Depends(get_preferences_pipeline),
     logger: CSVLogger = Depends(get_csv_logger),
     summary_logger: ImportSummaryLogger | None = Depends(get_import_summary_logger),
 ) -> ParseResponse | ImportSummarySchema:
     """Run the NLP pipeline and expose timings plus validation metadata."""
 
     if payload.import_mode:
-        runner = ImportJobRunner(pipeline=pipeline, settings=settings, logger=None)
+        runner = ImportJobRunner(
+            pipeline=pipeline,
+            settings=settings,
+            logger=None,
+            preferences_pipeline=preferences_pipeline,
+        )
         try:
             summary = await runner.run_import(_prepare_import_requests(payload))
         except GuardrailOverloadError as exc:  # pragma: no cover - defensive
@@ -794,6 +800,7 @@ def _format_preferences_response(
     metadata["method"] = result.method_used
     metadata["requestedMethod"] = result.method_requested
     metadata["timings"] = timings
+    metadata["status"] = result.status
     metadata["language"] = {
         "code": result.detection.language,
         "confidence": result.detection.confidence,
@@ -812,7 +819,7 @@ def _format_preferences_response(
         "Request type": "Preferences",
         "Method": result.method_used,
         "Interaction Mode": metadata["mode"],
-        "Pipeline Status": result.status.capitalize(),
+        "Pipeline Status": result.status,
         "Language Detection": [
             _format_timing_ms(timings.get("languageMs")),
             language_summary,
