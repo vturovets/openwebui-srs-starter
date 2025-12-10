@@ -23,6 +23,13 @@ class _SlowPreferenceMapper(PreferenceMappingStrategy):
         return "success", [selection], mappings
 
 
+class _BrokenPreferenceMapper(PreferenceMappingStrategy):
+    """Strategy that simulates a catalogue failure."""
+
+    def map(self, utterance: str, *, language: str):  # pragma: no cover - trivial
+        raise ValueError("Catalogue missing")
+
+
 def test_preferences_pipeline_flags_threshold(monkeypatch):
     monkeypatch.setenv("PROCESSING_THRESHOLD_MS", "5")
     pipeline = PreferencesPipeline()
@@ -32,4 +39,16 @@ def test_preferences_pipeline_flags_threshold(monkeypatch):
 
     assert result.timings["totalMs"] > pipeline._settings.processing_threshold_ms
     assert result.timings["thresholdBreached"] is True
+
+
+def test_preferences_pipeline_surfaces_catalogue_errors():
+    pipeline = PreferencesPipeline()
+    pipeline._strategies = {"rules": _BrokenPreferenceMapper(pipeline._filters_catalogue)}
+
+    result = pipeline.run("need wifi", method="rules")
+
+    assert result.status == "invalid-catalogue"
+    assert result.filters == []
+    assert result.mappings == []
+    assert result.error == "Catalogue missing"
 

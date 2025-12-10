@@ -35,3 +35,13 @@ def test_preferences_pipeline_no_match_returns_empty_filters() -> None:
 
     assert result.status == "no-preferences-detected"
     assert result.filters == []
+
+
+def test_preferences_pipeline_records_requested_alias() -> None:
+    pipeline = build_pipeline()
+
+    result = pipeline.run("Need wifi and scuba", method="rules")
+
+    assert result.status == "success"
+    assert result.method_used == "rules-basic"
+    assert result.method_requested == "rules"
