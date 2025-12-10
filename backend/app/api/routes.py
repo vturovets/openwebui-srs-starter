@@ -21,6 +21,7 @@ from ..dependencies import (
     get_csv_logger,
     get_dialog_orchestrator,
     get_import_summary_logger,
+    get_preferences_pipeline,
     get_stt_client,
     get_pipeline,
     get_settings,
@@ -29,6 +30,7 @@ from ..logging import CSVLogger, ImportSummaryLogger
 from ..pipeline.dialog import DialogOrchestrator
 from ..pipeline.language import LanguageNotPermittedError
 from ..pipeline.pipeline import HolidaySearchPipeline
+from ..pipeline.preferences import PreferenceRunResult, PreferencesPipeline
 from ..schemas import ImportSummary as ImportSummarySchema, build_import_summary
 from ..schemas.import_summary import ImportSummaryRequest, ImportSummaryResponse
 from ..services import (
@@ -48,6 +50,7 @@ api_router = APIRouter(prefix="/v1", tags=["v1"])
 
 _DEPENDENCY_RESOLVERS = {
     get_pipeline: get_pipeline,
+    get_preferences_pipeline: get_preferences_pipeline,
     get_csv_logger: get_csv_logger,
     get_import_summary_logger: get_import_summary_logger,
     get_stt_client: get_stt_client,
@@ -123,6 +126,22 @@ class ParseRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class PreferencesParseRequest(BaseModel):
+    """Payload required to interpret free-text preferences."""
+
+    text: str = Field(..., description="Utterance to map to structured filters.")
+    mode: str | None = Field(
+        default="preferences",
+        description="Interaction mode indicator forwarded to the UI.",
+    )
+    method: str | None = Field(
+        default=None,
+        description="Optional method identifier to attribute downstream processing.",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class VoiceWordTiming(BaseModel):
     """Word-level timing returned by the STT provider."""
 
@@ -148,6 +167,14 @@ class ParseResponse(BaseModel):
 
     status: str
     data: dict[str, object]
+    metadata: dict[str, object]
+
+
+class PreferencesParseResponse(BaseModel):
+    """Structured response returned by the preferences parse endpoint."""
+
+    status: str
+    filters: list[Mapping[str, object]]
     metadata: dict[str, object]
 
 
@@ -711,6 +738,95 @@ async def parse_text(
         raise HTTPException(status_code=400, detail=error_detail)
 
     return ParseResponse(status=pipeline_status, data=data_payload, metadata=metadata)
+
+
+@api_router.post("/preferences/parse", response_model=PreferencesParseResponse)
+async def parse_preferences(
+    payload: PreferencesParseRequest,
+    settings: Settings = Depends(get_settings),
+    pipeline: PreferencesPipeline = Depends(get_preferences_pipeline),
+    logger: CSVLogger = Depends(get_csv_logger),
+) -> PreferencesParseResponse:
+    """Interpret free-text preferences and emit structured filters."""
+
+    try:
+        result = pipeline.run(payload.text, method=payload.method)
+    except LanguageNotPermittedError as exc:
+        message = _format_language_error_message(exc, settings.allowed_langs)
+        raise HTTPException(status_code=400, detail=message) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    status_value, filters, metadata, log_entry, error_detail = _format_preferences_response(
+        result=result,
+        settings=settings,
+        mode=payload.mode,
+        input_text=payload.text,
+    )
+
+    logger.log(log_entry)
+
+    if status_value == "error" and error_detail:
+        raise HTTPException(status_code=400, detail=error_detail)
+
+    return PreferencesParseResponse(status=status_value, filters=filters, metadata=metadata)
+
+
+def _format_preferences_response(
+    *,
+    result: PreferenceRunResult,
+    settings: Settings,
+    mode: str | None,
+    input_text: str,
+):
+    """Normalise preference pipeline output for API responses and logging."""
+
+    timings = dict(result.timings)
+    total_ms_raw = timings.get("totalMs", 0.0)
+    total_ms = float(total_ms_raw) if isinstance(total_ms_raw, (int, float)) else 0.0
+    threshold_ms = settings.processing_threshold_ms
+    threshold_breached = total_ms > threshold_ms
+    timings["totalMs"] = total_ms
+    timings["thresholdBreached"] = threshold_breached
+
+    metadata = dict(result.metadata)
+    metadata["mode"] = mode or "preferences"
+    metadata["method"] = result.method_used
+    metadata["requestedMethod"] = result.method_requested
+    metadata["timings"] = timings
+    metadata["language"] = {
+        "code": result.detection.language,
+        "confidence": result.detection.confidence,
+    }
+    if result.mappings is not None:
+        metadata["mappings"] = result.mappings
+
+    language_summary = f"{result.detection.language} ({result.detection.confidence:.2f})"
+    output_serialised = json.dumps(
+        {"filters": result.filters, "metadata": metadata}, ensure_ascii=False
+    )
+
+    log_entry: dict[str, object] = {
+        "Timestamp (UTC)": _utc_timestamp(),
+        "User input": input_text,
+        "Request type": "Preferences",
+        "Method": result.method_used,
+        "Interaction Mode": metadata["mode"],
+        "Pipeline Status": result.status.capitalize(),
+        "Language Detection": [
+            _format_timing_ms(timings.get("languageMs")),
+            language_summary,
+        ],
+        "Processing Time": _format_timing_ms(total_ms),
+        "Extraction": "",
+        "Mapping": "",
+        "Validation": "",
+        "Transcription": "",
+        "Network Latency": _format_timing_ms(timings.get("llmNetworkMs")),
+        "Output": output_serialised,
+    }
+
+    return result.status, result.filters, metadata, log_entry, result.error
 
 
 @api_router.post("/dialog", response_model=DialogResponse)
