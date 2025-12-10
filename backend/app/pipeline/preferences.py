@@ -14,6 +14,7 @@ from .preferences_mapping import (
 )
 from ..config import Settings
 from ..fixtures.filter_catalogue import FiltersCatalogue
+from ..services.synonym_store import SynonymStore
 
 
 @dataclass
@@ -47,10 +48,30 @@ class PreferencesPipeline:
             self._settings.resolve_filters_options_path(),
             delimiter=self._settings.filters_options_delimiter,
         )
+        self._synonym_store = SynonymStore(
+            self._filters_catalogue, self._settings.resolve_preferences_rules_synonyms_path()
+        )
+        threshold = self._settings.preferences_rules_threshold
+        negation_penalty = self._settings.preferences_rules_negation_penalty
         self._strategies: dict[str, PreferenceMappingStrategy] = {
-            "rules": RulesPreferenceMapper(self._filters_catalogue),
-            "llm": LLMPreferenceMapper(self._filters_catalogue),
-            "hybrid": HybridPreferenceMapper(self._filters_catalogue),
+            "rules": RulesPreferenceMapper(
+                self._filters_catalogue,
+                synonym_store=self._synonym_store,
+                threshold=threshold,
+                negation_penalty=negation_penalty,
+            ),
+            "llm": LLMPreferenceMapper(
+                self._filters_catalogue,
+                synonym_store=self._synonym_store,
+                threshold=threshold,
+                negation_penalty=negation_penalty,
+            ),
+            "hybrid": HybridPreferenceMapper(
+                self._filters_catalogue,
+                synonym_store=self._synonym_store,
+                threshold=threshold,
+                negation_penalty=negation_penalty,
+            ),
         }
 
     def _resolve_method(self, override: str | None) -> tuple[str | None, MethodConfig]:

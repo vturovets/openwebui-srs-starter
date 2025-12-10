@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Mapping, Tuple
+from typing import Dict, Iterable, List, Mapping, MutableMapping, Tuple
 
 from ..fixtures.filter_catalogue import FilterDefinition, FilterOption, FiltersCatalogue
 from ..services.text_processing import NegationHandler, TextPreprocessor
+from ..services.synonym_store import SynonymStore
 
 
 @dataclass(frozen=True)
@@ -97,58 +98,120 @@ class PreferenceMappingStrategy:
 class RulesPreferenceMapper(PreferenceMappingStrategy):
     """Lightweight heuristic mapper for baseline coverage."""
 
-    def __init__(self, catalogue: FiltersCatalogue) -> None:
+    def __init__(
+        self,
+        catalogue: FiltersCatalogue,
+        *,
+        synonym_store: SynonymStore | None = None,
+        threshold: float = 0.6,
+        negation_penalty: float = 0.25,
+    ) -> None:
         super().__init__(catalogue)
         self._preprocessor = TextPreprocessor(normalizer=self._catalogue.normalize_label)
         self._negation = NegationHandler()
+        self._synonyms = synonym_store or SynonymStore(
+            self._catalogue, self._catalogue.path.parent / "rule_based_synonyms.json"
+        )
+        self._threshold = max(0.0, min(1.0, threshold))
+        self._negation_penalty = max(0.0, negation_penalty)
 
     def map(
         self, utterance: str, *, language: str
     ) -> Tuple[str, List[FilterSelection], List[Mapping[str, object]]]:
-        selections: Dict[str, List[FilterOption]] = {}
+        candidate_scores: MutableMapping[tuple[str, str], dict[str, object]] = {}
         mappings: List[Mapping[str, object]] = []
 
-        negation_cleaned, _negation_spans = self._negation.apply(
+        negation_cleaned, negation_spans = self._negation.apply(
             utterance, normalizer=self._catalogue.normalize_label
         )
         processed = self._preprocessor.preprocess(negation_cleaned)
-        ngram_set = set(processed.ngrams)
+        negation_replacements = {
+            self._catalogue.normalize_label(span.replacement)
+            for span in negation_spans
+            if span.replacement
+        }
+        negated_phrases = {
+            self._catalogue.normalize_label(span.phrase)
+            for span in negation_spans
+            if not span.replacement
+        }
 
-        for definition in self._catalogue.list_filters():
-            for option in definition.options:
-                normalized_synonyms = {option.normalized_label, *option.normalized_synonyms}
-                if self._match_synonyms(ngram_set, normalized_synonyms):
-                    selections.setdefault(definition.id, []).append(option)
-                    mappings.append(
-                        {
-                            "filterId": definition.id,
-                            "optionId": option.id,
-                            "spans": [
-                                {
-                                    "text": option.label,
-                                    "normalized": next(iter(normalized_synonyms)),
-                                }
-                            ],
-                        }
-                    )
+        for ngram in processed.ngrams:
+            targets = self._synonyms.inverted_index.get(ngram, ())
+            if not targets:
+                continue
 
-        filter_selections: List[FilterSelection] = []
-        for filter_id, options in selections.items():
+            is_blocked = ngram in negated_phrases
+            negated_hit = ngram in negation_replacements
+            for filter_id, option_id in targets:
+                key = (filter_id, option_id)
+                stats = candidate_scores.setdefault(
+                    key,
+                    {
+                        "phrases": [],
+                        "hits": 0,
+                        "length_sum": 0,
+                        "negated_hits": 0,
+                        "blocked": False,
+                    },
+                )
+                stats["phrases"].append(ngram)
+                stats["hits"] += 1
+                stats["length_sum"] += len(ngram.split())
+                if negated_hit:
+                    stats["negated_hits"] += 1
+                if is_blocked:
+                    stats["blocked"] = True
+
+        filter_selections: Dict[str, List[FilterOptionSelection]] = {}
+
+        for (filter_id, option_id), stats in candidate_scores.items():
             definition = self._catalogue.get_filter(filter_id)
-            filter_selections.append(
-                FilterSelection.from_catalogue(definition, options, confidence=0.9)
+            option = definition.get_option(option_id)
+            confidence = self._score_candidate(stats)
+            selected = confidence >= self._threshold and not stats.get("blocked")
+            selection = FilterOptionSelection(
+                id=option.id,
+                label=option.label,
+                selected=selected,
+                confidence=confidence,
+            )
+            filter_selections.setdefault(filter_id, []).append(selection)
+            mappings.append(
+                {
+                    "filterId": filter_id,
+                    "optionId": option_id,
+                    "spans": [
+                        {"text": phrase, "normalized": phrase}
+                        for phrase in sorted(set(stats["phrases"]))
+                    ],
+                    "confidence": confidence,
+                    "hits": stats["hits"],
+                    "blocked": bool(stats.get("blocked")),
+                }
             )
 
-        status = "success" if filter_selections else "no-preferences-detected"
-        return status, filter_selections, mappings
+        compiled: List[FilterSelection] = []
+        for filter_id, options in filter_selections.items():
+            definition = self._catalogue.get_filter(filter_id)
+            compiled.append(FilterSelection.from_catalogue(definition, options))
 
-    def _match_synonyms(
-        self, normalized_ngrams: set[str], normalized_synonyms: Iterable[str]
-    ) -> bool:
-        for synonym in normalized_synonyms:
-            if synonym in normalized_ngrams:
-                return True
-        return False
+        status = "success" if compiled else "no-preferences-detected"
+        return status, compiled, mappings
+
+    def _score_candidate(self, stats: Mapping[str, object]) -> float:
+        hits = int(stats.get("hits", 0))
+        if hits <= 0:
+            return 0.0
+
+        length_sum = int(stats.get("length_sum", 0))
+        avg_length = length_sum / hits if hits else 0.0
+        length_bonus = min(avg_length / 3.0, 1.0)
+        frequency_bonus = min(hits / 2.0, 1.0)
+        penalty = self._negation_penalty * int(stats.get("negated_hits", 0))
+
+        confidence = 0.35 + 0.4 * length_bonus + 0.25 * frequency_bonus - penalty
+        return max(0.0, min(1.0, confidence))
 
 
 class LLMPreferenceMapper(RulesPreferenceMapper):
