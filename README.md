@@ -27,6 +27,11 @@ be swapped in while retaining comparable output for experiments.
   regressions analysis.
 - **Frontend parity** – [`frontend/`](frontend) reproduces the OpenWebUI flow with
   component tests (Vitest) and Playwright E2E coverage for interactive journeys.
+- **Free-text preference mapping (CR-004)** – [`backend/app/pipeline/preferences.py`](backend/app/pipeline/preferences.py)
+  interprets preference-oriented utterances (e.g. _“room only, scuba, strong
+  Wi‑Fi”_) and maps them to structured filters/options from
+  [`fixtures/filters_options.csv`](fixtures/filters_options.csv), logging mapping
+  spans and method metadata alongside timing thresholds.
 
 ## Project structure
 
@@ -198,6 +203,20 @@ Structured extraction strategies are described in [`config/methods.yaml`](config
 
 Update `METHODS_CONFIG_PATH` to point at an alternate YAML file if you need to swap in different evaluation strategies per environment.
 
+### Preference mapping mode (CR-004)
+
+The **Free-Text Preference → Filter Mapping** capability accepts preference
+utterances via `POST /v1/preferences/parse` using the same request envelope as
+`/v1/parse` (`{ text, mode, method? }`). Responses include detected language,
+mapped filters/options grouped by filter label, mapping spans, and timing
+metadata. The method catalogue (`LLM_METHOD` and `config/methods.yaml`) drives
+which rule/LLM/hybrid strategies are used, while the canonical filter taxonomy
+is loaded from [`fixtures/filters_options.csv`](fixtures/filters_options.csv) and
+tunable via `FILTERS_OPTIONS_*` and `PREFERENCES_RULES_*` settings (synonyms,
+accepted languages, thresholds, negation penalties). Preference mapping calls
+participate in the same CSV logging and import/summary flow as holiday search so
+P95/accuracy stats can be compared across methods.
+
 ## Bulk import operations
 
 High-volume backlogs can be processed with the [`ImportJobRunner`](backend/app/services/import_runner.py). It batches
@@ -354,6 +373,7 @@ and Playwright suites live under [`frontend/tests`](frontend/tests).
 | --- | --- |
 | `GET /health` | Returns `{ "status": "ok" }` plus the active interaction mode for readiness checks. |
 | `POST /v1/parse` | Parses a natural-language utterance and responds with structured holiday parameters, validation metadata, and timing metrics. |
+| `POST /v1/preferences/parse` | Maps free-text preferences to structured filters/options using rule/LLM/hybrid strategies and returns mapping spans plus timing metadata. |
 | `POST /v1/dialog` | Maintains clarification sessions, returning prompts and accumulating transcript context when `INTERACTION_MODE=dialog`. |
 | `GET /v1/fixtures` | Exposes airports, destinations, available check-in dates, configuration defaults, enabled methods, and UI hints such as `voiceEnabled`/`showResults`. |
 | `POST /v1/import/summary` | Accepts previously captured import metadata and returns performance/accuracy/usage roll-ups aligned with the UI dashboards. |
