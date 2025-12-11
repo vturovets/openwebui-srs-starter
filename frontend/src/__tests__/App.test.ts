@@ -417,6 +417,31 @@ describe('Holiday search console', () => {
     expect(screen.getAllByTestId('filter-option').length).toBeGreaterThan(0);
   });
 
+  it('hides API request parameters for preferences results', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PREFERENCES_PARSE_SUCCESS));
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    await fireEvent.click(screen.getByTestId('mode-toggle-preferences'));
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'No catering but scuba required' } });
+    await fireEvent.submit(screen.getByTestId('parse-form'));
+
+    await waitFor(() => expect(parseTextMock).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId('mapped-filters')).toBeInTheDocument());
+
+    expect(
+      screen.queryByRole('heading', { name: 'API request parameters', level: 3 })
+    ).not.toBeInTheDocument();
+  });
+
   it('shows empty-state messaging when no preferences are detected', async () => {
     parseTextMock.mockResolvedValueOnce(clone(PREFERENCES_NO_FILTERS));
 
