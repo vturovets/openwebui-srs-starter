@@ -252,11 +252,13 @@
 
 <style>
   .voice {
-    background: rgba(15, 23, 42, 0.4);
-    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(16, 26, 46, 0.8), rgba(12, 20, 38, 0.85));
+    border-radius: 14px;
     padding: 1rem;
     display: grid;
     gap: 0.75rem;
+    border: 1px solid rgba(148, 197, 250, 0.2);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.3);
   }
 
   h2 {
@@ -266,7 +268,8 @@
 
   p {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+    color: #d0ddff;
   }
 
   .controls {
@@ -284,14 +287,14 @@
     border-radius: 999px;
     padding: 0.55rem 1rem;
     cursor: pointer;
-    background: #f97316;
-    color: #0f172a;
+    background: linear-gradient(135deg, #5ab7ff, #2f74ff);
+    color: #0b1224;
     font: inherit;
     transition: background 0.2s ease, box-shadow 0.2s ease;
   }
 
   .record-button:hover:enabled {
-    background: #fb923c;
+    background: linear-gradient(135deg, #76c4ff, #3f85ff);
   }
 
   .record-button:disabled {
@@ -327,10 +330,12 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    border: 1px dashed #38bdf8;
-    border-radius: 999px;
-    padding: 0.45rem 0.85rem;
+    border: 1px dashed rgba(148, 197, 250, 0.6);
+    border-radius: 12px;
+    padding: 0.55rem 0.95rem;
     cursor: pointer;
+    color: #d6e4ff;
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .upload input {
