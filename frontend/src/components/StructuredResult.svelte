@@ -162,14 +162,16 @@
       <pre>{entry.input}</pre>
     </div>
 
-    <section class="data">
-      <h3>API request parameters</h3>
-      <ul>
-        {#each formattedDataRows as { label, value }}
-          <li><strong>{label}</strong> <span>{value}</span></li>
-        {/each}
-      </ul>
-    </section>
+    {#if !isPreferencesResult}
+      <section class="data">
+        <h3>API request parameters</h3>
+        <ul>
+          {#each formattedDataRows as { label, value }}
+            <li><strong>{label}</strong> <span>{value}</span></li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
   </section>
 
   <section class="timings">
