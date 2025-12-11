@@ -135,44 +135,26 @@
   }
 
   const formattedDataRows = getExtractedValueRows(entry);
-
-  const rawStatus = typeof entry.result.status === 'string' ? entry.result.status : '';
-  const normalizedStatus = rawStatus.trim().toLowerCase();
-  const statusState = normalizedStatus
-    ? ['success', 'ok', 'passed'].includes(normalizedStatus)
-      ? 'success'
-      : 'error'
-    : 'idle';
-  const statusLabel = normalizedStatus || 'pending';
 </script>
 
 <article class={`result ${entry.result.status}`} data-testid="structured-result">
-  <header class="result-header">
-    <div class="title-stack">
-      <p class="result-overline">{entry.source === 'voice' ? 'Voice request' : 'Text request'}</p>
-      <div class="title-row">
-        <h2>{entry.source === 'voice' ? 'Voice request' : 'Text request'}</h2>
-        <span class={`status-chip ${statusState}`} data-testid="status-label">
-          Status: <span class="status-text">{statusLabel}</span>
-        </span>
-      </div>
-    </div>
+  <header>
+    <h2>{entry.source === 'voice' ? 'Voice' : 'Text'} request</h2>
     <time datetime={entry.timestamp}>{new Date(entry.timestamp).toLocaleString()}</time>
   </header>
-
-  {#if errorMessage || entry.prompt}
-    <section class="status-banner">
-      {#if errorMessage}
-        <p class="error-message" data-testid="error-message">{errorMessage}</p>
-      {/if}
-      {#if entry.prompt}
-        <div class="prompt" data-testid="clarification">
-          <strong>Clarification needed:</strong>
-          <pre>{entry.prompt}</pre>
-        </div>
-      {/if}
-    </section>
-  {/if}
+  <section class="status">
+    <strong>Status:</strong>
+    <span data-testid="status-label">{entry.result.status}</span>
+    {#if errorMessage}
+      <p class="error-message" data-testid="error-message">{errorMessage}</p>
+    {/if}
+    {#if entry.prompt}
+      <div class="prompt" data-testid="clarification">
+        <strong>Clarification needed:</strong>
+        <pre>{entry.prompt}</pre>
+      </div>
+    {/if}
+  </section>
 
   <section class="request-details">
     <div class="request-text">
@@ -280,128 +262,45 @@
 
 <style>
   .result {
-    background: linear-gradient(160deg, rgba(21, 33, 59, 0.75), rgba(12, 20, 38, 0.9));
-    border-radius: 16px;
-    padding: 1.1rem 1.25rem;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 12px;
+    padding: 1rem;
     display: grid;
-    gap: 0.85rem;
+    gap: 0.75rem;
     --label-column-width: clamp(8rem, 25vw, 13rem);
-    border: 1px solid rgba(110, 143, 202, 0.3);
-    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
   }
 
-  .result.success {
-    border-color: rgba(74, 222, 128, 0.35);
-  }
-
-  .result.failed,
-  .result.error {
-    border-color: rgba(248, 113, 113, 0.4);
-  }
-
-  .result-header {
+  header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .title-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .title-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-
-  .result-overline {
-    margin: 0;
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #9cb1dc;
+    align-items: baseline;
   }
 
   h2 {
     margin: 0;
-    font-size: 1.2rem;
-    letter-spacing: 0.01em;
+    font-size: 1.1rem;
   }
 
   time {
-    font-size: 0.85rem;
-    color: #9fb4dd;
-    white-space: nowrap;
+    font-size: 0.75rem;
+    color: #94a3b8;
   }
 
-  .status-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 0.75rem;
-    border-radius: 999px;
-    border: 1px solid rgba(148, 197, 250, 0.35);
-    background: rgba(68, 111, 170, 0.2);
-    font-weight: 700;
-    color: #d0ddff;
+  .status strong {
+    margin-right: 0.5rem;
   }
 
-  .status-text {
+  .status span {
     text-transform: capitalize;
   }
 
-  .status-chip::before {
-    content: '';
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: currentColor;
-    box-shadow: 0 0 0 4px rgba(208, 221, 255, 0.18);
+  .result.success {
+    border: 1px solid rgba(74, 222, 128, 0.3);
   }
 
-  .status-chip.success {
-    border-color: rgba(52, 211, 153, 0.35);
-    background: rgba(34, 197, 94, 0.12);
-    color: #5ce7b4;
-  }
-
-  .status-chip.error {
-    border-color: rgba(248, 113, 113, 0.35);
-    background: rgba(248, 113, 113, 0.12);
-    color: #fca5a5;
-  }
-
-  .status-banner {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(148, 197, 250, 0.2);
-    border-radius: 12px;
-    padding: 0.75rem 0.9rem;
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .error-message {
-    margin: 0;
-    color: #fca5a5;
-    font-size: 0.95rem;
-  }
-
-  .prompt {
-    background: rgba(248, 113, 113, 0.15);
-    border-radius: 10px;
-    padding: 0.6rem 0.7rem;
-    margin: 0;
-  }
-
-  .prompt pre {
-    margin: 0.25rem 0 0;
-    white-space: pre-wrap;
-    font-size: 0.85rem;
+  .result.failed,
+  .result.error {
+    border: 1px solid rgba(248, 113, 113, 0.3);
   }
 
   .request-details {
@@ -416,28 +315,16 @@
     }
   }
 
-  .request-text pre,
-  .data,
-  .timings,
-  .mapped-filters,
-  .issues {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(148, 197, 250, 0.2);
-    border-radius: 12px;
-    padding: 0.9rem 1rem;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-
   .request-text pre {
     margin: 0;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    color: #e6edff;
+    padding: 0.75rem;
+    background: rgba(51, 65, 85, 0.5);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #e2e8f0;
     white-space: pre-wrap;
     word-break: break-word;
-    background: linear-gradient(135deg, rgba(22, 36, 63, 0.5), rgba(18, 28, 50, 0.7));
-    border-radius: 10px;
-    border: 1px solid rgba(104, 140, 214, 0.25);
   }
 
   .data ul {
@@ -445,8 +332,8 @@
     padding: 0;
     margin: 0;
     display: grid;
-    gap: 0.35rem;
-    font-size: 0.9rem;
+    gap: 0.25rem;
+    font-size: 0.8rem;
   }
 
   .data li {
@@ -457,60 +344,62 @@
   }
 
   .data strong {
-    color: #9fb4dd;
-    font-weight: 700;
+    color: #94a3b8;
+    font-weight: 600;
   }
 
   .data span {
     display: block;
   }
 
-  .timings h3,
-  .data h3,
-  .mapped-filters h3,
-  .issues h3 {
-    margin: 0 0 0.35rem;
-    letter-spacing: 0.02em;
-  }
-
   table {
-    border-collapse: separate;
-    border-spacing: 0;
+    border-collapse: collapse;
     width: 100%;
-    font-size: 0.9rem;
-    border: 1px solid rgba(148, 197, 250, 0.2);
-    border-radius: 12px;
-    overflow: hidden;
-    background: rgba(8, 12, 24, 0.35);
+    font-size: 0.8rem;
   }
 
   th,
   td {
-    padding: 0.45rem 0.6rem;
+    padding: 0.25rem 0.5rem;
     text-align: left;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.3);
   }
 
   th {
-    color: #9fb4dd;
-    font-weight: 700;
+    color: #94a3b8;
+    font-weight: 600;
     padding-right: 1rem;
   }
 
   td {
     width: auto;
-    color: #e6edff;
   }
 
-  tr:last-child th,
-  tr:last-child td {
-    border-bottom: none;
+  .prompt {
+    background: rgba(248, 113, 113, 0.15);
+    border-radius: 8px;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .prompt pre {
+    margin: 0;
+    white-space: pre-wrap;
+    font-size: 0.75rem;
+  }
+
+  .error-message {
+    margin: 0.35rem 0 0;
+    color: #fca5a5;
+    font-size: 0.9rem;
   }
 
   .mapped-filters {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 1rem;
     display: grid;
     gap: 0.75rem;
-    background: linear-gradient(135deg, rgba(16, 26, 46, 0.8), rgba(18, 31, 55, 0.75));
   }
 
   .mapped-filters.empty {
@@ -518,6 +407,10 @@
   }
 
   .mapped-filters.empty p {
+    margin: 0;
+  }
+
+  .mapped-filters h3 {
     margin: 0;
   }
 
@@ -539,17 +432,15 @@
   }
 
   .filter-option {
-    background: rgba(12, 20, 38, 0.7);
-    border-radius: 10px;
-    padding: 0.6rem 0.8rem;
+    background: rgba(15, 23, 42, 0.4);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
     display: grid;
     gap: 0.25rem;
-    border: 1px solid rgba(148, 197, 250, 0.18);
   }
 
   .filter-option.selected {
-    border-color: #5ab7ff;
-    box-shadow: 0 12px 20px rgba(90, 183, 255, 0.12);
+    border: 1px solid #38bdf8;
   }
 
   .option-row {
@@ -560,7 +451,7 @@
   }
 
   .option-label {
-    font-weight: 700;
+    font-weight: 600;
   }
 
   .span-hints {
@@ -569,16 +460,15 @@
   }
 
   .badge {
-    background: #5ab7ff;
+    background: #0ea5e9;
     color: #0b1224;
     border-radius: 999px;
     padding: 0.15rem 0.5rem;
     font-size: 0.8rem;
-    font-weight: 700;
   }
 
   .confidence {
-    color: #9fb4dd;
+    color: #94a3b8;
     font-size: 0.85rem;
   }
 
@@ -589,12 +479,12 @@
 
   .mismatches li {
     margin-bottom: 0.25rem;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
   }
 
   .issues p {
     margin: 0.25rem 0 0;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
   }
 </style>
 
