@@ -46,6 +46,7 @@
   let downloadUrl: string | null = null;
   let importInput: HTMLInputElement | null = null;
   let resettingHistory = false;
+  let latestStatus: string | null = null;
 
   const CSV_HEADERS = CSV_LOG_FIELDS;
   const SUCCESS_STATUSES = new Set(['success', 'ok', 'passed']);
@@ -278,6 +279,8 @@
   }
 
   $: parseMode = isPreferencesMode ? 'preferences' : mode;
+  $: latestStatus =
+    history[0]?.result?.status ?? (fixtureError ? 'error' : loadingFixtures ? 'loading' : 'success');
 
   function buildClarificationPrompt(result: HolidayResult): string {
     const clarifications = result.clarifications ?? [];
@@ -325,6 +328,27 @@
     }
 
     return !SUCCESS_STATUSES.has(normalized);
+  }
+
+  function formatStatus(status: string | null): string {
+    if (!status) {
+      return 'Idle';
+    }
+    const normalized = status.trim();
+    return normalized ? `${normalized[0].toUpperCase()}${normalized.slice(1)}` : 'Idle';
+  }
+
+  function statusVariant(status: string | null): 'success' | 'error' | 'loading' | 'idle' {
+    if (!status) {
+      return 'idle';
+    }
+
+    const normalized = status.trim().toLowerCase();
+    if (normalized === 'loading') {
+      return 'loading';
+    }
+
+    return isFailureStatus(normalized) ? 'error' : 'success';
   }
 
   function shouldDisplayImportedEntry(entry: HolidayResultEntry): boolean {
@@ -650,33 +674,41 @@
 
 <main class="app">
   <section class="panel">
-    <header>
-      <h1>{isPreferencesMode ? 'Preferences Console' : 'Holiday Search Console'}</h1>
-      {#if loadingFixtures}
-        <p data-testid="fixtures-loading">Loading fixtures…</p>
-      {:else if fixtureError}
-        <p class="error" data-testid="fixtures-error">{fixtureError}</p>
-      {:else if fixtures && !isPreferencesMode}
-        <div class="fixtures" data-testid="fixtures-loaded">
-          <div>
-            <strong>Default Participants:</strong>
-            <span>{formatDefaultParticipants(fixtures.configuration?.defaults)}</span>
-          </div>
-          <div>
-            <strong>Flexibility, days:</strong>
-            <span>{resolveDefaultFlexibility(fixtures.configuration?.flexibility)}</span>
-          </div>
-          <div>
-            <strong>Airports:</strong>
-            <span>{fixtures.airports.join(', ') || '—'}</span>
-          </div>
-          <div>
-            <strong>Destinations:</strong>
-            <span>{fixtures.destinations.join(', ') || '—'}</span>
-          </div>
-        </div>
-      {/if}
+    <header class="panel-header">
+      <div class="panel-title">
+        <p class="panel-overline">{isPreferencesMode ? 'Preferences' : 'Holiday request'}</p>
+        <h1>{isPreferencesMode ? 'Preferences Console' : 'Holiday Search Console'}</h1>
+      </div>
+      <div class={`panel-status ${statusVariant(latestStatus)}`} aria-live="polite" data-testid="panel-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Status: {formatStatus(latestStatus)}</span>
+      </div>
     </header>
+
+    {#if loadingFixtures}
+      <p class="info-banner" data-testid="fixtures-loading">Loading fixtures…</p>
+    {:else if fixtureError}
+      <p class="info-banner error" data-testid="fixtures-error">{fixtureError}</p>
+    {:else if fixtures && !isPreferencesMode}
+      <div class="fixtures" data-testid="fixtures-loaded">
+        <div>
+          <strong>Default Participants:</strong>
+          <span>{formatDefaultParticipants(fixtures.configuration?.defaults)}</span>
+        </div>
+        <div>
+          <strong>Flexibility, days:</strong>
+          <span>{resolveDefaultFlexibility(fixtures.configuration?.flexibility)}</span>
+        </div>
+        <div>
+          <strong>Airports:</strong>
+          <span>{fixtures.airports.join(', ') || '—'}</span>
+        </div>
+        <div>
+          <strong>Destinations:</strong>
+          <span>{fixtures.destinations.join(', ') || '—'}</span>
+        </div>
+      </div>
+    {/if}
     <div class="mode-toggle" role="group" aria-label="Console mode" data-testid="mode-toggle">
       <button
         type="button"
@@ -738,8 +770,11 @@
       </label>
 
       <div class="actions">
-        <button type="submit" disabled={busy} data-testid="submit-button">{busy ? 'Parsing…' : 'Parse request'}</button>
+        <button class="button primary" type="submit" disabled={busy} data-testid="submit-button">
+          {busy ? 'Parsing…' : 'Parse request'}
+        </button>
         <button
+          class="button secondary"
           type="button"
           on:click={triggerImport}
           disabled={busy}
@@ -747,7 +782,9 @@
         >
           Import CSV
         </button>
-        <button type="button" on:click={exportCsv} data-testid="export-button">Export CSV</button>
+        <button class="button ghost" type="button" on:click={exportCsv} data-testid="export-button">
+          Export CSV
+        </button>
       </div>
 
       {#if importProgress}
@@ -770,7 +807,7 @@
     <div class="reset-actions">
       <button
         type="button"
-        class="reset-button"
+        class="button ghost reset-button"
         on:click={resetHistory}
         disabled={!history.length}
         data-testid="reset-button"
@@ -965,33 +1002,120 @@
 <style>
   :global(body) {
     margin: 0;
-    font-family: system-ui, sans-serif;
-    background: #0f172a;
-    color: #e2e8f0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0b1224, #0d1f37 60%, #0a152b);
+    color: #e6ecf7;
+    min-height: 100vh;
   }
 
   .app {
     display: grid;
-    grid-template-columns: 360px 1fr;
-    gap: 1.5rem;
+    grid-template-columns: minmax(320px, 420px) 1fr;
+    gap: 1.75rem;
     min-height: 100vh;
-    padding: 1.5rem;
+    padding: 1.75rem;
     box-sizing: border-box;
     align-items: start;
   }
 
   .panel {
-    background: #1e293b;
-    border-radius: 12px;
-    padding: 1.5rem;
+    background: linear-gradient(160deg, rgba(31, 41, 71, 0.7), rgba(15, 26, 46, 0.9));
+    border-radius: 16px;
+    padding: 1.35rem 1.4rem 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
     position: sticky;
-    top: 1.5rem;
+    top: 1.75rem;
     align-self: start;
-    max-height: calc(100vh - 3rem);
+    max-height: calc(100vh - 3.5rem);
     overflow-y: auto;
+    border: 1px solid rgba(96, 121, 173, 0.25);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .panel-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .panel-overline {
+    margin: 0;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #95a8d8;
+  }
+
+  .panel h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    letter-spacing: 0.01em;
+  }
+
+  .info-banner {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 197, 250, 0.15);
+    color: #d0ddff;
+    font-weight: 600;
+  }
+
+  .info-banner.error {
+    border-color: rgba(248, 113, 113, 0.4);
+    background: rgba(248, 113, 113, 0.12);
+    color: #fecdd3;
+  }
+
+  .panel-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 197, 250, 0.35);
+    background: rgba(58, 118, 188, 0.15);
+    font-weight: 700;
+    color: #b8d2ff;
+    text-transform: capitalize;
+    white-space: nowrap;
+  }
+
+  .panel-status .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 4px rgba(184, 210, 255, 0.14);
+  }
+
+  .panel-status.success {
+    border-color: rgba(52, 211, 153, 0.35);
+    background: rgba(34, 197, 94, 0.12);
+    color: #5ce7b4;
+  }
+
+  .panel-status.error {
+    border-color: rgba(248, 113, 113, 0.35);
+    background: rgba(248, 113, 113, 0.12);
+    color: #fca5a5;
+  }
+
+  .panel-status.loading,
+  .panel-status.idle {
+    border-color: rgba(148, 197, 250, 0.35);
+    background: rgba(59, 130, 246, 0.12);
+    color: #bfdbfe;
   }
 
   .mode-toggle {
@@ -1001,24 +1125,23 @@
   }
 
   .mode-toggle button {
-    background: rgba(255, 255, 255, 0.06);
-    color: #e2e8f0;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 0.65rem 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    color: #e9efff;
+    border: 1px solid rgba(126, 148, 196, 0.45);
+    border-radius: 12px;
+    padding: 0.75rem 0.9rem;
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    transition: all 120ms ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .mode-toggle button.selected {
-    background: #0ea5e9;
-    border-color: #22d3ee;
-    color: #0b1224;
-  }
-
-  .panel h1 {
-    margin: 0 0 0.5rem;
-    font-size: 1.5rem;
+    background: linear-gradient(135deg, #31548f, #203a6a);
+    border-color: rgba(142, 201, 255, 0.8);
+    color: #dce8ff;
+    box-shadow: 0 10px 25px rgba(20, 48, 91, 0.35);
   }
 
   .content {
@@ -1044,22 +1167,23 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: #0f172a;
+    background: radial-gradient(circle at 20% 20%, rgba(49, 84, 143, 0.15), transparent 40%),
+      linear-gradient(135deg, rgba(9, 13, 24, 0.75), rgba(13, 27, 51, 0.9));
     border-radius: 18px;
     z-index: -1;
     pointer-events: none;
   }
 
   .summary-card {
-    background: #1e293b;
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(17, 27, 48, 0.92);
+    border: 1px solid rgba(114, 147, 205, 0.35);
     border-radius: 16px;
     padding: 1.1rem 1.3rem;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 0.8rem;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.4);
+    box-shadow: 0 25px 60px rgba(7, 13, 26, 0.55);
   }
 
   .summary-header {
@@ -1117,7 +1241,7 @@
     font-size: 0.65rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #94a3b8;
+    color: #9fb4dd;
     text-align: left;
   }
 
@@ -1126,24 +1250,31 @@
     font-size: 1.05rem;
     font-weight: 600;
     text-align: right;
+    color: #e9efff;
   }
 
   .fixtures {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.9rem;
+    gap: 0.35rem;
+    font-size: 0.95rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 197, 250, 0.18);
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
   .query {
     display: grid;
-    gap: 0.75rem;
+    gap: 1rem;
   }
 
   label {
     display: grid;
-    gap: 0.25rem;
-    font-size: 0.85rem;
+    gap: 0.35rem;
+    font-size: 0.95rem;
+    color: #c8d7ff;
   }
 
   textarea,
@@ -1156,23 +1287,25 @@
   input,
   select,
   textarea {
-    padding: 0.5rem;
-    border-radius: 8px;
-    border: 1px solid #334155;
-    background: #0f172a;
-    color: inherit;
+    padding: 0.75rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid #233455;
+    background: #0c152b;
+    color: #e9efff;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
   }
 
   textarea:focus,
   input:focus,
   select:focus {
-    outline: 2px solid #38bdf8;
-    outline-offset: 1px;
+    outline: none;
+    border-color: #5ab7ff;
+    box-shadow: 0 0 0 3px rgba(90, 183, 255, 0.25);
   }
 
   .actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.6rem;
     flex-wrap: wrap;
   }
 
@@ -1180,41 +1313,70 @@
     margin: 0;
     margin-top: 0.5rem;
     font-size: 0.9rem;
-    color: #93c5fd;
+    color: #a9c9ff;
   }
 
   button {
-    padding: 0.6rem 1rem;
-    border-radius: 999px;
-    border: none;
-    background: #38bdf8;
-    color: #0f172a;
+    font: inherit;
+  }
+
+  .button {
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #233455;
+    background: linear-gradient(135deg, #152442, #102038);
+    color: #e6edff;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: transform 120ms ease, box-shadow 150ms ease, border-color 120ms ease;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
   }
 
-  button[disabled] {
-    opacity: 0.5;
+  .button.primary {
+    background: linear-gradient(135deg, #5ab7ff, #2f74ff);
+    border-color: #5ab7ff;
+    color: #0b1324;
+    box-shadow: 0 18px 30px rgba(47, 116, 255, 0.35);
+  }
+
+  .button.secondary {
+    background: linear-gradient(135deg, #234c72, #1b3957);
+    border-color: #4a7cb5;
+  }
+
+  .button.ghost {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #2c3f63;
+    color: #d6e4ff;
+  }
+
+  .button:hover:enabled {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 28px rgba(0, 0, 0, 0.35);
+    border-color: #5ab7ff;
+  }
+
+  .button:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
-  }
-
-  button:hover:enabled {
-    background: #0ea5e9;
   }
 
   .reset-actions {
     margin-top: auto;
+    padding-top: 0.25rem;
   }
 
   .reset-button {
-    background: transparent;
-    color: #38bdf8;
-    border: 1px solid #38bdf8;
+    border-color: rgba(214, 228, 255, 0.35);
+    color: #d6e4ff;
+    background: rgba(255, 255, 255, 0.04);
     padding-inline: 1.25rem;
   }
 
   .reset-button:hover:enabled {
-    background: rgba(56, 189, 248, 0.1);
+    border-color: #5ab7ff;
+    color: #5ab7ff;
   }
 
   .results {
