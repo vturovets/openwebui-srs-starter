@@ -2,6 +2,7 @@ import type {
   Fixtures,
   FixturesPerformanceTargets,
   HolidayResult,
+  MappedFilter,
   ImportSummaryRequest,
   ImportSummaryResponse,
   VoiceResponse,
@@ -126,18 +127,38 @@ export async function parseText(
   text: string,
   options: { mode?: string; method?: string }
 ): Promise<HolidayResult> {
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/parse`, {
+  const base = baseUrl.replace(/\/$/, '');
+  const isPreferencesMode = (options.mode ?? '').trim().toLowerCase() === 'preferences';
+  const endpoint = isPreferencesMode ? '/v1/preferences/parse' : '/v1/parse';
+  const body = isPreferencesMode
+    ? { text, method: options.method }
+    : { text, mode: options.mode, method: options.method };
+
+  const response = await fetch(`${base}${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      text,
-      mode: options.mode,
-      method: options.method,
-    }),
+    body: JSON.stringify(body),
   });
-  return handleResponse(response);
+
+  const payload = await handleResponse(response);
+  if (!isPreferencesMode) {
+    return payload as HolidayResult;
+  }
+
+  const metadata = (payload as { metadata?: Record<string, unknown> }).metadata ?? {};
+  const normalizedMetadata = typeof metadata === 'object' && metadata !== null ? { ...metadata } : {};
+  if (typeof normalizedMetadata.mode !== 'string') {
+    normalizedMetadata.mode = 'preferences';
+  }
+
+  return {
+    status: (payload as { status?: string }).status ?? 'error',
+    data: null,
+    metadata: normalizedMetadata as Record<string, any>,
+    filters: (payload as { filters?: MappedFilter[] }).filters ?? [],
+  } satisfies HolidayResult;
 }
 
 export async function postVoice(baseUrl: string, formData: FormData): Promise<VoiceResponse> {
