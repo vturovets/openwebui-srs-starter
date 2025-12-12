@@ -32,11 +32,6 @@ be swapped in while retaining comparable output for experiments.
   Wi‑Fi”_) and maps them to structured filters/options from
   [`fixtures/filters_options.csv`](fixtures/filters_options.csv), logging mapping
   spans and method metadata alongside timing thresholds.
-- **Fixture conversion utility** – [`scripts/build_filters_fixture.py`](scripts/build_filters_fixture.py)
-  rewrites the documentation-friendly `docs/filters_options.csv` catalogue into
-  the runtime fixture consumed by the preferences pipeline, validating required
-  columns, guarding against identifier collisions, and supporting either
-  slugified IDs or the source IDs supplied in the input.
 
 ## Project structure
 
@@ -82,29 +77,6 @@ The editable install pulls both runtime and development dependencies
 | Run API locally | `uvicorn backend.app.main:app --reload`
 | Lint backend code | `make lint` *(ruff check backend)* |
 | Run backend + frontend tests | `make test` *(pytest + npm test)* |
-
-### Fixture tooling
-
-Regenerate the filters/options catalogue consumed by the preferences pipeline
-using `scripts/build_filters_fixture.py`:
-
-```bash
-python scripts/build_filters_fixture.py \
-  --input docs/filters_options.csv \
-  --output fixtures/filters_options.csv \
-  --id-strategy slug
-```
-
-The converter validates the presence of `filterId`, `filterName`, `optionId`, and
-`optionName` columns, preserves synonyms, and supports two identifier
-strategies:
-
-- `slug` (default) normalizes names into collision-safe slugs while
-  auto-disambiguating duplicates.
-- `source` retains the source identifiers provided in the input CSV.
-
-Outputs are written with a stable header (`filterId`, `filterLabel`, `optionId`,
-`optionLabel`, `synonyms`) and parent directories are created automatically.
 
 ## Configuration
 
