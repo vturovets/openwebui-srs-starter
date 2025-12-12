@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchFixtures } from '../api';
+import { fetchFixtures, parseText } from '../api';
 
 describe('fetchFixtures', () => {
   beforeEach(() => {
@@ -66,5 +66,78 @@ describe('fetchFixtures', () => {
       importP95Significance: 0.9,
     });
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/v1/fixtures');
+  });
+});
+
+describe('parseText', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('routes preferences mode requests to dedicated endpoint and normalises response', async () => {
+    const payload = {
+      status: 'success',
+      filters: [{ filterId: 'facilities', filterLabel: 'Facilities', options: [] }],
+      metadata: { mode: 'preferences', message: 'ok' },
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(payload),
+    } as Response);
+
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const result = await parseText('http://localhost:8000/', 'wifi', {
+      mode: 'preferences',
+      method: 'rules-basic',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/v1/preferences/parse', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text: 'wifi', method: 'rules-basic' }),
+    });
+    expect(result).toEqual({
+      status: 'success',
+      data: null,
+      metadata: { mode: 'preferences', message: 'ok' },
+      filters: payload.filters,
+    });
+  });
+
+  it('falls back to standard parse endpoint for non-preference modes', async () => {
+    const payload = {
+      status: 'success',
+      data: { destination: 'Spain' },
+      metadata: { mode: 'direct-parse' },
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(payload),
+    } as Response);
+
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const result = await parseText('http://localhost:8000', 'need a holiday', {
+      mode: 'direct-parse',
+      method: 'hybrid-v1',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/v1/parse', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text: 'need a holiday', mode: 'direct-parse', method: 'hybrid-v1' }),
+    });
+    expect(result).toEqual(payload);
   });
 });
