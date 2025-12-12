@@ -87,6 +87,15 @@ def parse_args() -> argparse.Namespace:
         help="Destination CSV path (defaults to fixtures/filters_options.csv)",
     )
     parser.add_argument(
+        "--synonyms-from",
+        dest="synonyms_from",
+        type=Path,
+        help=(
+            "Optional CSV path to preserve synonyms when the input lacks them; "
+            "falls back to the existing output file when present"
+        ),
+    )
+    parser.add_argument(
         "--id-strategy",
         choices=ID_STRATEGIES,
         default="slug",
@@ -113,7 +122,35 @@ def load_rows(input_path: Path) -> Iterable[dict[str, str]]:
         raise ConversionError(f"Invalid CSV structure: {exc}") from exc
 
 
-def convert_rows(rows: Iterable[dict[str, str]], strategy: str) -> list[dict[str, str]]:
+def load_synonyms_map(paths: Iterable[Path]) -> dict[tuple[str, str], str]:
+    synonyms_map: dict[tuple[str, str], str] = {}
+    for path in paths:
+        if not path:
+            continue
+        if not path.exists():
+            raise ConversionError(f"Synonyms source '{path}' does not exist")
+        try:
+            with path.open("r", encoding="utf-8-sig", newline="") as handle:
+                reader = csv.DictReader(handle)
+                if not reader.fieldnames or "synonyms" not in reader.fieldnames:
+                    raise ConversionError(
+                        f"Synonyms source '{path}' is missing required 'synonyms' column"
+                    )
+                for row in reader:
+                    filter_name = (row.get("filterLabel") or row.get("filterName") or "").strip().lower()
+                    option_name = (row.get("optionLabel") or row.get("optionName") or "").strip().lower()
+                    synonyms = (row.get("synonyms") or "").strip()
+                    if not filter_name or not option_name or not synonyms:
+                        continue
+                    synonyms_map[(filter_name, option_name)] = synonyms
+        except OSError as exc:
+            raise ConversionError(f"Unable to read synonyms source '{path}': {exc}") from exc
+    return synonyms_map
+
+
+def convert_rows(
+    rows: Iterable[dict[str, str]], strategy: str, synonyms_map: dict[tuple[str, str], str]
+) -> list[dict[str, str]]:
     generator = IdGenerator(strategy)
     converted: list[dict[str, str]] = []
 
@@ -123,6 +160,9 @@ def convert_rows(rows: Iterable[dict[str, str]], strategy: str) -> list[dict[str
         source_filter_id = (row.get("filterId") or "").strip()
         source_option_id = (row.get("optionId") or "").strip()
         synonyms = (row.get("synonyms") or "").strip()
+        synonyms_key = (filter_name.lower(), option_name.lower())
+        if not synonyms and synonyms_key in synonyms_map:
+            synonyms = synonyms_map[synonyms_key]
 
         if not filter_name or not option_name:
             raise ConversionError("Filter and option names must be provided for every row")
@@ -158,7 +198,15 @@ def write_rows(output_path: Path, rows: Iterable[dict[str, str]]) -> None:
 def main() -> None:
     args = parse_args()
     rows = list(load_rows(args.input))
-    converted = convert_rows(rows, strategy=args.id_strategy)
+
+    synonyms_sources: list[Path] = []
+    if args.synonyms_from:
+        synonyms_sources.append(args.synonyms_from)
+    elif args.output.exists():
+        synonyms_sources.append(args.output)
+
+    synonyms_map = load_synonyms_map(synonyms_sources)
+    converted = convert_rows(rows, strategy=args.id_strategy, synonyms_map=synonyms_map)
     write_rows(args.output, converted)
     print(
         f"[build_filters_fixture] Wrote {len(converted)} rows to {args.output} using '{args.id_strategy}' identifiers"
