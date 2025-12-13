@@ -127,9 +127,8 @@ def process_batches(
     all_results: List[Dict[str, object]] = []
     for batch_number, batch_rows in enumerate(batches, start=resume_offset + 1):
         logger.info("Processing batch %s with %s rows", batch_number, len(batch_rows))
-        raw_results = client.generate(
-            instructions, [row.to_payload() for row in batch_rows], max_synonyms
-        )
+        batch_payload = [row.to_payload() for row in batch_rows]
+        raw_results = client.generate(instructions, batch_payload, max_synonyms)
         enforce_schema(raw_results)
         sanitized = _apply_sanitization(batch_rows, raw_results, max_synonyms)
         all_results.extend(sanitized)
@@ -140,6 +139,11 @@ def process_batches(
                 "temperature": client.temperature,
                 "max_synonyms": max_synonyms,
                 "row_count": len(batch_rows),
+                "curl": client.build_curl(
+                    instructions=instructions,
+                    rows=batch_payload,
+                    max_synonyms=max_synonyms,
+                ),
             }
             _store_raw(raw_dir, batch_number, raw_results, request_metadata)
     return all_results
