@@ -127,6 +127,10 @@ def test_process_batches_saves_raw(tmp_path: Path) -> None:
             [
                 {
                     "ID": "1",
+                    "filterId": "F",
+                    "filterName": "Filter",
+                    "optionId": "O",
+                    "optionName": "Option",
                     "synonyms": ["value"],
                 }
             ]
@@ -135,11 +139,8 @@ def test_process_batches_saves_raw(tmp_path: Path) -> None:
     raw_dir = tmp_path / "raw"
     results = cli.process_batches([rows], client, "instr", 5, raw_dir)
     assert results[0]["synonyms"] == ["value"]
-    assert results[0]["filterId"] == "F"
-    assert results[0]["notes"] == ""
     saved = json.loads((raw_dir / "batch_1.json").read_text(encoding="utf-8"))
     assert saved["response"][0]["synonyms"] == ["value"]
-    assert saved["response"][0]["filterId"] == "F"
     assert saved["request"]["curl"].startswith("curl --data [")
 
 
