@@ -46,11 +46,12 @@ class InputValidationError(Exception):
     pass
 
 
-def validate_headers(headers: Sequence[str]) -> None:
+def validate_headers(headers: Sequence[str]) -> List[str]:
     normalized = [h.replace("\ufeff", "") for h in headers]
     missing = [col for col in REQUIRED_COLUMNS if col not in normalized]
     if missing:
         raise InputValidationError(f"Missing required columns: {', '.join(missing)}")
+    return normalized
 
 
 def read_input_rows(path: Path) -> List[InputRow]:
@@ -60,7 +61,7 @@ def read_input_rows(path: Path) -> List[InputRow]:
         reader = csv.DictReader(handle)
         if reader.fieldnames is None:
             raise InputValidationError("Input CSV has no headers")
-        validate_headers(reader.fieldnames)
+        reader.fieldnames = validate_headers(reader.fieldnames)
         rows = [InputRow.from_dict(row) for row in reader]
     logger.info("Loaded %s rows from %s", len(rows), path)
     return rows
