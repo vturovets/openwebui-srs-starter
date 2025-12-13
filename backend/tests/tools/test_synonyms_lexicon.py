@@ -106,6 +106,7 @@ def test_resume_merges_existing_results(tmp_path: Path, monkeypatch: pytest.Monk
         "1",
         "--model",
         "dummy",
+        "--resume",
     ])
 
     def mock_read_input_rows(path: Path):
