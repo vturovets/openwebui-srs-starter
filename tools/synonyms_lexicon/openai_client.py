@@ -20,7 +20,7 @@ class ResponsesAPI:
         timeout: int,
         max_retries: int,
         rate_limit_sleep: float,
-        show_curl: bool = False,
+        show_curl: bool = True,
     ) -> None:
         global OpenAI, OpenAIError
         if OpenAI is None or OpenAIError is None:
@@ -89,8 +89,8 @@ class ResponsesAPI:
     ) -> Dict[str, object]:
         payload = list(rows)
         response_format = {
-            "type": "json_schema",
-            "json_schema": {
+            "format": {
+                "type": "json_schema",
                 "name": SCHEMA_NAME,
                 "schema": RESPONSE_SCHEMA,
                 "strict": True,
@@ -105,7 +105,7 @@ class ResponsesAPI:
             "model": self.model,
             "input": [{"role": "user", "content": user_input}],
             "instructions": instructions,
-            "response_format": response_format,
+            "text": response_format,
             "temperature": self.temperature,
         }
 
