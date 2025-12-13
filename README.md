@@ -82,15 +82,15 @@ The editable install pulls both runtime and development dependencies
 
 Use the structured Responses API utility to build per-option synonym lexicons from a CSV:
 
-```bash
-python -m tools.synonyms_lexicon \
-  --input data/filters_options_refined_an_131225.csv \
-  --output out/synonyms_lexicon.json \
-  --batch-size 150 \
-  --model gpt-5.2 \
-  --temperature 0.3 \
-  --max-synonyms 10 \
-  --raw-dir out/raw_responses
+```powershell
+python -m tools.synonyms_lexicon `
+  --input "data/filters_options_refined_an_131225.csv" `
+  --output "out/synonyms_lexicon.json" `
+  --batch-size 150 `
+  --model "gpt-5.2" `
+  --temperature 0.3 `
+  --max-synonyms 10 `
+  --raw-dir "out/raw_responses"
 ```
 
 Flags `--resume`, `--dry-run`, `--rate-limit-sleep`, `--max-retries`, and `--timeout` control resumability and resilience. Metadata is stored alongside the output file.
