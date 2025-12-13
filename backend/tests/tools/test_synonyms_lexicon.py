@@ -91,6 +91,7 @@ def test_resume_merges_existing_results(tmp_path: Path, monkeypatch: pytest.Monk
                     "optionId": "O2",
                     "optionName": "Two",
                     "synonyms": ["Second"],
+                    "notes": "",
                 }
             ]
         ]
@@ -132,6 +133,7 @@ def test_process_batches_saves_raw(tmp_path: Path) -> None:
                     "optionId": "O",
                     "optionName": "Option",
                     "synonyms": ["value"],
+                    "notes": "",
                 }
             ]
         ]
