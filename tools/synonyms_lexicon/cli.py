@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List
 
+from dotenv import load_dotenv
+
 from .io import (
     InputRow,
     InputValidationError,
@@ -32,6 +34,7 @@ DEFAULT_TEMPERATURE = 0.3
 DEFAULT_RATE_LIMIT_SLEEP = 2.0
 DEFAULT_MAX_RETRIES = 5
 DEFAULT_TIMEOUT = 120
+DEFAULT_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
 
 class DryRunComplete(Exception):
@@ -101,6 +104,12 @@ def _ensure_max_synonyms(max_synonyms: int) -> None:
         raise ValueError("--max-synonyms must be between 1 and 10")
 
 
+def load_environment(dotenv_path: Path = DEFAULT_ENV_PATH) -> None:
+    """Load environment variables from a local .env file if present."""
+
+    load_dotenv(dotenv_path, override=False)
+
+
 def process_batches(
     batches: Iterable[List[InputRow]],
     client: ResponsesAPI,
@@ -153,6 +162,7 @@ def build_metadata(
 
 
 def run(args: argparse.Namespace) -> None:
+    load_environment()
     _ensure_max_synonyms(args.max_synonyms)
     input_path = Path(args.input)
     output_path = Path(args.output)
