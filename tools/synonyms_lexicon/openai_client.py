@@ -34,30 +34,13 @@ class ResponsesAPI:
         rows: Iterable[Dict[str, str]],
         max_synonyms: int,
     ) -> List[Dict[str, object]]:
-        payload = list(rows)
-        response_format = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": SCHEMA_NAME,
-                "schema": RESPONSE_SCHEMA,
-                "strict": True,
-            },
-        }
-        rows_json = json.dumps(payload, ensure_ascii=False)
-        user_input = (
-            "Return synonyms for each of the provided rows as JSON matching the schema. "
-            f"Max {max_synonyms} synonyms per row. Rows JSON: {rows_json}"
-        )
+        request_payload = self._build_request_payload(instructions, rows, max_synonyms)
         attempts = 0
         last_error: Exception | None = None
         while attempts <= self.max_retries:
             try:
                 response = self.client.responses.create(
-                    model=self.model,
-                    input=[{"role": "user", "content": user_input}],
-                    instructions=instructions,
-                    response_format=response_format,
-                    temperature=self.temperature,
+                    **request_payload,
                 )
                 if hasattr(response, "output_parsed"):
                     return response.output_parsed  # type: ignore[no-any-return]
@@ -86,4 +69,42 @@ class ResponsesAPI:
                 time.sleep(self.rate_limit_sleep * max(1, attempts))
         raise RuntimeError(
             f"Failed to fetch response after {self.max_retries} retries: {last_error}"
+        )
+
+    def _build_request_payload(
+        self, instructions: str, rows: Iterable[Dict[str, str]], max_synonyms: int
+    ) -> Dict[str, object]:
+        payload = list(rows)
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": SCHEMA_NAME,
+                "schema": RESPONSE_SCHEMA,
+                "strict": True,
+            },
+        }
+        rows_json = json.dumps(payload, ensure_ascii=False)
+        user_input = (
+            "Return synonyms for each of the provided rows as JSON matching the schema. "
+            f"Max {max_synonyms} synonyms per row. Rows JSON: {rows_json}"
+        )
+        return {
+            "model": self.model,
+            "input": [{"role": "user", "content": user_input}],
+            "instructions": instructions,
+            "response_format": response_format,
+            "temperature": self.temperature,
+        }
+
+    def build_curl(
+        self, instructions: str, rows: Iterable[Dict[str, str]], max_synonyms: int
+    ) -> str:
+        request_payload = self._build_request_payload(instructions, rows, max_synonyms)
+        body = json.dumps(request_payload, ensure_ascii=False, indent=2)
+        escaped_body = body.replace("'", "'\"'\"'")
+        return (
+            "curl https://api.openai.com/v1/responses "
+            '-H "Content-Type: application/json" '
+            '-H "Authorization: Bearer $OPENAI_API_KEY" '
+            f"-d '{escaped_body}'"
         )

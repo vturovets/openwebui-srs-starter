@@ -25,6 +25,10 @@ class DummyClient:
         self.calls += 1
         return result
 
+    def build_curl(self, instructions: str, rows: List[dict], max_synonyms: int) -> str:
+        del instructions, max_synonyms
+        return f"curl --data {json.dumps(rows)}"
+
 
 def write_csv(tmp_path: Path, headers: list[str], rows: list[list[str]]) -> Path:
     path = tmp_path / "data.csv"
@@ -136,3 +140,4 @@ def test_process_batches_saves_raw(tmp_path: Path) -> None:
     assert results[0]["synonyms"] == ["value"]
     saved = json.loads((raw_dir / "batch_1.json").read_text(encoding="utf-8"))
     assert saved["response"][0]["synonyms"] == ["value"]
+    assert saved["request"]["curl"].startswith("curl --data [")
