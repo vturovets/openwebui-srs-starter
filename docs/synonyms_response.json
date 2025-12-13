@@ -1,0 +1,123 @@
+{
+	"id": "resp_027e0d27496469bb00693d6ea12a0c8196846ceef80551ccfc",
+	"object": "response",
+	"created_at": 1765633697,
+	"status": "completed",
+	"background": false,
+	"billing": {
+		"payer": "developer"
+	},
+	"error": null,
+	"incomplete_details": null,
+	"instructions": "You are a travel-industry semantic search lexicon builder.\nYour task: for each filter option row, propose up to 10 precise English synonyms or short user utterances that match the option.\n\nRules:\n- English only.\n- Prefer high precision over recall; if unsure, return an empty list.\n- Include natural abbreviations and common typos when helpful.\n- Avoid airport/airline codes (IATA/ICAO/airline codes) when the filterId is DEPARTUREAIRPORTS or CARRIER. Do not remove approved travel abbreviations like AI, HB, BB, or RO.\n- Keep the order of rows the same as provided.\n- Output must strictly follow the provided JSON schema.\n",
+	"max_output_tokens": null,
+	"max_tool_calls": null,
+	"model": "gpt-5.2-2025-12-11",
+	"output": [
+		{
+			"id": "msg_027e0d27496469bb00693d6ea24c50819683b57bf75c56d10d",
+			"type": "message",
+			"status": "completed",
+			"content": [
+				{
+					"type": "output_text",
+					"annotations": [],
+					"logprobs": [],
+					"text": "{\"results\":[{\"ID\":\"1\",\"filterName\":\"Accessibility\",\"filterId\":\"\",\"optionId\":\"accessibilityInfo\",\"optionName\":\"Accessibility\",\"synonyms\":[\"accessible\",\"accessibility\",\"wheelchair accessible\",\"wheelchair friendly\",\"disabled access\",\"step-free access\",\"mobility friendly\",\"accessible rooms\",\"adapted rooms\",\"reduced mobility\"],\"notes\":\"\"},{\"ID\":\"2\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"AIG\",\"optionName\":\"Gourmet Inclusive\",\"synonyms\":[\"gourmet inclusive\",\"gourmet all inclusive\",\"gourmet AI\",\"all inclusive gourmet\",\"gourmet-inclusive\"],\"notes\":\"\"},{\"ID\":\"3\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"AIU\",\"optionName\":\"Ultra Inclusive\",\"synonyms\":[\"ultra inclusive\",\"ultra all inclusive\",\"ultra AI\",\"ultra-inclusive\",\"ultra inclusive package\"],\"notes\":\"\"},{\"ID\":\"4\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"HB\",\"optionName\":\"Half Board\",\"synonyms\":[\"half board\",\"HB\",\"breakfast and dinner\",\"breakfast & dinner\",\"half-board\"],\"notes\":\"\"},{\"ID\":\"5\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"SC\",\"optionName\":\"Self Catering\",\"synonyms\":[\"self catering\",\"self-catering\",\"SC\",\"cooking facilities\",\"kitchenette\"],\"notes\":\"\"},{\"ID\":\"6\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"RO\",\"optionName\":\"Room Only\",\"synonyms\":[\"room only\",\"RO\",\"accommodation only\",\"no meals included\",\"room-only\"],\"notes\":\"\"},{\"ID\":\"7\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"A24\",\"optionName\":\"24-hour All Inclusive\",\"synonyms\":[\"24 hour all inclusive\",\"24-hour all inclusive\",\"all inclusive 24 hours\",\"24/7 all inclusive\",\"all inclusive all day\"],\"notes\":\"\"},{\"ID\":\"8\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"AI+\",\"optionName\":\"All Inclusive Plus\",\"synonyms\":[\"all inclusive plus\",\"AI+\",\"all-inclusive plus\",\"all inclusive +\",\"all inclusive premium\"],\"notes\":\"\"},{\"ID\":\"9\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"FB\",\"optionName\":\"Full Board\",\"synonyms\":[\"full board\",\"FB\",\"breakfast lunch and dinner\",\"breakfast, lunch and dinner\",\"full-board\"],\"notes\":\"\"},{\"ID\":\"10\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"BB\",\"optionName\":\"Bed & Breakfast\",\"synonyms\":[\"bed and breakfast\",\"bed & breakfast\",\"B&B\",\"BB\",\"breakfast included\"],\"notes\":\"\"},{\"ID\":\"11\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"SC+\",\"optionName\":\"Self-catering Plus\",\"synonyms\":[\"self catering plus\",\"self-catering plus\",\"SC+\",\"self catering +\"],\"notes\":\"\"},{\"ID\":\"12\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"HB+\",\"optionName\":\"Half Board Plus\",\"synonyms\":[\"half board plus\",\"half-board plus\",\"HB+\",\"half board +\",\"half board with drinks\"],\"notes\":\"\"},{\"ID\":\"13\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"FB+\",\"optionName\":\"Full Board Plus\",\"synonyms\":[\"full board plus\",\"full-board plus\",\"FB+\",\"full board +\",\"full board with drinks\"],\"notes\":\"\"},{\"ID\":\"14\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"AI\",\"optionName\":\"All Inclusive\",\"synonyms\":[\"all inclusive\",\"all-inclusive\",\"AI\",\"all in\",\"everything included\"],\"notes\":\"\"},{\"ID\":\"15\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"PI\",\"optionName\":\"Premium All Inclusive\",\"synonyms\":[\"premium all inclusive\",\"premium all-inclusive\",\"premium AI\",\"all inclusive premium\",\"premium inclusive\"],\"notes\":\"\"},{\"ID\":\"16\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"IT\",\"optionName\":\"As per Itinerary\",\"synonyms\":[\"as per itinerary\",\"per itinerary\",\"meals as per itinerary\",\"board as per itinerary\",\"itinerary basis\"],\"notes\":\"\"},{\"ID\":\"17\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"AB\",\"optionName\":\"As Brochured\",\"synonyms\":[\"as brochured\",\"as per brochure\",\"as in brochure\",\"brochure basis\",\"AB\"],\"notes\":\"\"},{\"ID\":\"18\",\"filterName\":\"Boards\",\"filterId\":\"\",\"optionId\":\"SCC\",\"optionName\":\"Catered Chalet\",\"synonyms\":[\"catered chalet\",\"chalet catering\",\"fully catered chalet\",\"chalet with meals\",\"catered ski chalet\"],\"notes\":\"\"},{\"ID\":\"19\",\"filterName\":\"Destination\",\"filterId\":\"\",\"optionId\":\"AAA\",\"optionName\":\"Africa\",\"synonyms\":[\"africa\",\"african destinations\",\"african holiday\",\"africa trips\"],\"notes\":\"\"},{\"ID\":\"20\",\"filterName\":\"Destination\",\"filterId\":\"\",\"optionId\":\"CPV\",\"optionName\":\"Cape Verde\",\"synonyms\":[\"cape verde\",\"cabo verde\",\"cape verde islands\",\"cape verde holiday\",\"cap verde\"],\"notes\":\"\"},{\"ID\":\"21\",\"filterName\":\"Destination\",\"filterId\":\"\",\"optionId\":\"'004235'\",\"optionName\":\"Boa Vista\",\"synonyms\":[\"boa vista\",\"boa vista cape verde\",\"boa vista island\"],\"notes\":\"\"},{\"ID\":\"22\",\"filterName\":\"Destination\",\"filterId\":\"\",\"optionId\":\"'003838'\",\"optionName\":\"Sal\",\"synonyms\":[\"sal\",\"sal cape verde\",\"sal island\"],\"notes\":\"\"},{\"ID\":\"23\",\"filterName\":\"Destination\",\"filterId\":\"\",\"optionId\":\"L38041\",\"optionName\":\"Mindelo\",\"synonyms\":[\"mindelo\",\"mindelo cape verde\",\"mindelo sao vicente\",\"mindelo são vicente\"],\"notes\":\"\"},{\"ID\":\"24\",\"filterName\":\"Destination\",\"filterId\":\"\",\"optionId\":\"L58162\",\"optionName\":\"Praia\",\"synonyms\":[\"praia\",\"praia cape verde\",\"praia santiago\",\"praia (cape verde)\"],\"notes\":\"\"},{\"ID\":\"25\",\"filterName\":\"Destination\",\"filterId\":\"\",\"optionId\":\"EGY\",\"optionName\":\"Egypt\",\"synonyms\":[\"egypt\",\"egypt holiday\",\"egypt vacations\",\"egypt trip\"],\"notes\":\"\"}]}"
+				}
+			],
+			"role": "assistant"
+		}
+	],
+	"parallel_tool_calls": true,
+	"previous_response_id": null,
+	"prompt_cache_key": null,
+	"prompt_cache_retention": null,
+	"reasoning": {
+		"effort": "none",
+		"summary": null
+	},
+	"safety_identifier": null,
+	"service_tier": "default",
+	"store": true,
+	"temperature": 0.3,
+	"text": {
+		"format": {
+			"type": "json_schema",
+			"description": null,
+			"name": "synonyms_schema",
+			"schema": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": [
+					"results"
+				],
+				"properties": {
+					"results": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"additionalProperties": false,
+							"required": [
+								"ID",
+								"filterName",
+								"filterId",
+								"optionId",
+								"optionName",
+								"synonyms",
+								"notes"
+							],
+							"properties": {
+								"ID": {
+									"type": "string"
+								},
+								"filterName": {
+									"type": "string"
+								},
+								"filterId": {
+									"type": "string"
+								},
+								"optionId": {
+									"type": "string"
+								},
+								"optionName": {
+									"type": "string"
+								},
+								"synonyms": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									},
+									"maxItems": 10
+								},
+								"notes": {
+									"type": "string"
+								}
+							}
+						}
+					}
+				}
+			},
+			"strict": true
+		},
+		"verbosity": "medium"
+	},
+	"tool_choice": "auto",
+	"tools": [],
+	"top_logprobs": 0,
+	"top_p": 0.98,
+	"truncation": "disabled",
+	"usage": {
+		"input_tokens": 1120,
+		"input_tokens_details": {
+			"cached_tokens": 0
+		},
+		"output_tokens": 1302,
+		"output_tokens_details": {
+			"reasoning_tokens": 0
+		},
+		"total_tokens": 2422
+	},
+	"user": null,
+	"metadata": {}
+}
