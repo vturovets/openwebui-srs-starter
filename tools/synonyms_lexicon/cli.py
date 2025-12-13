@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from .io import (
     InputRow,
@@ -34,7 +34,7 @@ DEFAULT_TEMPERATURE = 0.3
 DEFAULT_RATE_LIMIT_SLEEP = 2.0
 DEFAULT_MAX_RETRIES = 5
 DEFAULT_TIMEOUT = 120
-DEFAULT_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+DEFAULT_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
 
 class DryRunComplete(Exception):
@@ -104,10 +104,16 @@ def _ensure_max_synonyms(max_synonyms: int) -> None:
         raise ValueError("--max-synonyms must be between 1 and 10")
 
 
-def load_environment(dotenv_path: Path = DEFAULT_ENV_PATH) -> None:
+def load_environment(dotenv_path: Path | None = DEFAULT_ENV_PATH) -> None:
     """Load environment variables from a local .env file if present."""
 
-    load_dotenv(dotenv_path, override=False)
+    resolved_path = dotenv_path if dotenv_path and dotenv_path.exists() else None
+    if not resolved_path:
+        found = find_dotenv(usecwd=True)
+        resolved_path = Path(found) if found else None
+
+    if resolved_path:
+        load_dotenv(resolved_path, override=False)
 
 
 def process_batches(
