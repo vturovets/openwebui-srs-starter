@@ -1,0 +1,74 @@
+curl --location 'https://api.openai.com/v1/responses' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer $OPENAI_API_KEY \
+--data '{
+  "model": "gpt-5.2",
+  "input": [
+    {
+      "role": "user",
+      "content": "Return synonyms for each of the provided rows as JSON matching the schema. Max 10 synonyms per row. Rows JSON: [{\"ID\": \"1\", \"filterId\": \"\", \"filterName\": \"Accessibility\", \"optionId\": \"accessibilityInfo\", \"optionName\": \"Accessibility\"}, {\"ID\": \"2\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"AIG\", \"optionName\": \"Gourmet Inclusive\"}, {\"ID\": \"3\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"AIU\", \"optionName\": \"Ultra Inclusive\"}, {\"ID\": \"4\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"HB\", \"optionName\": \"Half Board\"}, {\"ID\": \"5\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"SC\", \"optionName\": \"Self Catering\"}, {\"ID\": \"6\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"RO\", \"optionName\": \"Room Only\"}, {\"ID\": \"7\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"A24\", \"optionName\": \"24-hour All Inclusive\"}, {\"ID\": \"8\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"AI+\", \"optionName\": \"All Inclusive Plus\"}, {\"ID\": \"9\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"FB\", \"optionName\": \"Full Board\"}, {\"ID\": \"10\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"BB\", \"optionName\": \"Bed & Breakfast\"}, {\"ID\": \"11\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"SC+\", \"optionName\": \"Self-catering Plus\"}, {\"ID\": \"12\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"HB+\", \"optionName\": \"Half Board Plus\"}, {\"ID\": \"13\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"FB+\", \"optionName\": \"Full Board Plus\"}, {\"ID\": \"14\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"AI\", \"optionName\": \"All Inclusive\"}, {\"ID\": \"15\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"PI\", \"optionName\": \"Premium All Inclusive\"}, {\"ID\": \"16\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"IT\", \"optionName\": \"As per Itinerary\"}, {\"ID\": \"17\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"AB\", \"optionName\": \"As Brochured\"}, {\"ID\": \"18\", \"filterId\": \"\", \"filterName\": \"Boards\", \"optionId\": \"SCC\", \"optionName\": \"Catered Chalet\"}, {\"ID\": \"19\", \"filterId\": \"\", \"filterName\": \"Destination\", \"optionId\": \"AAA\", \"optionName\": \"Africa\"}, {\"ID\": \"20\", \"filterId\": \"\", \"filterName\": \"Destination\", \"optionId\": \"CPV\", \"optionName\": \"Cape Verde\"}, {\"ID\": \"21\", \"filterId\": \"\", \"filterName\": \"Destination\", \"optionId\": \"'\''004235'\''\", \"optionName\": \"Boa Vista\"}, {\"ID\": \"22\", \"filterId\": \"\", \"filterName\": \"Destination\", \"optionId\": \"'\''003838'\''\", \"optionName\": \"Sal\"}, {\"ID\": \"23\", \"filterId\": \"\", \"filterName\": \"Destination\", \"optionId\": \"L38041\", \"optionName\": \"Mindelo\"}, {\"ID\": \"24\", \"filterId\": \"\", \"filterName\": \"Destination\", \"optionId\": \"L58162\", \"optionName\": \"Praia\"}, {\"ID\": \"25\", \"filterId\": \"\", \"filterName\": \"Destination\", \"optionId\": \"EGY\", \"optionName\": \"Egypt\"}]"
+    }
+  ],
+  "instructions": "You are a travel-industry semantic search lexicon builder.\nYour task: for each filter option row, propose up to 10 precise English synonyms or short user utterances that match the option.\n\nRules:\n- English only.\n- Prefer high precision over recall; if unsure, return an empty list.\n- Include natural abbreviations and common typos when helpful.\n- Avoid airport/airline codes (IATA/ICAO/airline codes) when the filterId is DEPARTUREAIRPORTS or CARRIER. Do not remove approved travel abbreviations like AI, HB, BB, or RO.\n- Keep the order of rows the same as provided.\n- Output must strictly follow the provided JSON schema.\n",
+  "text": {
+    "format": {
+      "type": "json_schema",
+      "name": "synonyms_schema",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "results"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ID",
+                "filterName",
+                "filterId",
+                "optionId",
+                "optionName",
+                "synonyms",
+                "notes"
+              ],
+              "properties": {
+                "ID": {
+                  "type": "string"
+                },
+                "filterName": {
+                  "type": "string"
+                },
+                "filterId": {
+                  "type": "string"
+                },
+                "optionId": {
+                  "type": "string"
+                },
+                "optionName": {
+                  "type": "string"
+                },
+                "synonyms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 10
+                },
+                "notes": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "strict": true
+    }
+  },
+  "temperature": 0.3
+}'
