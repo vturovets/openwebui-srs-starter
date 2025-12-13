@@ -19,6 +19,7 @@ dependencies = [
     "httpx>=0.26",
     "python-multipart>=0.0.6",
     "openai>=1.51",
+    "python-dotenv>=1.0",
 ]
 
 [project.scripts]
