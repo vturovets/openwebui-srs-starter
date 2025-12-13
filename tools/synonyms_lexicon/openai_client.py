@@ -1,0 +1,89 @@
+from __future__ import annotations
+
+import json
+import logging
+import time
+from typing import Any, Dict, Iterable, List
+
+from .schema import RESPONSE_SCHEMA, SCHEMA_NAME
+
+logger = logging.getLogger(__name__)
+
+
+class ResponsesAPI:
+    def __init__(
+        self,
+        model: str,
+        temperature: float,
+        timeout: int,
+        max_retries: int,
+        rate_limit_sleep: float,
+    ) -> None:
+        from openai import OpenAI, OpenAIError
+
+        self.client = OpenAI(timeout=timeout)
+        self.model = model
+        self.temperature = temperature
+        self.max_retries = max_retries
+        self.rate_limit_sleep = rate_limit_sleep
+        self._openai_error: Any = OpenAIError
+
+    def generate(
+        self,
+        instructions: str,
+        rows: Iterable[Dict[str, str]],
+        max_synonyms: int,
+    ) -> List[Dict[str, object]]:
+        payload = list(rows)
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": SCHEMA_NAME,
+                "schema": RESPONSE_SCHEMA,
+                "strict": True,
+            },
+        }
+        rows_json = json.dumps(payload, ensure_ascii=False)
+        user_input = (
+            "Return synonyms for each of the provided rows as JSON matching the schema. "
+            f"Max {max_synonyms} synonyms per row. Rows JSON: {rows_json}"
+        )
+        attempts = 0
+        last_error: Exception | None = None
+        while attempts <= self.max_retries:
+            try:
+                response = self.client.responses.create(
+                    model=self.model,
+                    input=[{"role": "user", "content": user_input}],
+                    instructions=instructions,
+                    response_format=response_format,
+                    temperature=self.temperature,
+                )
+                if hasattr(response, "output_parsed"):
+                    return response.output_parsed  # type: ignore[no-any-return]
+                # Fallback for libraries returning text
+                return json.loads(response.output[0].content[0].text)  # type: ignore[index]
+            except self._openai_error as exc:  # pragma: no cover - exercised through retry tests
+                last_error = exc
+                attempts += 1
+                sleep_seconds = self.rate_limit_sleep * max(1, attempts)
+                logger.warning(
+                    "OpenAI error on attempt %s/%s: %s",
+                    attempts,
+                    self.max_retries,
+                    exc,
+                )
+                time.sleep(sleep_seconds)
+            except Exception as exc:  # pragma: no cover - defensive
+                last_error = exc
+                attempts += 1
+                logger.warning(
+                    "Unexpected error on attempt %s/%s: %s",
+                    attempts,
+                    self.max_retries,
+                    exc,
+                )
+                time.sleep(self.rate_limit_sleep * max(1, attempts))
+        raise RuntimeError(
+            f"Failed to fetch response after {self.max_retries} retries: {last_error}"
+        )
