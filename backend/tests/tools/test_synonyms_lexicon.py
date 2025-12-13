@@ -18,8 +18,10 @@ class DummyClient:
         self.calls = 0
         self.model = "dummy"
         self.temperature = 0.0
+        self.last_rows: List[dict] | None = None
 
     def generate(self, instructions: str, rows: List[dict], max_synonyms: int) -> List[dict]:
+        self.last_rows = rows
         del instructions, rows, max_synonyms
         index = min(self.calls, len(self.payloads) - 1)
         result = self.payloads[index]
@@ -141,6 +143,23 @@ def test_process_batches_saves_raw(tmp_path: Path) -> None:
     assert saved["response"][0]["synonyms"] == ["value"]
     assert saved["response"][0]["filterId"] == "F"
     assert saved["request"]["curl"].startswith("curl --data [")
+
+
+def test_missing_filter_id_derived_from_filter_name(tmp_path: Path) -> None:
+    csv_path = write_csv(
+        tmp_path,
+        ["ID", "filterId", "filterName", "optionId", "optionName"],
+        [["1", "", "Boards", "HB", "Half Board"]],
+    )
+    rows = read_input_rows(csv_path)
+    assert rows[0].filterId == "BOARDS"
+
+    client = DummyClient([[{"ID": "1", "synonyms": ["hb"]}]])
+    results = cli.process_batches([rows], client, "instr", 5, None)
+
+    assert client.last_rows is not None
+    assert client.last_rows[0]["filterId"] == "BOARDS"
+    assert results[0]["filterId"] == "BOARDS"
 
 
 def test_generate_optionally_prints_curl(capsys, monkeypatch: pytest.MonkeyPatch) -> None:

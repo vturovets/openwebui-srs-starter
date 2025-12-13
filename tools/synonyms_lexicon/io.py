@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+import re
 from hashlib import sha256
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
@@ -24,11 +25,26 @@ class InputRow:
 
     @classmethod
     def from_dict(cls, payload: Dict[str, str]) -> "InputRow":
+        def _fallback_filter_id(filter_id: str, filter_name: str) -> str:
+            if filter_id.strip():
+                return filter_id.strip()
+
+            normalized = re.sub(r"[^A-Za-z0-9]+", "_", filter_name).strip("_")
+            if normalized:
+                derived = normalized.upper()
+                logger.warning(
+                    "filterId missing for '%s', derived fallback '%s'", filter_name, derived
+                )
+                return derived
+            return ""
+
+        filter_name = str(payload.get("filterName", "")).strip()
+        filter_id = _fallback_filter_id(str(payload.get("filterId", "")), filter_name)
         return cls(
-            ID=str(payload.get("ID", "")),
-            filterId=str(payload.get("filterId", "")),
-            filterName=str(payload.get("filterName", "")),
-            optionId=str(payload.get("optionId", "")),
+            ID=str(payload.get("ID", "")).strip(),
+            filterId=filter_id,
+            filterName=filter_name,
+            optionId=str(payload.get("optionId", "")).strip(),
             optionName=str(payload.get("optionName", "")).strip(),
         )
 
