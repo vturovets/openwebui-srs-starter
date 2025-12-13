@@ -8,6 +8,8 @@ from typing import Any, Dict, Iterable, List
 from .schema import RESPONSE_SCHEMA, SCHEMA_NAME
 
 logger = logging.getLogger(__name__)
+OpenAI: Any | None = None
+OpenAIError: Any | None = None
 
 
 class ResponsesAPI:
@@ -18,14 +20,21 @@ class ResponsesAPI:
         timeout: int,
         max_retries: int,
         rate_limit_sleep: float,
+        show_curl: bool = False,
     ) -> None:
-        from openai import OpenAI, OpenAIError
+        global OpenAI, OpenAIError
+        if OpenAI is None or OpenAIError is None:
+            from openai import OpenAI as _OpenAI, OpenAIError as _OpenAIError
+
+            OpenAI = _OpenAI
+            OpenAIError = _OpenAIError
 
         self.client = OpenAI(timeout=timeout)
         self.model = model
         self.temperature = temperature
         self.max_retries = max_retries
         self.rate_limit_sleep = rate_limit_sleep
+        self.show_curl = show_curl
         self._openai_error: Any = OpenAIError
 
     def generate(
@@ -34,11 +43,15 @@ class ResponsesAPI:
         rows: Iterable[Dict[str, str]],
         max_synonyms: int,
     ) -> List[Dict[str, object]]:
-        request_payload = self._build_request_payload(instructions, rows, max_synonyms)
+        request_payload = self._build_request_payload(
+            instructions, list(rows), max_synonyms
+        )
         attempts = 0
         last_error: Exception | None = None
         while attempts <= self.max_retries:
             try:
+                if self.show_curl:
+                    print(self._render_curl(request_payload))
                 response = self.client.responses.create(
                     **request_payload,
                 )
@@ -100,6 +113,9 @@ class ResponsesAPI:
         self, instructions: str, rows: Iterable[Dict[str, str]], max_synonyms: int
     ) -> str:
         request_payload = self._build_request_payload(instructions, rows, max_synonyms)
+        return self._render_curl(request_payload)
+
+    def _render_curl(self, request_payload: Dict[str, object]) -> str:
         body = json.dumps(request_payload, ensure_ascii=False, indent=2)
         escaped_body = body.replace("'", "'\"'\"'")
         return (

@@ -7,6 +7,7 @@ from typing import List
 import pytest
 
 from tools.synonyms_lexicon import cli
+from tools.synonyms_lexicon import openai_client
 from tools.synonyms_lexicon.io import InputValidationError, chunk_rows, read_input_rows
 from tools.synonyms_lexicon.validate import sanitize_synonyms
 
@@ -141,3 +142,44 @@ def test_process_batches_saves_raw(tmp_path: Path) -> None:
     saved = json.loads((raw_dir / "batch_1.json").read_text(encoding="utf-8"))
     assert saved["response"][0]["synonyms"] == ["value"]
     assert saved["request"]["curl"].startswith("curl --data [")
+
+
+def test_generate_optionally_prints_curl(capsys, monkeypatch: pytest.MonkeyPatch) -> None:
+    class DummyResponses:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def create(self, **payload):
+            self.calls += 1
+
+            class DummyResponse:
+                output_parsed = [{"content": "example"}]
+
+            return DummyResponse()
+
+    dummy = DummyResponses()
+
+    class DummyOpenAI:
+        def __init__(self, timeout: int) -> None:
+            assert timeout == 1
+            self.responses = dummy
+
+    monkeypatch.setattr(openai_client, "OpenAI", DummyOpenAI)
+    monkeypatch.setattr(openai_client, "OpenAIError", Exception)
+
+    client = openai_client.ResponsesAPI(
+        model="dummy",
+        temperature=0.0,
+        timeout=1,
+        max_retries=0,
+        rate_limit_sleep=0.1,
+        show_curl=True,
+    )
+
+    result = client.generate("instructions", [{"content": "example"}], max_synonyms=3)
+
+    assert dummy.calls == 1
+    assert result[0]["content"] == "example"
+    output = capsys.readouterr().out
+    assert "curl https://api.openai.com/v1/responses" in output
+    assert "\"instructions\": \"instructions\"" in output
