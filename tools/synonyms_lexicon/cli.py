@@ -92,11 +92,32 @@ def _apply_sanitization(
             "optionId": source.optionId,
             "optionName": source.optionName,
             "synonyms": cleaned_synonyms,
+            "notes": str(result.get("notes", "")) if isinstance(result, dict) else "",
         }
         if notes_parts:
             entry["notes"] = "; ".join(notes_parts)
         sanitized.append(entry)
     return sanitized
+
+
+def _merge_results_with_source(
+    batch_rows: List[InputRow], raw_results: List[Dict[str, object]]
+) -> List[Dict[str, object]]:
+    merged: List[Dict[str, object]] = []
+    for source, result in zip(batch_rows, raw_results):
+        result_dict = result if isinstance(result, dict) else {}
+        merged.append(
+            {
+                "ID": result_dict.get("ID", source.ID),
+                "filterId": result_dict.get("filterId", source.filterId),
+                "filterName": result_dict.get("filterName", source.filterName),
+                "optionId": result_dict.get("optionId", source.optionId),
+                "optionName": result_dict.get("optionName", source.optionName),
+                "synonyms": result_dict.get("synonyms", []),
+                "notes": result_dict.get("notes", ""),
+            }
+        )
+    return merged
 
 
 def _ensure_max_synonyms(max_synonyms: int) -> None:
@@ -129,8 +150,9 @@ def process_batches(
         logger.info("Processing batch %s with %s rows", batch_number, len(batch_rows))
         batch_payload = [row.to_payload() for row in batch_rows]
         raw_results = client.generate(instructions, batch_payload, max_synonyms)
-        enforce_schema(raw_results)
-        sanitized = _apply_sanitization(batch_rows, raw_results, max_synonyms)
+        merged_results = _merge_results_with_source(batch_rows, raw_results)
+        enforce_schema(merged_results)
+        sanitized = _apply_sanitization(batch_rows, merged_results, max_synonyms)
         all_results.extend(sanitized)
         if raw_dir:
             request_metadata = {
@@ -145,7 +167,7 @@ def process_batches(
                     max_synonyms=max_synonyms,
                 ),
             }
-            _store_raw(raw_dir, batch_number, raw_results, request_metadata)
+            _store_raw(raw_dir, batch_number, merged_results, request_metadata)
     return all_results
 
 
