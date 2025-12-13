@@ -18,6 +18,7 @@ dependencies = [
     "langdetect>=1.0",
     "httpx>=0.26",
     "python-multipart>=0.0.6",
+    "openai>=1.51",
 ]
 
 [project.scripts]
