@@ -27,6 +27,9 @@ be swapped in while retaining comparable output for experiments.
   regressions analysis.
 - **Frontend parity** – [`frontend/`](frontend) reproduces the OpenWebUI flow with
   component tests (Vitest) and Playwright E2E coverage for interactive journeys.
+- **Utterance dataset generator (CR-006)** – [`tools/utterance_generator`](tools/utterance_generator)
+  builds single-option and multi-option utterance datasets from the filters
+  lexicon and scores embeddings for purity/separation checks.
 - **Free-text preference mapping (CR-004)** – [`backend/app/pipeline/preferences.py`](backend/app/pipeline/preferences.py)
   interprets preference-oriented utterances (e.g. _“room only, scuba, strong
   Wi‑Fi”_) and maps them to structured filters/options from
@@ -94,6 +97,38 @@ python -m tools.synonyms_lexicon `
 ```
 
 Flags `--resume`, `--dry-run`, `--rate-limit-sleep`, `--max-retries`, and `--timeout` control resumability and resilience. Metadata is stored alongside the output file.
+
+### Utterance dataset generator (CR-006)
+
+Create labelled utterance datasets from a filter lexicon and score embeddings for
+purity/coverage:
+
+```bash
+# Generate single-option utterances (preference_only + mini_query) via OpenAI Responses
+python -m tools.utterance_generator single \
+  --lexicon fixtures/filters_options.csv \
+  --output out/single_utterances.json \
+  --max-per-option 3 \
+  --show-curl
+
+# Generate 20 multi-option combos (2–4 options per combo)
+python -m tools.utterance_generator multi \
+  --lexicon fixtures/filters_options.csv \
+  --output out/multi_combos.json \
+  --count 20 \
+  --seed 13
+
+# Score embeddings against centroids to flag purity/coverage issues
+python -m tools.utterance_generator score \
+  --lexicon fixtures/filters_options.csv \
+  --utterances data/utterances.jsonl \
+  --output out/scoring_report.json \
+  --embedding-model text-embedding-3-small
+```
+
+Use `.env`/environment variables (e.g., `OPENAI_API_KEY`) to configure the
+OpenAI client. `score` expects a JSONL file where each record includes an
+`embedding` vector and the target `option_ids` array.
 
 ## Configuration
 
