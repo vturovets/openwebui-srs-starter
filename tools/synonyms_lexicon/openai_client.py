@@ -20,7 +20,7 @@ class ResponsesAPI:
         timeout: int,
         max_retries: int,
         rate_limit_sleep: float,
-        show_curl: bool = True,
+        show_curl: bool = False,
     ) -> None:
         global OpenAI, OpenAIError
         if OpenAI is None or OpenAIError is None:
