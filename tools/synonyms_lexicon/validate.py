@@ -50,11 +50,24 @@ def sanitize_synonyms(
     return cleaned, removals
 
 
-def enforce_schema(batch: List[Dict[str, object]]) -> None:
+def enforce_schema(response: Dict[str, object]) -> List[Dict[str, object]]:
+    if not isinstance(response, dict):
+        raise ResponseValidationError("Response must be an object with a 'results' array")
+
+    results = response.get("results")
+    if not isinstance(results, list):
+        raise ResponseValidationError("'results' must be a list")
+
     errors: List[str] = []
-    for idx, item in enumerate(batch):
+    for idx, item in enumerate(results):
+        if not isinstance(item, dict):
+            errors.append(f"Item {idx}: Expected object, got {type(item).__name__}")
+            continue
         item_errors = validate_response_item(item)
         if item_errors:
             errors.append(f"Item {idx}: {', '.join(item_errors)}")
+
     if errors:
         raise ResponseValidationError("; ".join(errors))
+
+    return results

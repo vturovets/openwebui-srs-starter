@@ -61,7 +61,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
 
 
 def _store_raw(
-    raw_dir: Path, batch_number: int, response: List[Dict[str, object]], request: Dict[str, object]
+    raw_dir: Path, batch_number: int, response: Dict[str, object], request: Dict[str, object]
 ) -> None:
     raw_dir.mkdir(parents=True, exist_ok=True)
     raw_path = raw_dir / f"batch_{batch_number}.json"
@@ -128,9 +128,9 @@ def process_batches(
     for batch_number, batch_rows in enumerate(batches, start=resume_offset + 1):
         logger.info("Processing batch %s with %s rows", batch_number, len(batch_rows))
         batch_payload = [row.to_payload() for row in batch_rows]
-        raw_results = client.generate(instructions, batch_payload, max_synonyms)
-        enforce_schema(raw_results)
-        sanitized = _apply_sanitization(batch_rows, raw_results, max_synonyms)
+        raw_response = client.generate(instructions, batch_payload, max_synonyms)
+        validated_results = enforce_schema(raw_response)
+        sanitized = _apply_sanitization(batch_rows, validated_results, max_synonyms)
         all_results.extend(sanitized)
         if raw_dir:
             request_metadata = {
@@ -145,7 +145,7 @@ def process_batches(
                     max_synonyms=max_synonyms,
                 ),
             }
-            _store_raw(raw_dir, batch_number, raw_results, request_metadata)
+            _store_raw(raw_dir, batch_number, raw_response, request_metadata)
     return all_results
 
 
