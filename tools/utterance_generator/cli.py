@@ -30,65 +30,72 @@ DEFAULT_MULTI_SEPARATION_FLAG = 0.05
 
 SINGLE_RESPONSE_SCHEMA = {
     "type": "object",
+    "additionalProperties": False,
     "properties": {
         "results": {
             "type": "array",
             "items": {
                 "type": "object",
+                "additionalProperties": False,
                 "properties": {
-                    "filterId": {"type": "string"},
-                    "filterName": {"type": "string"},
-                    "optionId": {"type": "string"},
-                    "optionName": {"type": "string"},
+                    "filterId": { "type": "string" },
+                    "filterName": { "type": "string" },
+                    "optionId": { "type": "string" },
+                    "optionName": { "type": "string" },
                     "utterances": {
                         "type": "array",
                         "items": {
                             "type": "object",
+                            "additionalProperties": False,
                             "properties": {
-                                "type": {"type": "string"},
-                                "difficulty": {"type": "string"},
-                                "utterance": {"type": "string"},
+                                "type": { "type": "string" },
+                                "difficulty": { "type": "string" },
+                                "utterance": { "type": "string" }
                             },
-                            "required": ["type", "difficulty", "utterance"],
-                        },
-                    },
+                            "required": ["type", "difficulty", "utterance"]
+                        }
+                    }
                 },
-                "required": ["filterId", "optionId", "optionName", "utterances"],
-            },
+                "required": ["filterId", "filterName", "optionId", "optionName", "utterances"]
+            }
         }
     },
-    "required": ["results"],
+    "required": ["results"]
 }
 
 
 MULTI_RESPONSE_SCHEMA = {
+
     "type": "object",
+    "additionalProperties": False,
     "properties": {
         "results": {
             "type": "array",
             "items": {
                 "type": "object",
+                "additionalProperties": False,
                 "properties": {
-                    "comboId": {"type": "string"},
-                    "utterance": {"type": "string"},
+                    "comboId": { "type": "string" },
+                    "utterance": { "type": "string" },
                     "matched": {
                         "type": "array",
                         "items": {
                             "type": "object",
+                            "additionalProperties": False,
                             "properties": {
-                                "filterId": {"type": "string"},
-                                "optionId": {"type": "string"},
-                                "optionName": {"type": "string"},
+                                "filterId": { "type": "string" },
+                                "optionId": { "type": "string" },
+                                "optionName": { "type": "string" }
                             },
-                            "required": ["filterId", "optionId", "optionName"],
-                        },
-                    },
+                            "required": ["filterId", "optionId", "optionName"]
+                        }
+                    }
                 },
-                "required": ["comboId", "utterance", "matched"],
-            },
+                "required": ["comboId", "utterance", "matched"]
+            }
         }
     },
-    "required": ["results"],
+    "required": ["results"]
 }
 
 

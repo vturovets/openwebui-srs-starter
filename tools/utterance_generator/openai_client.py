@@ -44,8 +44,8 @@ class ResponsesAPI:
             "format": {
                 "type": "json_schema",
                 "name": "utterance_generation",
-                "schema": self.schema,
                 "strict": True,
+                "schema": self.schema,
             }
         }
         user_content = f"Generate utterances for the provided options as JSON. Rows: {json.dumps(payload, ensure_ascii=False)}"
