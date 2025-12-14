@@ -129,7 +129,10 @@ def process_batches(
         logger.info("Processing batch %s with %s rows", batch_number, len(batch_rows))
         batch_payload = [row.to_payload() for row in batch_rows]
         raw_response = client.generate(instructions, batch_payload, max_synonyms)
-        validated_results = enforce_schema(raw_response)
+        normalized_response = (
+            {"results": raw_response} if isinstance(raw_response, list) else raw_response
+        )
+        validated_results = enforce_schema(normalized_response)
         sanitized = _apply_sanitization(batch_rows, validated_results, max_synonyms)
         all_results.extend(sanitized)
         if raw_dir:
