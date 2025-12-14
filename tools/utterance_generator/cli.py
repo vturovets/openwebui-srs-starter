@@ -108,12 +108,19 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     single.add_argument("--show-curl", action="store_true")
     single.add_argument("--dry-run", action="store_true")
 
-    multi = subparsers.add_parser("multi", help="Generate multi-option combos")
+    multi = subparsers.add_parser("multi", help="Generate multi-option utterances")
     multi.add_argument("--lexicon", required=True)
     multi.add_argument("--output", required=True)
     multi.add_argument("--count", type=int, default=20)
     multi.add_argument("--seed", type=int, default=13)
     multi.add_argument("--allow-same-filter", action="store_true")
+    multi.add_argument("--model", default=DEFAULT_MODEL)
+    multi.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
+    multi.add_argument("--rate-limit-sleep", type=float, default=DEFAULT_RATE_LIMIT_SLEEP)
+    multi.add_argument("--max-retries", type=int, default=DEFAULT_MAX_RETRIES)
+    multi.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    multi.add_argument("--show-curl", action="store_true")
+    multi.add_argument("--dry-run", action="store_true")
 
     score = subparsers.add_parser("score", help="Score utterances against centroids")
     score.add_argument("--lexicon", required=True)
@@ -178,11 +185,32 @@ def run_multi(args: argparse.Namespace) -> None:
         }
         for idx, combo in enumerate(combos)
     ]
+
+    if args.dry_run:
+        logger.info("Dry run: %s combos generated", len(manifest))
+        return
+
+    instructions = (
+        "Write one natural-sounding utterance per combo that implicitly references all matched "
+        "options. Blend the optionName values into a single coherent request without listing "
+        "filter or option IDs."
+    )
+    client = ResponsesAPI(
+        model=args.model,
+        temperature=args.temperature,
+        timeout=args.timeout,
+        max_retries=args.max_retries,
+        rate_limit_sleep=args.rate_limit_sleep,
+        schema=MULTI_RESPONSE_SCHEMA,
+        show_curl=args.show_curl,
+    )
+    response = client.generate(instructions, manifest)
+
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as handle:
-        json.dump({"results": manifest}, handle, ensure_ascii=False, indent=2)
-    logger.info("Saved %s combos to %s", len(manifest), output_path)
+        json.dump(response, handle, ensure_ascii=False, indent=2)
+    logger.info("Saved multi-option utterances to %s", output_path)
 
 
 def run_score(args: argparse.Namespace) -> None:
