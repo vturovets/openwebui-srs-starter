@@ -111,7 +111,7 @@ python -m tools.utterance_generator single \
   --max-per-option 3 \
   --show-curl
 
-# Generate 20 multi-option combos (2–4 options per combo)
+# Generate 20 multi-option utterances (2–4 options per combo) via OpenAI Responses
 python -m tools.utterance_generator multi \
   --lexicon fixtures/filters_options.csv \
   --output out/multi_combos.json \
