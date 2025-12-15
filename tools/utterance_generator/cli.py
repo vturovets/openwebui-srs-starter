@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import random
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Sequence, Set
 
@@ -121,6 +122,16 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_MAX_UNIQUE_IDS,
         help="Maximum unique option IDs per batch",
     )
+    single.add_argument(
+        "--sample-size",
+        type=int,
+        help="Randomly sample this many unique option IDs from the lexicon before generation",
+    )
+    single.add_argument(
+        "--sample-seed",
+        type=int,
+        help="Seed used when sampling options for reproducibility",
+    )
     single.add_argument("--show-curl", action="store_true")
     single.add_argument("--dry-run", action="store_true")
 
@@ -164,6 +175,30 @@ def _load_lexicon(path_str: str):
     return LexiconLoader.load(path)
 
 
+def _sample_options_by_id(
+    options: Sequence[Dict[str, object]] | Sequence[object],
+    sample_size: int | None,
+    seed: int | None,
+    extract_id: Callable[[object], str],
+):
+    if sample_size is None or sample_size <= 0:
+        return list(options)
+
+    id_to_item: Dict[str, object] = {}
+    for option in options:
+        option_id = extract_id(option)
+        if option_id:
+            id_to_item.setdefault(option_id, option)
+
+    if not id_to_item:
+        return []
+
+    target_size = min(sample_size, len(id_to_item))
+    rng = random.Random(seed)
+    sampled_ids = rng.sample(sorted(id_to_item.keys()), target_size)
+    return [id_to_item[sampled_id] for sampled_id in sampled_ids]
+
+
 def _chunk_by_unique_option_ids(
     items: Sequence[Dict[str, object]],
     extract_ids: Callable[[Dict[str, object]], Iterable[str]],
@@ -199,6 +234,23 @@ def _save_results(output_path: Path, results: List[Dict[str, object]]) -> None:
 
 def run_single(args: argparse.Namespace) -> None:
     options = _load_lexicon(args.lexicon)
+    sampled_options = _sample_options_by_id(
+        options,
+        sample_size=args.sample_size,
+        seed=args.sample_seed,
+        extract_id=lambda option: str(getattr(option, "id", None) or getattr(option, "optionId", "")),
+    )
+    if not sampled_options:
+        logger.warning("No options available after sampling; nothing to process")
+        _save_results(Path(args.output), [])
+        return
+    if len(sampled_options) < len(options):
+        logger.info(
+            "Sampled %s/%s options using ids for single-option generation",
+            len(sampled_options),
+            len(options),
+        )
+        options = sampled_options
     if args.dry_run:
         logger.info("Dry run: %s options found", len(options))
         return
