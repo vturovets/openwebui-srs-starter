@@ -89,10 +89,11 @@ MULTI_RESPONSE_SCHEMA = {
                             "properties": {
                                 "id": { "type": "string" },
                                 "filterId": { "type": "string" },
+                                "filterName": { "type": "string" },
                                 "optionId": { "type": "string" },
                                 "optionName": { "type": "string" }
                             },
-                            "required": ["id", "filterId", "optionId", "optionName"]
+                            "required": ["id", "filterId", "filterName", "optionId", "optionName"]
                         }
                     }
                 },
@@ -262,6 +263,26 @@ def _save_results(output_path: Path, results: List[Dict[str, object]]) -> None:
         json.dump({"results": results}, handle, ensure_ascii=False, indent=2)
 
 
+def _ensure_filter_names(
+    *,
+    results: List[Dict[str, object]],
+    manifest_lookup: Dict[str, Dict[str, object]],
+) -> None:
+    for entry in results:
+        combo_id = str(entry.get("comboId", ""))
+        manifest_entry = manifest_lookup.get(combo_id, {})
+        matched_options = manifest_entry.get("matched", []) or []
+        options_by_id = {str(item.get("optionId", "")): item for item in matched_options}
+
+        for match in entry.get("matched", []) or []:
+            if match.get("filterName"):
+                continue
+            option_id = str(match.get("optionId", ""))
+            manifest_match = options_by_id.get(option_id)
+            if manifest_match and manifest_match.get("filterName"):
+                match["filterName"] = manifest_match.get("filterName")
+
+
 def run_single(args: argparse.Namespace) -> None:
     options = _load_lexicon(args.lexicon)
     sampled_options = _sample_options_by_id(
@@ -340,6 +361,7 @@ def run_multi(args: argparse.Namespace) -> None:
         }
         for idx, combo in enumerate(combos)
     ]
+    manifest_lookup = {entry["comboId"]: entry for entry in manifest}
 
     if args.dry_run:
         logger.info("Dry run: %s combos generated", len(manifest))
@@ -370,7 +392,9 @@ def run_multi(args: argparse.Namespace) -> None:
     for index, batch in enumerate(batches, start=1):
         logger.info("Processing multi batch %s/%s with %s combos", index, len(batches), len(batch))
         response = client.generate(instructions, batch)
-        aggregated_results.extend(response.get("results", []))
+        batch_results = response.get("results", [])
+        _ensure_filter_names(results=batch_results, manifest_lookup=manifest_lookup)
+        aggregated_results.extend(batch_results)
         _save_results(output_path, aggregated_results)
         logger.info(
             "Saved %s multi-option results to %s after batch %s/%s",
