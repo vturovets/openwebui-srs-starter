@@ -5,6 +5,7 @@ from typing import Dict, List
 
 import pytest
 
+from tools.utterance_generator.cli import _ensure_filter_names
 from tools.utterance_generator.combinations import generate_combinations
 from tools.utterance_generator.lexicon import LexiconOption
 from tools.utterance_generator.scoring import (
@@ -98,3 +99,47 @@ def test_compute_multi_metrics_flags_coverage_and_separation() -> None:
     ) / 2
     assert metrics["flag_low_coverage"] is True
     assert metrics["flag_low_separation"] is True
+
+
+def test_ensure_filter_names_in_multi_results() -> None:
+    manifest = [
+        {
+            "comboId": "combo-1",
+            "matched": [
+                {
+                    "filterId": "F1",
+                    "filterName": "Filter One",
+                    "optionId": "O1",
+                    "optionName": "Option One",
+                },
+                {
+                    "filterId": "F2",
+                    "filterName": "Filter Two",
+                    "optionId": "O2",
+                    "optionName": "Option Two",
+                },
+            ],
+        }
+    ]
+    manifest_lookup = {entry["comboId"]: entry for entry in manifest}
+    results = [
+        {
+            "comboId": "combo-1",
+            "utterance": "Use both options",
+            "matched": [
+                {"id": "row-1", "filterId": "F1", "optionId": "O1", "optionName": "Option One"},
+                {
+                    "id": "row-2",
+                    "filterId": "F2",
+                    "filterName": "Existing Name",
+                    "optionId": "O2",
+                    "optionName": "Option Two",
+                },
+            ],
+        }
+    ]
+
+    _ensure_filter_names(results=results, manifest_lookup=manifest_lookup)
+
+    assert results[0]["matched"][0]["filterName"] == "Filter One"
+    assert results[0]["matched"][1]["filterName"] == "Existing Name"
