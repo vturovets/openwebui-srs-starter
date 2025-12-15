@@ -3,7 +3,7 @@ from __future__ import annotations
 import itertools
 import random
 from dataclasses import dataclass
-from typing import List, Sequence
+from typing import List, Sequence, Set
 
 from .lexicon import LexiconOption
 
@@ -42,8 +42,10 @@ def generate_combinations(
     seed: int = 13,
     size_weights: dict[int, float] | None = None,
     allow_same_filter: bool = False,
+    single_option_filter_ids: Set[str] | None = None,
 ) -> List[OptionCombo]:
     size_weights = size_weights or DEFAULT_SIZE_WEIGHTS
+    single_option_filter_ids = single_option_filter_ids or set()
     rand = random.Random(seed)
     combos: List[OptionCombo] = []
     options_by_filter: dict[str, List[LexiconOption]] = {}
@@ -67,7 +69,16 @@ def generate_combinations(
             if len(group) < size:
                 continue
             selection = rand.sample(group, size)
-            if not allow_same_filter and len({opt.filterId for opt in selection}) != len(selection):
+            if allow_same_filter:
+                repeat_counts: dict[str, int] = {}
+                for opt in selection:
+                    repeat_counts[opt.filterId] = repeat_counts.get(opt.filterId, 0) + 1
+                if any(
+                    repeat_counts.get(filter_id, 0) > 1
+                    for filter_id in single_option_filter_ids
+                ):
+                    continue
+            elif len({opt.filterId for opt in selection}) != len(selection):
                 continue
             key = tuple(sorted(opt.optionId for opt in selection))
             if key in seen:
