@@ -88,7 +88,7 @@ class ResponsesAPI:
 
 
 class EmbeddingsAPI:
-    def __init__(self, model: str, timeout: int) -> None:
+    def __init__(self, model: str, timeout: int, show_curl: bool = False) -> None:
         global OpenAI
         if OpenAI is None:
             from openai import OpenAI as _OpenAI
@@ -96,10 +96,24 @@ class EmbeddingsAPI:
             OpenAI = _OpenAI
         self.client = OpenAI(timeout=timeout)
         self.model = model
+        self.show_curl = show_curl
 
     def embed(self, texts: Sequence[str]) -> List[List[float]]:
-        response = self.client.embeddings.create(model=self.model, input=list(texts))
+        request_payload = {"model": self.model, "input": list(texts)}
+        if self.show_curl:
+            print(self._render_curl(request_payload))
+        response = self.client.embeddings.create(**request_payload)
         return [record.embedding for record in response.data]
+
+    def _render_curl(self, payload: Dict[str, Any]) -> str:
+        body = json.dumps(payload, ensure_ascii=False, indent=2)
+        escaped_body = body.replace("'", "'\"'\"'")
+        return (
+            "curl https://api.openai.com/v1/embeddings "
+            '-H "Content-Type: application/json" '
+            '-H "Authorization: Bearer $OPENAI_API_KEY" '
+            f"-d '{escaped_body}'"
+        )
 
 
 def build_centroids(options: Iterable[LexiconOption], embedder: EmbeddingsAPI) -> Dict[str, List[float]]:

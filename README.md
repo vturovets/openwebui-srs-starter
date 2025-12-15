@@ -123,7 +123,8 @@ python -m tools.utterance_generator score \
   --lexicon fixtures/filters_options.csv \
   --utterances data/utterances.jsonl \
   --output out/scoring_report.json \
-  --embedding-model text-embedding-3-small
+  --embedding-model text-embedding-3-small \
+  --show-curl
 ```
 
 Use `.env`/environment variables (e.g., `OPENAI_API_KEY`) to configure the
