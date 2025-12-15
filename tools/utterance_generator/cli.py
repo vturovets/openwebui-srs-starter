@@ -83,16 +83,17 @@ MULTI_RESPONSE_SCHEMA = {
                     "utterance": { "type": "string" },
                     "matched": {
                         "type": "array",
-                        "items": {
+                            "items": {
                             "type": "object",
                             "additionalProperties": False,
                             "properties": {
                                 "id": { "type": "string" },
                                 "filterId": { "type": "string" },
+                                "filterName": { "type": "string" },
                                 "optionId": { "type": "string" },
                                 "optionName": { "type": "string" }
                             },
-                            "required": ["id", "filterId", "optionId", "optionName"]
+                            "required": ["id", "filterId", "filterName", "optionId", "optionName"]
                         }
                     }
                 },
