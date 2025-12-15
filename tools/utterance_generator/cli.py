@@ -26,6 +26,7 @@ DEFAULT_PURITY_MARGIN = 0.10
 DEFAULT_PURITY_MIN_SCORE = 0.38
 DEFAULT_MULTI_COVERAGE_FLAG = 0.30
 DEFAULT_MULTI_SEPARATION_FLAG = 0.05
+DEFAULT_MAX_UNIQUE_IDS = 150
 
 
 SINGLE_RESPONSE_SCHEMA = {
@@ -38,6 +39,7 @@ SINGLE_RESPONSE_SCHEMA = {
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
+                    "id": {"type": "string"},
                     "filterId": { "type": "string" },
                     "filterName": { "type": "string" },
                     "optionId": { "type": "string" },
@@ -56,7 +58,7 @@ SINGLE_RESPONSE_SCHEMA = {
                         }
                     }
                 },
-                "required": ["filterId", "filterName", "optionId", "optionName", "utterances"]
+                "required": ["id", "filterId", "filterName", "optionId", "optionName", "utterances"]
             }
         }
     },
@@ -83,11 +85,12 @@ MULTI_RESPONSE_SCHEMA = {
                             "type": "object",
                             "additionalProperties": False,
                             "properties": {
+                                "id": { "type": "string" },
                                 "filterId": { "type": "string" },
                                 "optionId": { "type": "string" },
                                 "optionName": { "type": "string" }
                             },
-                            "required": ["filterId", "optionId", "optionName"]
+                            "required": ["id", "filterId", "optionId", "optionName"]
                         }
                     }
                 },
@@ -112,6 +115,12 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     single.add_argument("--rate-limit-sleep", type=float, default=DEFAULT_RATE_LIMIT_SLEEP)
     single.add_argument("--max-retries", type=int, default=DEFAULT_MAX_RETRIES)
     single.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    single.add_argument(
+        "--max-unique-ids",
+        type=int,
+        default=DEFAULT_MAX_UNIQUE_IDS,
+        help="Maximum unique option IDs per batch",
+    )
     single.add_argument("--show-curl", action="store_true")
     single.add_argument("--dry-run", action="store_true")
 
@@ -126,6 +135,12 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     multi.add_argument("--rate-limit-sleep", type=float, default=DEFAULT_RATE_LIMIT_SLEEP)
     multi.add_argument("--max-retries", type=int, default=DEFAULT_MAX_RETRIES)
     multi.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    multi.add_argument(
+        "--max-unique-ids",
+        type=int,
+        default=DEFAULT_MAX_UNIQUE_IDS,
+        help="Maximum unique option IDs per batch",
+    )
     multi.add_argument("--show-curl", action="store_true")
     multi.add_argument("--dry-run", action="store_true")
 
@@ -152,7 +167,7 @@ def _load_lexicon(path_str: str):
 def _chunk_by_unique_option_ids(
     items: Sequence[Dict[str, object]],
     extract_ids: Callable[[Dict[str, object]], Iterable[str]],
-    max_unique_ids: int = 150,
+    max_unique_ids: int = DEFAULT_MAX_UNIQUE_IDS,
 ) -> List[List[Dict[str, object]]]:
     batches: List[List[Dict[str, object]]] = []
     current_batch: List[Dict[str, object]] = []
@@ -176,6 +191,12 @@ def _chunk_by_unique_option_ids(
     return batches
 
 
+def _save_results(output_path: Path, results: List[Dict[str, object]]) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as handle:
+        json.dump({"results": results}, handle, ensure_ascii=False, indent=2)
+
+
 def run_single(args: argparse.Namespace) -> None:
     options = _load_lexicon(args.lexicon)
     if args.dry_run:
@@ -197,18 +218,26 @@ def run_single(args: argparse.Namespace) -> None:
         show_curl=args.show_curl,
     )
     batches = _chunk_by_unique_option_ids(
-        rows, extract_ids=lambda item: [str(item.get("optionId", ""))]
+        rows,
+        extract_ids=lambda item: [str(item.get("optionId", ""))],
+        max_unique_ids=args.max_unique_ids,
     )
     aggregated_results: List[Dict[str, object]] = []
+    output_path = Path(args.output)
     for index, batch in enumerate(batches, start=1):
         logger.info("Processing single batch %s/%s with %s options", index, len(batches), len(batch))
         response = client.generate(instructions, batch)
         aggregated_results.extend(response.get("results", []))
-    response = {"results": aggregated_results}
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as handle:
-        json.dump(response, handle, ensure_ascii=False, indent=2)
+        _save_results(output_path, aggregated_results)
+        logger.info(
+            "Saved %s single-option results to %s after batch %s/%s",
+            len(aggregated_results),
+            output_path,
+            index,
+            len(batches),
+        )
+    if not batches:
+        _save_results(output_path, aggregated_results)
     logger.info("Saved single-option dataset to %s", output_path)
 
 
@@ -250,19 +279,25 @@ def run_multi(args: argparse.Namespace) -> None:
     batches = _chunk_by_unique_option_ids(
         manifest,
         extract_ids=lambda item: [match.get("optionId", "") for match in item.get("matched", [])],
+        max_unique_ids=args.max_unique_ids,
     )
 
     aggregated_results: List[Dict[str, object]] = []
+    output_path = Path(args.output)
     for index, batch in enumerate(batches, start=1):
         logger.info("Processing multi batch %s/%s with %s combos", index, len(batches), len(batch))
         response = client.generate(instructions, batch)
         aggregated_results.extend(response.get("results", []))
-    response = {"results": aggregated_results}
-
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as handle:
-        json.dump(response, handle, ensure_ascii=False, indent=2)
+        _save_results(output_path, aggregated_results)
+        logger.info(
+            "Saved %s multi-option results to %s after batch %s/%s",
+            len(aggregated_results),
+            output_path,
+            index,
+            len(batches),
+        )
+    if not batches:
+        _save_results(output_path, aggregated_results)
     logger.info("Saved multi-option utterances to %s", output_path)
 
 
