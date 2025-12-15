@@ -4,7 +4,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import List
+from typing import Callable, Dict, Iterable, List, Sequence, Set
 
 from dotenv import load_dotenv
 
@@ -149,6 +149,33 @@ def _load_lexicon(path_str: str):
     return LexiconLoader.load(path)
 
 
+def _chunk_by_unique_option_ids(
+    items: Sequence[Dict[str, object]],
+    extract_ids: Callable[[Dict[str, object]], Iterable[str]],
+    max_unique_ids: int = 150,
+) -> List[List[Dict[str, object]]]:
+    batches: List[List[Dict[str, object]]] = []
+    current_batch: List[Dict[str, object]] = []
+    current_ids: Set[str] = set()
+
+    for item in items:
+        item_ids = set(extract_ids(item))
+        if not item_ids:
+            continue
+        combined_ids = current_ids | item_ids
+        if current_batch and len(combined_ids) > max_unique_ids:
+            batches.append(current_batch)
+            current_batch = []
+            current_ids = set()
+        current_batch.append(item)
+        current_ids |= item_ids
+
+    if current_batch:
+        batches.append(current_batch)
+
+    return batches
+
+
 def run_single(args: argparse.Namespace) -> None:
     options = _load_lexicon(args.lexicon)
     if args.dry_run:
@@ -169,7 +196,15 @@ def run_single(args: argparse.Namespace) -> None:
         schema=SINGLE_RESPONSE_SCHEMA,
         show_curl=args.show_curl,
     )
-    response = client.generate(instructions, rows)
+    batches = _chunk_by_unique_option_ids(
+        rows, extract_ids=lambda item: [str(item.get("optionId", ""))]
+    )
+    aggregated_results: List[Dict[str, object]] = []
+    for index, batch in enumerate(batches, start=1):
+        logger.info("Processing single batch %s/%s with %s options", index, len(batches), len(batch))
+        response = client.generate(instructions, batch)
+        aggregated_results.extend(response.get("results", []))
+    response = {"results": aggregated_results}
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as handle:
@@ -212,7 +247,17 @@ def run_multi(args: argparse.Namespace) -> None:
         schema=MULTI_RESPONSE_SCHEMA,
         show_curl=args.show_curl,
     )
-    response = client.generate(instructions, manifest)
+    batches = _chunk_by_unique_option_ids(
+        manifest,
+        extract_ids=lambda item: [match.get("optionId", "") for match in item.get("matched", [])],
+    )
+
+    aggregated_results: List[Dict[str, object]] = []
+    for index, batch in enumerate(batches, start=1):
+        logger.info("Processing multi batch %s/%s with %s combos", index, len(batches), len(batch))
+        response = client.generate(instructions, batch)
+        aggregated_results.extend(response.get("results", []))
+    response = {"results": aggregated_results}
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
