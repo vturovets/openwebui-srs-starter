@@ -141,6 +141,16 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     multi.add_argument("--count", type=int, default=20)
     multi.add_argument("--seed", type=int, default=13)
     multi.add_argument("--allow-same-filter", action="store_true")
+    multi.add_argument(
+        "--single-option-filter-id",
+        action="append",
+        dest="single_option_filter_ids",
+        default=[],
+        help=(
+            "Filter IDs that should appear at most once per combo when using --allow-same-filter. "
+            "Specify multiple times for multiple filters."
+        ),
+    )
     multi.add_argument("--model", default=DEFAULT_MODEL)
     multi.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
     multi.add_argument("--rate-limit-sleep", type=float, default=DEFAULT_RATE_LIMIT_SLEEP)
@@ -301,6 +311,7 @@ def run_multi(args: argparse.Namespace) -> None:
         seed=args.seed,
         size_weights=DEFAULT_SIZE_WEIGHTS,
         allow_same_filter=args.allow_same_filter,
+        single_option_filter_ids=set(args.single_option_filter_ids or []),
     )
     manifest = [
         {
