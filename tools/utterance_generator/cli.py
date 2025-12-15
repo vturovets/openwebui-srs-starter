@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import logging
 import random
@@ -10,10 +11,10 @@ from typing import Callable, Dict, Iterable, List, Sequence, Set
 from dotenv import load_dotenv
 
 from .combinations import DEFAULT_SIZE_WEIGHTS, generate_combinations
-from .lexicon import LexiconLoader
+from .lexicon import LexiconLoader, LexiconOption
 from .openai_client import EmbeddingsAPI, ResponsesAPI, build_centroids
 from .sampler import sample_to_csv
-from .scoring import compute_multi_metrics, purity_gate
+from .scoring import compute_multi_metrics, purity_gate, score_option_similarity
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
@@ -29,6 +30,7 @@ DEFAULT_PURITY_MIN_SCORE = 0.38
 DEFAULT_MULTI_COVERAGE_FLAG = 0.30
 DEFAULT_MULTI_SEPARATION_FLAG = 0.05
 DEFAULT_MAX_UNIQUE_IDS = 150
+EMBEDDING_BATCH_SIZE = 100
 
 
 SINGLE_RESPONSE_SCHEMA = {
@@ -170,7 +172,11 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
 
     score = subparsers.add_parser("score", help="Score utterances against centroids")
     score.add_argument("--lexicon", required=True)
-    score.add_argument("--utterances", required=True, help="JSONL of utterances to score")
+    score.add_argument(
+        "--utterances",
+        required=True,
+        help="Utterances to score (CSV with Utterance/filter/option columns or JSONL)",
+    )
     score.add_argument("--output", required=True, help="Path to scoring report")
     score.add_argument("--embedding-model", default=DEFAULT_EMBED_MODEL)
     score.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
@@ -263,6 +269,45 @@ def _save_results(output_path: Path, results: List[Dict[str, object]]) -> None:
         json.dump({"results": results}, handle, ensure_ascii=False, indent=2)
 
 
+def _chunked(items: Sequence[str], size: int) -> Iterable[Sequence[str]]:
+    for start in range(0, len(items), size):
+        yield items[start : start + size]
+
+
+def _load_utterance_csv(path: Path) -> List[Dict[str, str]]:
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if reader.fieldnames is None:
+            raise ValueError("CSV utterance file missing headers")
+        normalized_headers = [header.replace("\ufeff", "") for header in reader.fieldnames]
+        reader.fieldnames = normalized_headers
+
+        required = {"Utterance", "filterId", "filterName", "optionId", "optionName"}
+        missing = required - set(normalized_headers)
+        if missing:
+            raise ValueError(
+                "CSV utterance file is missing required columns: "
+                f"{', '.join(sorted(missing))}"
+            )
+        rows: List[Dict[str, str]] = []
+        for row in reader:
+            rows.append({
+                "Utterance": str(row.get("Utterance", "")).strip(),
+                "filterId": str(row.get("filterId", "")).strip(),
+                "filterName": str(row.get("filterName", "")).strip(),
+                "optionId": str(row.get("optionId", "")).strip(),
+                "optionName": str(row.get("optionName", "")).strip(),
+            })
+    return rows
+
+
+def _embed_texts(texts: Sequence[str], embedder: EmbeddingsAPI) -> List[List[float]]:
+    embeddings: List[List[float]] = []
+    for batch in _chunked(list(texts), EMBEDDING_BATCH_SIZE):
+        embeddings.extend(embedder.embed(batch))
+    return embeddings
+
+
 def _ensure_filter_names(
     *,
     results: List[Dict[str, object]],
@@ -281,6 +326,100 @@ def _ensure_filter_names(
             manifest_match = options_by_id.get(option_id)
             if manifest_match and manifest_match.get("filterName"):
                 match["filterName"] = manifest_match.get("filterName")
+
+
+def _score_utterance_csv(
+    *,
+    utterances_path: Path,
+    output_path: Path,
+    centroids: Dict[str, List[float]],
+    embedder: EmbeddingsAPI,
+    options: Sequence[LexiconOption],
+) -> None:
+    rows = _load_utterance_csv(utterances_path)
+    if not rows:
+        logger.warning("No utterances found in %s; writing empty CSV", utterances_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=[
+                    "Utterance",
+                    "filterId",
+                    "filterName",
+                    "optionId",
+                    "optionName",
+                    "target_similarity",
+                    "top_option_id",
+                    "top_option_name",
+                    "top_similarity",
+                    "best_non_target_similarity",
+                    "similarity_gap",
+                    "target_rank",
+                    "is_target_top_match",
+                ],
+            )
+            writer.writeheader()
+        return
+
+    logger.info("Embedding %s utterances for scoring", len(rows))
+    utterance_texts = [row["Utterance"] for row in rows]
+    utterance_embeddings = _embed_texts(utterance_texts, embedder)
+
+    option_lookup = {option.optionId: option for option in options}
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "Utterance",
+                "filterId",
+                "filterName",
+                "optionId",
+                "optionName",
+                "target_similarity",
+                "top_option_id",
+                "top_option_name",
+                "top_similarity",
+                "best_non_target_similarity",
+                "similarity_gap",
+                "target_rank",
+                "is_target_top_match",
+            ],
+        )
+        writer.writeheader()
+
+        for row, embedding in zip(rows, utterance_embeddings):
+            target_option_id = row.get("optionId", "")
+            if target_option_id not in centroids:
+                logger.warning(
+                    "Skipping utterance with unknown optionId %s: %s", target_option_id, row
+                )
+                continue
+
+            similarity = score_option_similarity(
+                utterance_embedding=embedding,
+                option_centroids=centroids,
+                target_option_id=target_option_id,
+            )
+            top_option = option_lookup.get(similarity.top_option_id)
+            writer.writerow(
+                {
+                    "Utterance": row.get("Utterance", ""),
+                    "filterId": row.get("filterId", ""),
+                    "filterName": row.get("filterName", ""),
+                    "optionId": target_option_id,
+                    "optionName": row.get("optionName", ""),
+                    "target_similarity": similarity.target_score,
+                    "top_option_id": similarity.top_option_id,
+                    "top_option_name": top_option.optionName if top_option else "",
+                    "top_similarity": similarity.top_score,
+                    "best_non_target_similarity": similarity.best_non_target_score,
+                    "similarity_gap": similarity.margin_to_best_non_target,
+                    "target_rank": similarity.target_rank or "",
+                    "is_target_top_match": similarity.top_option_id == target_option_id,
+                }
+            )
 
 
 def run_single(args: argparse.Namespace) -> None:
@@ -418,6 +557,16 @@ def run_score(args: argparse.Namespace) -> None:
     centroids = build_centroids(options, embedder)
 
     utterances_path = Path(args.utterances)
+    if utterances_path.suffix.lower() == ".csv":
+        _score_utterance_csv(
+            utterances_path=utterances_path,
+            output_path=Path(args.output),
+            centroids=centroids,
+            embedder=embedder,
+            options=options,
+        )
+        logger.info("Saved semantic closeness CSV to %s", args.output)
+        return
     utterance_records = []
     with utterances_path.open("r", encoding="utf-8") as handle:
         for line in handle:
