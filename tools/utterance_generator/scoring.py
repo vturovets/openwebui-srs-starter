@@ -50,6 +50,24 @@ class PurityDecision:
     reason: str
 
 
+@dataclass
+class SimilarityBreakdown:
+    target_option_id: str
+    target_score: float
+    top_option_id: str
+    top_score: float
+    best_non_target_score: float
+    target_rank: int | None
+
+    @property
+    def margin_to_top(self) -> float:
+        return self.target_score - self.top_score
+
+    @property
+    def margin_to_best_non_target(self) -> float:
+        return self.target_score - self.best_non_target_score
+
+
 def purity_gate(
     utterance_embedding: Vector,
     target_option_id: str,
@@ -123,3 +141,36 @@ def compute_multi_metrics(
         "flag_low_separation": separation < separation_flag,
         "scores": target_scores,
     }
+
+
+def score_option_similarity(
+    utterance_embedding: Vector,
+    option_centroids: Mapping[str, Vector],
+    target_option_id: str,
+) -> SimilarityBreakdown:
+    scored = [
+        (option_id, cosine_similarity(utterance_embedding, embedding))
+        for option_id, embedding in option_centroids.items()
+    ]
+    scored.sort(key=lambda entry: entry[1], reverse=True)
+
+    target_score = next(
+        (score for option_id, score in scored if option_id == target_option_id), 0.0
+    )
+    top_option_id, top_score = scored[0] if scored else ("", 0.0)
+    best_non_target_score = next(
+        (score for option_id, score in scored if option_id != target_option_id), -1.0
+    )
+    target_rank = next(
+        (index + 1 for index, (option_id, _) in enumerate(scored) if option_id == target_option_id),
+        None,
+    )
+
+    return SimilarityBreakdown(
+        target_option_id=target_option_id,
+        target_score=target_score,
+        top_option_id=top_option_id,
+        top_score=top_score,
+        best_non_target_score=best_non_target_score,
+        target_rank=target_rank,
+    )
