@@ -148,7 +148,8 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         default=[],
         help=(
             "Filter IDs that should appear at most once per combo when using --allow-same-filter. "
-            "Specify multiple times for multiple filters."
+            "Specify multiple times for multiple filters (e.g. --single-option-filter-id FILTER_A "
+            "--single-option-filter-id FILTER_B)."
         ),
     )
     multi.add_argument("--model", default=DEFAULT_MODEL)
