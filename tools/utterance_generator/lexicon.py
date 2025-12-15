@@ -14,6 +14,7 @@ class LexiconOption:
     optionId: str
     optionName: str
     synonyms: List[str] = field(default_factory=list)
+    id: str | None = None
 
     @classmethod
     def from_dict(cls, payload: dict) -> "LexiconOption":
@@ -25,12 +26,17 @@ class LexiconOption:
         if not isinstance(synonyms, Sequence):
             raise ValueError("synonyms must be a list of strings")
         normalized_synonyms = [str(value).strip() for value in synonyms if str(value).strip()]
+        record_id = (
+            str(payload.get("ID") or payload.get("id") or payload.get("optionId") or "").strip()
+            or None
+        )
         return cls(
             filterId=str(payload["filterId"]),
             filterName=str(payload["filterName"]),
             optionId=str(payload["optionId"]),
             optionName=str(payload["optionName"]).strip(),
             synonyms=normalized_synonyms,
+            id=record_id,
         )
 
     def to_payload(self) -> dict:
@@ -40,6 +46,7 @@ class LexiconOption:
             "optionId": self.optionId,
             "optionName": self.optionName,
             "synonyms": list(self.synonyms),
+            **({"id": self.id} if self.id else {}),
         }
 
     @property

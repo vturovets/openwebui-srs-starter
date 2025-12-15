@@ -17,6 +17,7 @@ from tools.utterance_generator.scoring import (
 
 def test_lexicon_option_validation_and_terms() -> None:
     payload = {
+        "ID": "X1",
         "filterId": "F1",
         "filterName": "Filter",
         "optionId": "O1",
@@ -24,9 +25,12 @@ def test_lexicon_option_validation_and_terms() -> None:
         "synonyms": ["alpha", " beta "],
     }
     option = LexiconOption.from_dict(payload)
+    assert option.id == "X1"
     assert option.optionName == "Option"
     assert option.synonyms == ["alpha", "beta"]
     assert option.terms == ["Option", "alpha", "beta"]
+
+    assert option.to_payload()["id"] == "X1"
 
     with pytest.raises(ValueError):
         LexiconOption.from_dict({"filterId": "", "filterName": "F", "optionId": "O", "optionName": ""})
