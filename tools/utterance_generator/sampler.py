@@ -83,26 +83,15 @@ def sample_single_rows(rows: Sequence[SampledUtterance], count: int, rng: random
 def sample_multi_rows(combos: Sequence[dict], count: int, rng: random.Random) -> List[SampledUtterance]:
     sampled_combos = _sample_sequence(combos, count, rng)
     rows: List[SampledUtterance] = []
-    filter_names: dict[str, str] = {}
     for combo in sampled_combos:
         utterance = combo.get("utterance", "")
         matched_entries = combo.get("matched", []) or []
         for match in matched_entries:
-            filter_id = str(match.get("filterId", "")).strip()
-            filter_name = str(match.get("filterName", "")).strip()
-            if not filter_name:
-                alt_name = match.get("filter_name") or match.get("filter")
-                if isinstance(alt_name, str):
-                    filter_name = alt_name.strip()
-            if not filter_name and filter_id and filter_id in filter_names:
-                filter_name = filter_names[filter_id]
-            elif filter_id and filter_name:
-                filter_names.setdefault(filter_id, filter_name)
             rows.append(
                 SampledUtterance(
                     utterance=utterance,
-                    filterId=filter_id,
-                    filterName=filter_name,
+                    filterId=str(match.get("filterId", "")).strip(),
+                    filterName=str(match.get("filterName", "")).strip(),
                     optionId=str(match.get("optionId", "")).strip(),
                     optionName=str(match.get("optionName", "")).strip(),
                 )
