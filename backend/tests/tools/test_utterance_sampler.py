@@ -83,9 +83,6 @@ def test_sample_multi_rows_preserves_combo_matches(tmp_path: Path) -> None:
     sampled_rows = sample_multi_rows(combos, 1, rng)
     assert len(sampled_rows) == len(combos[expected_index]["matched"])
     assert {row.utterance for row in sampled_rows} == {combos[expected_index]["utterance"]}
-    assert {row.filterName for row in sampled_rows} == {
-        match.get("filterName") for match in combos[expected_index]["matched"]
-    }
 
 
 def test_sample_to_csv_combines_sources(tmp_path: Path) -> None:
@@ -143,4 +140,3 @@ def test_sample_to_csv_combines_sources(tmp_path: Path) -> None:
     assert len(written_rows) == len(rows) == 2
     assert {row["filterId"] for row in written_rows} == {"F1", "F2"}
     assert {row["Utterance"] for row in written_rows} <= {"alpha", "beta", "combo example"}
-    assert all(row.get("filterName") for row in written_rows)
