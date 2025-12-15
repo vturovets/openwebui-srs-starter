@@ -172,7 +172,11 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
 
     score = subparsers.add_parser("score", help="Score utterances against centroids")
     score.add_argument("--lexicon", required=True)
-    score.add_argument("--utterances", required=True, help="JSONL of utterances to score")
+    score.add_argument(
+        "--utterances",
+        required=True,
+        help="Utterances to score (CSV with Utterance/filter/option columns or JSONL)",
+    )
     score.add_argument("--output", required=True, help="Path to scoring report")
     score.add_argument("--embedding-model", default=DEFAULT_EMBED_MODEL)
     score.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
