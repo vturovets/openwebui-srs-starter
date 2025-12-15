@@ -125,6 +125,15 @@ python -m tools.utterance_generator score \
   --output out/scoring_report.json \
   --embedding-model text-embedding-3-small \
   --show-curl
+
+# Sample existing utterance JSON into a flat CSV
+python -m tools.utterance_generator sample \
+  --single-file out/single_utterances.json \
+  --single-count 10 \
+  --multi-file out/multi_combos.json \
+  --multi-count 5 \
+  --seed 99 \
+  --output out/sampled_utterances.csv
 ```
 
 Use `.env`/environment variables (e.g., `OPENAI_API_KEY`) to configure the

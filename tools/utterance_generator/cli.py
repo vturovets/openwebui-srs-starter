@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from .combinations import DEFAULT_SIZE_WEIGHTS, generate_combinations
 from .lexicon import LexiconLoader
 from .openai_client import EmbeddingsAPI, ResponsesAPI, build_centroids
+from .sampler import sample_to_csv
 from .scoring import compute_multi_metrics, purity_gate
 
 logger = logging.getLogger(__name__)
@@ -82,16 +83,17 @@ MULTI_RESPONSE_SCHEMA = {
                     "utterance": { "type": "string" },
                     "matched": {
                         "type": "array",
-                        "items": {
+                            "items": {
                             "type": "object",
                             "additionalProperties": False,
                             "properties": {
                                 "id": { "type": "string" },
                                 "filterId": { "type": "string" },
+                                "filterName": { "type": "string" },
                                 "optionId": { "type": "string" },
                                 "optionName": { "type": "string" }
                             },
-                            "required": ["id", "filterId", "optionId", "optionName"]
+                            "required": ["id", "filterId", "filterName", "optionId", "optionName"]
                         }
                     }
                 },
@@ -177,6 +179,24 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     score.add_argument("--multi-coverage-flag", type=float, default=DEFAULT_MULTI_COVERAGE_FLAG)
     score.add_argument("--multi-separation-flag", type=float, default=DEFAULT_MULTI_SEPARATION_FLAG)
     score.add_argument("--show-curl", action="store_true")
+
+    sample = subparsers.add_parser("sample", help="Sample utterances into CSV")
+    sample.add_argument("--single-file", help="Path to single-option utterances JSON")
+    sample.add_argument(
+        "--single-count",
+        type=int,
+        default=0,
+        help="Number of single-option utterances to sample",
+    )
+    sample.add_argument("--multi-file", help="Path to multi-option utterances JSON")
+    sample.add_argument(
+        "--multi-count",
+        type=int,
+        default=0,
+        help="Number of multi-option combos to sample",
+    )
+    sample.add_argument("--seed", type=int, help="Seed for deterministic sampling")
+    sample.add_argument("--output", required=True, help="Output CSV path")
 
     return parser.parse_args(argv)
 
@@ -415,6 +435,19 @@ def run_score(args: argparse.Namespace) -> None:
     logger.info("Saved scoring report to %s", output_path)
 
 
+def run_sample(args: argparse.Namespace) -> None:
+    if not args.single_file and not args.multi_file:
+        logger.warning("No input files provided; writing empty CSV")
+    sample_to_csv(
+        output_path=Path(args.output),
+        single_path=Path(args.single_file) if args.single_file else None,
+        single_count=args.single_count,
+        multi_path=Path(args.multi_file) if args.multi_file else None,
+        multi_count=args.multi_count,
+        seed=args.seed,
+    )
+
+
 def main(argv: List[str] | None = None) -> None:
     load_dotenv()
     args = parse_args(argv)
@@ -424,5 +457,7 @@ def main(argv: List[str] | None = None) -> None:
         run_multi(args)
     elif args.command == "score":
         run_score(args)
+    elif args.command == "sample":
+        run_sample(args)
     else:  # pragma: no cover - defensive
         raise SystemExit(1)
