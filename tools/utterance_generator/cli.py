@@ -139,6 +139,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     score.add_argument("--purity-min-score", type=float, default=DEFAULT_PURITY_MIN_SCORE)
     score.add_argument("--multi-coverage-flag", type=float, default=DEFAULT_MULTI_COVERAGE_FLAG)
     score.add_argument("--multi-separation-flag", type=float, default=DEFAULT_MULTI_SEPARATION_FLAG)
+    score.add_argument("--show-curl", action="store_true")
 
     return parser.parse_args(argv)
 
@@ -222,7 +223,11 @@ def run_multi(args: argparse.Namespace) -> None:
 
 def run_score(args: argparse.Namespace) -> None:
     options = _load_lexicon(args.lexicon)
-    embedder = EmbeddingsAPI(model=args.embedding_model, timeout=args.timeout)
+    embedder = EmbeddingsAPI(
+        model=args.embedding_model,
+        timeout=args.timeout,
+        show_curl=args.show_curl,
+    )
     centroids = build_centroids(options, embedder)
 
     utterances_path = Path(args.utterances)
