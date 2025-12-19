@@ -69,6 +69,8 @@ and feeds the transcript through the same pipeline as `/v1/parse`. 【F:backend/
 
 **Request requirements**
 - Multipart/form-data upload with a single `file` field.
+- Optional `transcriptOnly=true` query parameter skips the holiday search pipeline and
+  returns only the raw STT transcript as plain text (no metadata or timings).
 - Only MIME types listed in configuration (`VOICE_ALLOWED_CONTENT_TYPES`) are accepted.
 - Payloads larger than `voice_max_bytes` are rejected with HTTP 413. 【F:backend/app/api/routes.py†L653-L705】
 
@@ -78,7 +80,8 @@ and feeds the transcript through the same pipeline as `/v1/parse`. 【F:backend/
 - `engine`: Identifier of the STT engine that produced the transcript. When
   Deepgram credentials are absent the dependency layer swaps in the
   `faster-whisper` fallback, and the field reflects that choice.
-- `transcript`: Trimmed text result from the STT provider.
+- `transcript`: Trimmed text result from the STT provider (omitted when `transcriptOnly=true`,
+  which responds with plain text instead of JSON).
 - `words`: Optional word-level timing entries when supplied by the provider.
 - `data` and `metadata`: Same structure as `/v1/parse`, with additional `sttMs` and
   `pipelineTotalMs` timing metrics. 【F:backend/app/api/routes.py†L707-L770】
