@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import AsyncIterator, Iterable, cast
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.params import Depends as DependsMarker
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -1059,6 +1059,14 @@ async def import_summary(
 @api_router.post("/voice", response_model=VoiceResponse)
 async def voice_endpoint(
     audio: UploadFile = File(...),
+    transcript_only: bool = Query(
+        default=False,
+        alias="transcriptOnly",
+        description=(
+            "When true, return only the transcript and timing metadata without invoking the "
+            "LLM-backed holiday search pipeline."
+        ),
+    ),
     settings: Settings = Depends(get_settings),
     pipeline: HolidaySearchPipeline = Depends(get_pipeline),
     logger: CSVLogger = Depends(get_csv_logger),
@@ -1070,6 +1078,9 @@ async def voice_endpoint(
     logger = cast(CSVLogger, _resolve_dependency(logger))
     resolved_stt_client = _resolve_dependency(stt_client)
     stt_client = cast(SpeechToTextClient | None, resolved_stt_client)
+
+    if not isinstance(transcript_only, bool):
+        transcript_only = bool(getattr(transcript_only, "default", False))
 
     total_start = perf_counter()
 
@@ -1206,6 +1217,56 @@ async def voice_endpoint(
     if not transcript_text:
         raise HTTPException(status_code=422, detail="No speech detected in audio sample")
 
+    word_timings = [
+        VoiceWordTiming(word=item.word, start=item.start, end=item.end)
+        for item in transcription.words
+    ]
+
+    timings: dict[str, float | bool] = {
+        "sttMs": stt_ms,
+        "totalMs": stt_ms,
+        "thresholdBreached": stt_ms > settings.processing_threshold_ms,
+    }
+
+    transcript_log = [{"role": "user", "text": transcript_text}]
+
+    if transcript_only:
+        metadata: dict[str, object] = {
+            "mode": settings.interaction_mode,
+            "timings": timings,
+            "transcript": transcript_log,
+        }
+
+        output = {"status": "transcribed", "transcript": transcript_text}
+        log_entry = {
+            "Timestamp (UTC)": _utc_timestamp(),
+            "User input": transcript_text,
+            "Request type": "Voice",
+            "Method": "",
+            "Interaction Mode": settings.interaction_mode,
+            "Pipeline Status": "Transcribed",
+            "Language Detection": ["", ""],
+            "Processing Time": _format_timing_ms(stt_ms),
+            "Extraction": "",
+            "Mapping": "",
+            "Validation": "",
+            "Transcription": _format_timing_ms(stt_ms),
+            "Network Latency": "",
+            "Output": json.dumps(output, ensure_ascii=False),
+        }
+
+        logger.log(log_entry)
+
+        return VoiceResponse(
+            status="transcribed",
+            voice_enabled=True,
+            engine=settings.stt_engine,
+            transcript=transcript_text,
+            words=word_timings,
+            data=None,
+            metadata=metadata,
+        )
+
     try:
         pipeline_result = pipeline.run(transcript_text)
     except LanguageNotPermittedError as exc:
@@ -1216,7 +1277,6 @@ async def voice_endpoint(
     pipeline_total_ms = pipeline_result.timings.get("totalMs", 0.0)
     combined_total_ms = pipeline_total_ms + stt_ms
 
-    transcript_log = [{"role": "user", "text": transcript_text}]
     status_value, data_payload, metadata, log_entry, error_detail = _format_pipeline_response(
         result=pipeline_result,
         settings=settings,
@@ -1236,11 +1296,6 @@ async def voice_endpoint(
 
     if status_value == "error" and error_detail:
         raise HTTPException(status_code=400, detail=error_detail)
-
-    word_timings = [
-        VoiceWordTiming(word=item.word, start=item.start, end=item.end)
-        for item in transcription.words
-    ]
 
     return VoiceResponse(
         status=status_value,

@@ -69,6 +69,8 @@ and feeds the transcript through the same pipeline as `/v1/parse`. 【F:backend/
 
 **Request requirements**
 - Multipart/form-data upload with a single `file` field.
+- Optional `transcriptOnly=true` query parameter skips the holiday search pipeline and
+  returns only the STT transcript plus timings.
 - Only MIME types listed in configuration (`VOICE_ALLOWED_CONTENT_TYPES`) are accepted.
 - Payloads larger than `voice_max_bytes` are rejected with HTTP 413. 【F:backend/app/api/routes.py†L653-L705】
 

@@ -214,6 +214,46 @@ def test_voice_endpoint_transcribes_and_logs(tmp_path):
     asyncio.run(scenario())
 
 
+def test_voice_endpoint_can_return_transcript_only(tmp_path):
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            voice_max_bytes=1024,
+            csv_path=tmp_path / "voice-log.csv",
+        )
+        pipeline = StubPipeline()
+        logger = StubLogger()
+        stt_client = StubSTTClient(transcript="only transcribe", duration_ms=25.0)
+        upload = create_upload(b"audio-bytes", content_type="audio/wav")
+
+        response = await voice_endpoint(
+            audio=upload,
+            transcript_only=True,
+            settings=settings,
+            pipeline=pipeline,
+            logger=logger,
+            stt_client=stt_client,
+        )
+
+        assert response.status == "transcribed"
+        assert response.transcript == "only transcribe"
+        assert response.data is None
+        assert response.metadata["timings"]["totalMs"] == pytest.approx(
+            stt_client.duration_ms, rel=0.1
+        )
+        assert response.metadata["transcript"] == [{"role": "user", "text": "only transcribe"}]
+        assert pipeline.invocations == []
+
+        assert logger.rows
+        log_entry = logger.rows[-1]
+        assert log_entry["Request type"] == "Voice"
+        assert log_entry["Pipeline Status"] == "Transcribed"
+
+    asyncio.run(scenario())
+
+
 def test_voice_endpoint_uses_word_timing_guard(tmp_path):
     async def scenario() -> None:
         settings = Settings(
