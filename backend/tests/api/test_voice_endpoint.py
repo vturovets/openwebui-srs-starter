@@ -237,13 +237,9 @@ def test_voice_endpoint_can_return_transcript_only(tmp_path):
             stt_client=stt_client,
         )
 
-        assert response.status == "transcribed"
-        assert response.transcript == "only transcribe"
-        assert response.data is None
-        assert response.metadata["timings"]["totalMs"] == pytest.approx(
-            stt_client.duration_ms, rel=0.1
-        )
-        assert response.metadata["transcript"] == [{"role": "user", "text": "only transcribe"}]
+        assert response.status_code == 200
+        assert response.media_type == "text/plain"
+        assert response.body.decode("utf-8") == "only transcribe"
         assert pipeline.invocations == []
 
         assert logger.rows

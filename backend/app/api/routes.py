@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.params import Depends as DependsMarker
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import Settings
@@ -1063,15 +1064,15 @@ async def voice_endpoint(
         default=False,
         alias="transcriptOnly",
         description=(
-            "When true, return only the transcript and timing metadata without invoking the "
-            "LLM-backed holiday search pipeline."
+            "When true, respond with only the transcript text without invoking the LLM-backed "
+            "holiday search pipeline."
         ),
     ),
     settings: Settings = Depends(get_settings),
     pipeline: HolidaySearchPipeline = Depends(get_pipeline),
     logger: CSVLogger = Depends(get_csv_logger),
     stt_client: SpeechToTextClient | None = Depends(get_stt_client),
-) -> VoiceResponse:
+) -> VoiceResponse | PlainTextResponse:
     """Transcribe an audio sample and feed it through the holiday search pipeline."""
 
     pipeline = cast(HolidaySearchPipeline, _resolve_dependency(pipeline))
@@ -1231,12 +1232,6 @@ async def voice_endpoint(
     transcript_log = [{"role": "user", "text": transcript_text}]
 
     if transcript_only:
-        metadata: dict[str, object] = {
-            "mode": settings.interaction_mode,
-            "timings": timings,
-            "transcript": transcript_log,
-        }
-
         output = {"status": "transcribed", "transcript": transcript_text}
         log_entry = {
             "Timestamp (UTC)": _utc_timestamp(),
@@ -1257,15 +1252,7 @@ async def voice_endpoint(
 
         logger.log(log_entry)
 
-        return VoiceResponse(
-            status="transcribed",
-            voice_enabled=True,
-            engine=settings.stt_engine,
-            transcript=transcript_text,
-            words=word_timings,
-            data=None,
-            metadata=metadata,
-        )
+        return PlainTextResponse(content=transcript_text)
 
     try:
         pipeline_result = pipeline.run(transcript_text)
