@@ -20,6 +20,7 @@
   import { getExtractedValueRows } from './lib/extractedValues';
   import { parseCsv } from './lib/csv';
   import { compareExpectedValues, parseExpectedValues } from './lib/importUtils';
+  import { appMode, getConsoleConfig } from './lib/appMode';
 
   const metaEnv = (import.meta as any)?.env ?? {};
   const baseUrl = (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
@@ -34,8 +35,11 @@
 
   type InterpretationMode = 'holiday' | 'preferences';
 
+  const consoleConfig = getConsoleConfig(appMode);
+  const showModeToggle = consoleConfig.showHoliday && consoleConfig.showPreferences;
+
   let mode = 'direct-parse';
-  let interpretationMode: InterpretationMode = 'holiday';
+  let interpretationMode: InterpretationMode = consoleConfig.lockedMode ?? 'holiday';
   let parseMode = mode;
   let isPreferencesMode = false;
   let dialogOverrideAllowed = false;
@@ -256,9 +260,11 @@
       showResults = normaliseShowResults(data?.showResults ?? (data as { showFailedOnly?: boolean })?.showFailedOnly);
 
       const initialMode = typeof data.mode === 'string' ? data.mode : '';
-      interpretationMode = initialMode === 'preferences' ? 'preferences' : 'holiday';
+      const resolvedMode: InterpretationMode =
+        initialMode === 'preferences' ? 'preferences' : 'holiday';
+      interpretationMode = consoleConfig.lockedMode ?? resolvedMode;
       mode = interpretationMode === 'holiday' && initialMode ? initialMode : 'direct-parse';
-      dialogOverrideAllowed = isDialogMode(initialMode);
+      dialogOverrideAllowed = consoleConfig.lockedMode === 'preferences' ? false : isDialogMode(initialMode);
       methodOptions = normaliseMethodOptions(data?.availableMethods);
       method = typeof data.llmMethod === 'string' ? data.llmMethod : '';
       if (method && !methodOptions.some((option) => option.id === method)) {
@@ -272,6 +278,10 @@
   });
 
   $: isPreferencesMode = interpretationMode === 'preferences';
+
+  $: if (consoleConfig.lockedMode && interpretationMode !== consoleConfig.lockedMode) {
+    interpretationMode = consoleConfig.lockedMode;
+  }
 
   $: if (!dialogOverrideAllowed && !isPreferencesMode && mode !== 'direct-parse') {
     mode = 'direct-parse';
@@ -677,24 +687,26 @@
         </div>
       {/if}
     </header>
-    <div class="mode-toggle" role="group" aria-label="Console mode" data-testid="mode-toggle">
-      <button
-        type="button"
-        class:selected={!isPreferencesMode}
-        on:click={() => (interpretationMode = 'holiday')}
-        data-testid="mode-toggle-holiday"
-      >
-        Holiday request
-      </button>
-      <button
-        type="button"
-        class:selected={isPreferencesMode}
-        on:click={() => (interpretationMode = 'preferences')}
-        data-testid="mode-toggle-preferences"
-      >
-        Preferences
-      </button>
-    </div>
+    {#if showModeToggle}
+      <div class="mode-toggle" role="group" aria-label="Console mode" data-testid="mode-toggle">
+        <button
+          type="button"
+          class:selected={!isPreferencesMode}
+          on:click={() => (interpretationMode = 'holiday')}
+          data-testid="mode-toggle-holiday"
+        >
+          Holiday request
+        </button>
+        <button
+          type="button"
+          class:selected={isPreferencesMode}
+          on:click={() => (interpretationMode = 'preferences')}
+          data-testid="mode-toggle-preferences"
+        >
+          Preferences
+        </button>
+      </div>
+    {/if}
     <form class="query" on:submit|preventDefault={handleSubmit} data-testid="parse-form">
       <label>
         Method
@@ -1262,4 +1274,3 @@
     }
   }
 </style>
-
