@@ -21,8 +21,11 @@
   import { parseCsv } from './lib/csv';
   import { compareExpectedValues, parseExpectedValues } from './lib/importUtils';
 
+  export let consoleModeOverride: ConsoleMode | null = null;
+
   const metaEnv = (import.meta as any)?.env ?? {};
   const baseUrl = (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
+  let consoleMode = normaliseConsoleMode(consoleModeOverride ?? resolveConsoleModeValue(metaEnv));
 
   let fixtures: Fixtures | null = null;
   let fixtureError = '';
@@ -34,9 +37,7 @@
 
   type InterpretationMode = 'holiday' | 'preferences';
   type ConsoleMode = InterpretationMode | 'both';
-
-  const consoleMode = normaliseConsoleMode(metaEnv?.VITE_CONSOLE_MODE);
-  const isConsoleModeToggleEnabled = consoleMode === 'both';
+  let isConsoleModeToggleEnabled = consoleMode === 'both';
 
   let mode = 'direct-parse';
   let interpretationMode: InterpretationMode = 'holiday';
@@ -253,6 +254,32 @@
     return 'SHOW_ALL';
   }
 
+  function resolveConsoleModeValue(env: Record<string, unknown> | undefined): unknown {
+    const globalEnv =
+      typeof globalThis !== 'undefined'
+        ? (globalThis as any).__APP_ENV__ ??
+          (globalThis as any).__ENV__ ??
+          (globalThis as any).process?.env
+        : undefined;
+
+    if (globalEnv && typeof globalEnv.VITE_CONSOLE_MODE !== 'undefined') {
+      return globalEnv.VITE_CONSOLE_MODE;
+    }
+
+    if (typeof process !== 'undefined' && process?.env) {
+      const value = (process.env as Record<string, unknown>).VITE_CONSOLE_MODE;
+      if (typeof value !== 'undefined') {
+        return value;
+      }
+    }
+
+    if (env && typeof env.VITE_CONSOLE_MODE !== 'undefined') {
+      return env.VITE_CONSOLE_MODE;
+    }
+
+    return undefined;
+  }
+
   function normaliseConsoleMode(value: unknown): ConsoleMode {
     if (typeof value !== 'string') {
       return 'both';
@@ -293,6 +320,8 @@
     }
   });
 
+  $: consoleMode = normaliseConsoleMode(consoleModeOverride ?? resolveConsoleModeValue(metaEnv));
+  $: isConsoleModeToggleEnabled = consoleMode === 'both';
   $: isPreferencesMode = interpretationMode === 'preferences';
 
   $: if (!dialogOverrideAllowed && !isPreferencesMode && mode !== 'direct-parse') {
