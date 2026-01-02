@@ -195,7 +195,6 @@ serving traffic. Key options mirror the SRS:
 | `IMPORT_PAUSE_SECONDS` | `0.1` | Duration to sleep before re-checking system load while throttling import execution. |
 | `IMPORT_RETRY_ATTEMPTS` | `3` | Number of retries applied to transient pipeline errors during imports. |
 | `IMPORT_RETRY_BACKOFF_SECONDS` | `0.25` | Initial exponential backoff delay between retries for transient errors. |
-| `VITE_CONSOLE_MODE` | `both` | Frontend console toggle: `holiday` shows Holiday Search only, `preferences` shows Preferences only, and `both` shows the mode switcher. |
 
 > **Note:** When `STT_ENGINE=deepgram` but the `DEEPGRAM_API_KEY` is omitted, the
 > backend falls back to a local `faster-whisper` model. Install it with `pip
