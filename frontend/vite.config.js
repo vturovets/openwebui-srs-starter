@@ -3,6 +3,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   plugins: [svelte()],
+  envDir: '..',
   server: {
     port: 4173,
   },
@@ -13,4 +14,3 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', 'tests/**'],
   },
 });
-
