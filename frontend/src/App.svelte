@@ -22,7 +22,10 @@
   import { compareExpectedValues, parseExpectedValues } from './lib/importUtils';
 
   const metaEnv = (import.meta as any)?.env ?? {};
-  const baseUrl = (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
+  const baseUrl =
+    (globalThis as any).__HOLIDAY_API__ ?? metaEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
+  const consoleVisibilitySetting =
+    (globalThis as any).__CONSOLE_VISIBILITY__ ?? metaEnv?.VITE_CONSOLE_MODE;
 
   let fixtures: Fixtures | null = null;
   let fixtureError = '';
@@ -33,6 +36,7 @@
   type MethodOption = { id: string; label: string };
 
   type InterpretationMode = 'holiday' | 'preferences';
+  type ConsoleVisibility = 'holiday-only' | 'preferences-only' | 'both';
 
   let mode = 'direct-parse';
   let interpretationMode: InterpretationMode = 'holiday';
@@ -249,6 +253,55 @@
     return 'SHOW_ALL';
   }
 
+  function resolveConsoleVisibility(value: unknown): ConsoleVisibility {
+    if (typeof value !== 'string') {
+      return 'both';
+    }
+
+    const normalized = value.trim().toLowerCase();
+
+    if (['holiday', 'holiday-only', 'holiday-search', 'holiday-search-only'].includes(normalized)) {
+      return 'holiday-only';
+    }
+
+    if (['preferences', 'preferences-only', 'preference-only'].includes(normalized)) {
+      return 'preferences-only';
+    }
+
+    return 'both';
+  }
+
+  const consoleVisibility = resolveConsoleVisibility(consoleVisibilitySetting);
+  const holidayConsoleEnabled = consoleVisibility !== 'preferences-only';
+  const preferencesConsoleEnabled = consoleVisibility !== 'holiday-only';
+  const modeToggleEnabled = holidayConsoleEnabled && preferencesConsoleEnabled;
+
+  function selectInterpretationMode(initialMode: string): InterpretationMode {
+    const preferredMode = initialMode === 'preferences' ? 'preferences' : 'holiday';
+
+    if (preferredMode === 'preferences' && preferencesConsoleEnabled) {
+      return 'preferences';
+    }
+
+    if (preferredMode === 'holiday' && holidayConsoleEnabled) {
+      return 'holiday';
+    }
+
+    return holidayConsoleEnabled ? 'holiday' : 'preferences';
+  }
+
+  function setInterpretationMode(next: InterpretationMode) {
+    if (next === 'holiday' && !holidayConsoleEnabled) {
+      return;
+    }
+
+    if (next === 'preferences' && !preferencesConsoleEnabled) {
+      return;
+    }
+
+    interpretationMode = next;
+  }
+
   onMount(async () => {
     try {
       const data = await fetchFixtures(baseUrl);
@@ -256,9 +309,9 @@
       showResults = normaliseShowResults(data?.showResults ?? (data as { showFailedOnly?: boolean })?.showFailedOnly);
 
       const initialMode = typeof data.mode === 'string' ? data.mode : '';
-      interpretationMode = initialMode === 'preferences' ? 'preferences' : 'holiday';
+      interpretationMode = selectInterpretationMode(initialMode);
       mode = interpretationMode === 'holiday' && initialMode ? initialMode : 'direct-parse';
-      dialogOverrideAllowed = isDialogMode(initialMode);
+      dialogOverrideAllowed = holidayConsoleEnabled && isDialogMode(initialMode);
       methodOptions = normaliseMethodOptions(data?.availableMethods);
       method = typeof data.llmMethod === 'string' ? data.llmMethod : '';
       if (method && !methodOptions.some((option) => option.id === method)) {
@@ -677,24 +730,26 @@
         </div>
       {/if}
     </header>
-    <div class="mode-toggle" role="group" aria-label="Console mode" data-testid="mode-toggle">
-      <button
-        type="button"
-        class:selected={!isPreferencesMode}
-        on:click={() => (interpretationMode = 'holiday')}
-        data-testid="mode-toggle-holiday"
-      >
-        Holiday request
-      </button>
-      <button
-        type="button"
-        class:selected={isPreferencesMode}
-        on:click={() => (interpretationMode = 'preferences')}
-        data-testid="mode-toggle-preferences"
-      >
-        Preferences
-      </button>
-    </div>
+    {#if modeToggleEnabled}
+      <div class="mode-toggle" role="group" aria-label="Console mode" data-testid="mode-toggle">
+        <button
+          type="button"
+          class:selected={!isPreferencesMode}
+          on:click={() => setInterpretationMode('holiday')}
+          data-testid="mode-toggle-holiday"
+        >
+          Holiday request
+        </button>
+        <button
+          type="button"
+          class:selected={isPreferencesMode}
+          on:click={() => setInterpretationMode('preferences')}
+          data-testid="mode-toggle-preferences"
+        >
+          Preferences
+        </button>
+      </div>
+    {/if}
     <form class="query" on:submit|preventDefault={handleSubmit} data-testid="parse-form">
       <label>
         Method
@@ -1262,4 +1317,3 @@
     }
   }
 </style>
-

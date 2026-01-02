@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
 
 vi.mock('svelte', async () => {
   const actual = await vi.importActual<typeof import('svelte')>('svelte');
@@ -330,6 +330,10 @@ describe('Holiday search console', () => {
     summarizeImportMock.mockReset().mockResolvedValue(cloneSummary());
   });
 
+  afterEach(() => {
+    delete (globalThis as { __CONSOLE_VISIBILITY__?: string }).__CONSOLE_VISIBILITY__;
+  });
+
   it('loads fixtures on mount and displays airports/destinations', async () => {
     const { component } = render(App);
     await tick();
@@ -389,6 +393,49 @@ describe('Holiday search console', () => {
     expect(screen.queryByTestId('fixtures-loaded')).not.toBeInTheDocument();
     expect(screen.getByText('Add your preferences')).toBeInTheDocument();
     expect(screen.queryByTestId('mode-select')).not.toBeInTheDocument();
+  });
+
+  it('hides the preferences console when the environment requests holiday-only', async () => {
+    (globalThis as { __CONSOLE_VISIBILITY__?: string }).__CONSOLE_VISIBILITY__ = 'holiday-only';
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    expect(screen.queryByTestId('mode-toggle')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Holiday Search Console');
+    expect(screen.getByText('Ask for a holiday')).toBeInTheDocument();
+    expect(screen.queryByText('Add your preferences')).not.toBeInTheDocument();
+  });
+
+  it('hides the holiday console when the environment requests preferences-only', async () => {
+    (globalThis as { __CONSOLE_VISIBILITY__?: string }).__CONSOLE_VISIBILITY__ = 'preferences-only';
+    parseTextMock.mockResolvedValueOnce(clone(PREFERENCES_PARSE_SUCCESS));
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('fixtures-loaded')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mode-toggle')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Preferences Console')
+    );
+    expect(screen.queryByText('Ask for a holiday')).not.toBeInTheDocument();
+    expect(screen.getByText('Add your preferences')).toBeInTheDocument();
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'Room only and scuba' } });
+    await fireEvent.submit(screen.getByTestId('parse-form'));
+
+    await waitFor(() => expect(parseTextMock).toHaveBeenCalled());
+    expect(parseTextMock.mock.calls[0][2].mode).toBe('preferences');
   });
 
   it('renders mapped filters when parsing preferences', async () => {
@@ -1006,4 +1053,3 @@ describe('Holiday search console', () => {
     expect(uploadInput.disabled).toBe(true);
   });
 });
-

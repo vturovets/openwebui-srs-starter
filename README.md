@@ -203,6 +203,14 @@ serving traffic. Key options mirror the SRS:
 > `FALLBACK_WHISPER_DEVICE`, `FALLBACK_WHISPER_COMPUTE_TYPE`, and
 > `FALLBACK_WHISPER_CACHE_DIR`. 【F:backend/app/dependencies.py†L133-L168】【F:backend/app/integrations/stt.py†L131-L240】
 
+### Frontend-only environment options
+
+Add the following variables to a `.env` file inside `frontend/` (or prefix them when running `npm run dev`) to adjust the UI:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `VITE_CONSOLE_MODE` | `both` | Controls which console(s) render in the UI: `holiday-only` (hide Preferences Console), `preferences-only` (hide Holiday Search Console), or `both` (show both, default). |
+
 Create a `.env` file to override defaults, for example:
 
 ```
