@@ -205,7 +205,7 @@ serving traffic. Key options mirror the SRS:
 
 ### Frontend-only environment options
 
-Add the following variables to the project root `.env` (loaded by Vite) or prefix them when running `npm run dev` to adjust the UI:
+Add the following variables to a `.env` file inside `frontend/` (or prefix them when running `npm run dev`) to adjust the UI:
 
 | Variable | Default | Description |
 | --- | --- | --- |
