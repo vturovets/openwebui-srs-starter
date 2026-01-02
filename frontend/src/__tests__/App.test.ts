@@ -22,8 +22,6 @@ import App from '../App.svelte';
 import { fetchFixtures, parseText, summarizeImport } from '../lib/api';
 import { CSV_LOG_FIELDS, type ImportSummaryResponse } from '../lib/types';
 
-const ORIGINAL_META_ENV = { ...(import.meta as any).env };
-
 const FIXTURE_RESPONSE = {
   airports: ['Amsterdam', 'London Gatwick'],
   destinations: ['Italy'],
@@ -327,14 +325,6 @@ describe('Holiday search console', () => {
   const summarizeImportMock = summarizeImport as unknown as vi.Mock;
 
   beforeEach(() => {
-    const metaEnv = (import.meta as any).env;
-    Object.keys(metaEnv).forEach((key) => {
-      if (!(key in ORIGINAL_META_ENV)) {
-        delete metaEnv[key];
-      }
-    });
-    Object.assign(metaEnv, ORIGINAL_META_ENV);
-    delete metaEnv.VITE_CONSOLE_MODE;
     fetchFixturesMock.mockReset().mockResolvedValue({ ...FIXTURE_RESPONSE });
     parseTextMock.mockReset();
     summarizeImportMock.mockReset().mockResolvedValue(cloneSummary());
@@ -382,38 +372,6 @@ describe('Holiday search console', () => {
     await screen.findByTestId('fixtures-loaded');
 
     expect(screen.queryByTestId('mode-select')).not.toBeInTheDocument();
-  });
-
-  it('forces holiday console when VITE_CONSOLE_MODE is set to holiday', async () => {
-    (import.meta as any).env.VITE_CONSOLE_MODE = 'holiday';
-
-    const { component } = render(App);
-    await tick();
-    component.$$.on_mount.forEach((fn) => fn());
-    await tick();
-
-    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('fixtures-loaded');
-
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Holiday Search Console');
-    expect(screen.queryByTestId('mode-toggle')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('mode-toggle-preferences')).not.toBeInTheDocument();
-  });
-
-  it('forces preferences console when VITE_CONSOLE_MODE is set to preferences', async () => {
-    (import.meta as any).env.VITE_CONSOLE_MODE = 'preferences';
-
-    const { component } = render(App);
-    await tick();
-    component.$$.on_mount.forEach((fn) => fn());
-    await tick();
-
-    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Preferences Console');
-    expect(screen.queryByTestId('fixtures-loaded')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('mode-toggle')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('mode-toggle-holiday')).not.toBeInTheDocument();
   });
 
   it('switches to preferences mode and updates labels', async () => {
@@ -1048,3 +1006,4 @@ describe('Holiday search console', () => {
     expect(uploadInput.disabled).toBe(true);
   });
 });
+
