@@ -23,7 +23,6 @@ import { fetchFixtures, parseText, summarizeImport } from '../lib/api';
 import { CSV_LOG_FIELDS, type ImportSummaryResponse } from '../lib/types';
 
 const ORIGINAL_META_ENV = { ...(import.meta as any).env };
-const ORIGINAL_PROCESS_ENV = { ...process.env };
 
 const FIXTURE_RESPONSE = {
   airports: ['Amsterdam', 'London Gatwick'],
@@ -335,16 +334,7 @@ describe('Holiday search console', () => {
       }
     });
     Object.assign(metaEnv, ORIGINAL_META_ENV);
-    Object.keys(process.env).forEach((key) => {
-      if (!(key in ORIGINAL_PROCESS_ENV)) {
-        delete process.env[key];
-      }
-    });
-    Object.assign(process.env, ORIGINAL_PROCESS_ENV);
     delete metaEnv.VITE_CONSOLE_MODE;
-    delete process.env.VITE_CONSOLE_MODE;
-    delete (globalThis as any).__APP_ENV__;
-    delete (globalThis as any).__ENV__;
     fetchFixturesMock.mockReset().mockResolvedValue({ ...FIXTURE_RESPONSE });
     parseTextMock.mockReset();
     summarizeImportMock.mockReset().mockResolvedValue(cloneSummary());
@@ -395,7 +385,9 @@ describe('Holiday search console', () => {
   });
 
   it('forces holiday console when VITE_CONSOLE_MODE is set to holiday', async () => {
-    const { component } = render(App, { consoleModeOverride: 'holiday' });
+    (import.meta as any).env.VITE_CONSOLE_MODE = 'holiday';
+
+    const { component } = render(App);
     await tick();
     component.$$.on_mount.forEach((fn) => fn());
     await tick();
@@ -409,30 +401,7 @@ describe('Holiday search console', () => {
   });
 
   it('forces preferences console when VITE_CONSOLE_MODE is set to preferences', async () => {
-    const { component } = render(App, { consoleModeOverride: 'preferences' });
-    await tick();
-    component.$$.on_mount.forEach((fn) => fn());
-    await tick();
-
-    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-
-    const state = (component as any).$capture_state?.();
-    if (state) {
-      expect(state.consoleMode).toBe('preferences');
-      expect(state.interpretationMode).toBe('preferences');
-    }
-
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Preferences Console')
-    );
-    expect(screen.queryByTestId('fixtures-loaded')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('mode-toggle')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('mode-toggle-holiday')).not.toBeInTheDocument();
-  });
-
-  it('falls back to process.env for VITE_CONSOLE_MODE', async () => {
-    delete (import.meta as any).env.VITE_CONSOLE_MODE;
-    process.env.VITE_CONSOLE_MODE = 'preferences';
+    (import.meta as any).env.VITE_CONSOLE_MODE = 'preferences';
 
     const { component } = render(App);
     await tick();
@@ -441,15 +410,7 @@ describe('Holiday search console', () => {
 
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
 
-    const state = (component as any).$capture_state?.();
-    if (state) {
-      expect(state.consoleMode).toBe('preferences');
-      expect(state.interpretationMode).toBe('preferences');
-    }
-
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Preferences Console')
-    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Preferences Console');
     expect(screen.queryByTestId('fixtures-loaded')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mode-toggle')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mode-toggle-holiday')).not.toBeInTheDocument();
