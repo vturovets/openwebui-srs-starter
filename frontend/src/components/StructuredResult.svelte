@@ -52,48 +52,46 @@
     return '';
   })();
 
-  function getNumericTiming(key: string): number | undefined {
-    const value = timings[key];
-    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  function getNumericTiming(...keys: string[]): number | undefined {
+    for (const key of keys) {
+      const value = timings[key];
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+    }
+    return undefined;
   }
 
-  const timingRows = (() => {
-    const networkLatencyMs =
-      getNumericTiming('llmNetworkMs') ??
-      getNumericTiming('networkLatencyMs') ??
-      getNumericTiming('networkMs');
+  const timingRows = [
+    {
+      label: 'Language detection, ms',
+      value: getNumericTiming('languageMs', 'languageDetectionMs', 'language'),
+    },
+    {
+      label: 'Extraction, ms',
+      value: getNumericTiming('extractionMs', 'extraction'),
+    },
+    {
+      label: 'Mapping to API request parameters, ms',
+      value: getNumericTiming('normalizationMs', 'normalisationMs', 'mappingMs', 'mapping'),
+    },
+    {
+      label: 'Validation, ms',
+      value: getNumericTiming('validationMs', 'validation'),
+    },
+    {
+      label: 'Transcription, ms',
+      value: getNumericTiming('sttMs', 'transcriptionMs', 'voiceMs'),
+    },
+    {
+      label: 'Network latency, ms',
+      value: getNumericTiming('llmNetworkMs', 'networkLatencyMs', 'networkMs', 'network'),
+    },
+  ].filter((row) => typeof row.value === 'number');
 
-    return [
-      {
-        label: 'Language detection, ms',
-        value: getNumericTiming('languageMs') ?? '',
-      },
-      {
-        label: 'Extraction, ms',
-        value: getNumericTiming('extractionMs') ?? '',
-      },
-      {
-        label: 'Mapping to API request parameters, ms',
-        value: getNumericTiming('normalizationMs') ?? '',
-      },
-      {
-        label: 'Validation, ms',
-        value: getNumericTiming('validationMs') ?? '',
-      },
-      {
-        label: 'Transcription, ms',
-        value: getNumericTiming('sttMs') ?? '',
-      },
-      {
-        label: 'Network latency, ms',
-        value: networkLatencyMs ?? '',
-      },
-    ];
-  })();
-
-  const totalTimingMs = timingRows.reduce((sum, row) => {
-    return sum + (typeof row.value === 'number' ? row.value : 0);
-  }, 0);
+  const totalTimingMs =
+    getNumericTiming('totalTimingMs', 'totalMs', 'total', 'totalMilliseconds') ??
+    timingRows.reduce((sum, row) => sum + (row.value ?? 0), 0);
 
   const MAX_DECIMALS = 2;
 
