@@ -174,67 +174,69 @@
     {/if}
   </section>
 
-  <section class="timings">
-    <h3>Timings</h3>
-    <table>
-      <colgroup>
-        <col style="width: var(--label-column-width)" />
-        <col />
-      </colgroup>
-      <tbody>
-        {#each timingRows as { label, value }}
-          <tr>
-            <th>{label}</th>
-            <td>{formatValue(value)}</td>
-          </tr>
-        {/each}
-        <tr>
-          <th>Total, ms</th>
-          <td>{formatValue(totalTimingMs)}</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
-  {#if mappedFilters.length}
-    <section class="mapped-filters" data-testid="mapped-filters">
-      <h3>Mapped filters</h3>
-      {#each mappedFilters as filter, index (filter.filterId ?? filter.filterLabel ?? `filter-${index}`)}
-        <div class="filter-group" data-testid="filter-group">
-          <h4>{filter.filterLabel ?? filter.filterId}</h4>
-          <ul>
-            {#if (filter.options ?? []).length === 0}
-              <li class="empty">No options mapped</li>
-            {:else}
-              {#each filter.options ?? [] as option, optionIndex (option.optionId ?? option.optionLabel ?? `option-${optionIndex}`)}
-                <li class:selected={option.selected} class="filter-option" data-testid="filter-option">
-                  <div class="option-row">
-                    <span class="option-label">{option.optionLabel ?? option.optionId}</span>
-                    {#if option.selected}
-                      <span class="badge" aria-label="Selected option">Selected</span>
-                    {/if}
-                    {#if typeof option.confidence === 'number'}
-                      <span class="confidence">{formatConfidence(option.confidence)}</span>
-                    {/if}
-                  </div>
-                  {#if option.spans?.length}
-                    <div class="span-hints">
-                      {option.spans.map((span) => span.text).filter(Boolean).join(' · ')}
+  <section class="details-grid">
+    {#if mappedFilters.length}
+      <section class="mapped-filters" data-testid="mapped-filters">
+        <h3>Mapped filters</h3>
+        {#each mappedFilters as filter, index (filter.filterId ?? filter.filterLabel ?? `filter-${index}`)}
+          <div class="filter-group" data-testid="filter-group">
+            <h4>{filter.filterLabel ?? filter.filterId}</h4>
+            <ul>
+              {#if (filter.options ?? []).length === 0}
+                <li class="empty">No options mapped</li>
+              {:else}
+                {#each filter.options ?? [] as option, optionIndex (option.optionId ?? option.optionLabel ?? `option-${optionIndex}`)}
+                  <li class:selected={option.selected} class="filter-option" data-testid="filter-option">
+                    <div class="option-row">
+                      <span class="option-label">{option.optionLabel ?? option.optionId}</span>
+                      {#if option.selected}
+                        <span class="badge" aria-label="Selected option">Selected</span>
+                      {/if}
+                      {#if typeof option.confidence === 'number'}
+                        <span class="confidence">{formatConfidence(option.confidence)}</span>
+                      {/if}
                     </div>
-                  {/if}
-                </li>
-              {/each}
-            {/if}
-          </ul>
-        </div>
-      {/each}
+                    {#if option.spans?.length}
+                      <div class="span-hints">
+                        {option.spans.map((span) => span.text).filter(Boolean).join(' · ')}
+                      </div>
+                    {/if}
+                  </li>
+                {/each}
+              {/if}
+            </ul>
+          </div>
+        {/each}
+      </section>
+    {:else if emptyPreferencesMessage}
+      <section class="mapped-filters empty" data-testid="mapped-filters-empty">
+        <h3>Mapped filters</h3>
+        <p>{emptyPreferencesMessage}</p>
+      </section>
+    {/if}
+
+    <section class="timings">
+      <h3>Timings</h3>
+      <table>
+        <colgroup>
+          <col style="width: var(--label-column-width)" />
+          <col />
+        </colgroup>
+        <tbody>
+          {#each timingRows as { label, value }}
+            <tr>
+              <th>{label}</th>
+              <td>{formatValue(value)}</td>
+            </tr>
+          {/each}
+          <tr>
+            <th>Total, ms</th>
+            <td>{formatValue(totalTimingMs)}</td>
+          </tr>
+        </tbody>
+      </table>
     </section>
-  {:else if emptyPreferencesMessage}
-    <section class="mapped-filters empty" data-testid="mapped-filters-empty">
-      <h3>Mapped filters</h3>
-      <p>{emptyPreferencesMessage}</p>
-    </section>
-  {/if}
+  </section>
 
   {#if missing.length || invalid.length || mismatches.length}
     <section class="issues" data-testid="issue-summary">
@@ -315,6 +317,22 @@
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       align-items: start;
     }
+  }
+
+  .details-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    .details-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+
+  .timings h3 {
+    margin: 0;
   }
 
   .request-text pre {
@@ -489,4 +507,3 @@
     font-size: 0.8rem;
   }
 </style>
-
