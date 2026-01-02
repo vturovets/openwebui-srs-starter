@@ -33,6 +33,10 @@
   type MethodOption = { id: string; label: string };
 
   type InterpretationMode = 'holiday' | 'preferences';
+  type ConsoleMode = InterpretationMode | 'both';
+
+  const consoleMode = normaliseConsoleMode(metaEnv?.VITE_CONSOLE_MODE);
+  const isConsoleModeToggleEnabled = consoleMode === 'both';
 
   let mode = 'direct-parse';
   let interpretationMode: InterpretationMode = 'holiday';
@@ -249,6 +253,17 @@
     return 'SHOW_ALL';
   }
 
+  function normaliseConsoleMode(value: unknown): ConsoleMode {
+    if (typeof value !== 'string') {
+      return 'both';
+    }
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'holiday' || normalized === 'preferences' || normalized === 'both') {
+      return normalized;
+    }
+    return 'both';
+  }
+
   onMount(async () => {
     try {
       const data = await fetchFixtures(baseUrl);
@@ -256,9 +271,16 @@
       showResults = normaliseShowResults(data?.showResults ?? (data as { showFailedOnly?: boolean })?.showFailedOnly);
 
       const initialMode = typeof data.mode === 'string' ? data.mode : '';
-      interpretationMode = initialMode === 'preferences' ? 'preferences' : 'holiday';
-      mode = interpretationMode === 'holiday' && initialMode ? initialMode : 'direct-parse';
-      dialogOverrideAllowed = isDialogMode(initialMode);
+      const resolvedInterpretationMode =
+        consoleMode === 'both'
+          ? initialMode === 'preferences'
+            ? 'preferences'
+            : 'holiday'
+          : consoleMode;
+      interpretationMode = resolvedInterpretationMode;
+      mode = resolvedInterpretationMode === 'holiday' && initialMode ? initialMode : 'direct-parse';
+      dialogOverrideAllowed =
+        resolvedInterpretationMode === 'holiday' ? isDialogMode(initialMode) : false;
       methodOptions = normaliseMethodOptions(data?.availableMethods);
       method = typeof data.llmMethod === 'string' ? data.llmMethod : '';
       if (method && !methodOptions.some((option) => option.id === method)) {
@@ -677,24 +699,26 @@
         </div>
       {/if}
     </header>
-    <div class="mode-toggle" role="group" aria-label="Console mode" data-testid="mode-toggle">
-      <button
-        type="button"
-        class:selected={!isPreferencesMode}
-        on:click={() => (interpretationMode = 'holiday')}
-        data-testid="mode-toggle-holiday"
-      >
-        Holiday request
-      </button>
-      <button
-        type="button"
-        class:selected={isPreferencesMode}
-        on:click={() => (interpretationMode = 'preferences')}
-        data-testid="mode-toggle-preferences"
-      >
-        Preferences
-      </button>
-    </div>
+    {#if isConsoleModeToggleEnabled}
+      <div class="mode-toggle" role="group" aria-label="Console mode" data-testid="mode-toggle">
+        <button
+          type="button"
+          class:selected={!isPreferencesMode}
+          on:click={() => (interpretationMode = 'holiday')}
+          data-testid="mode-toggle-holiday"
+        >
+          Holiday request
+        </button>
+        <button
+          type="button"
+          class:selected={isPreferencesMode}
+          on:click={() => (interpretationMode = 'preferences')}
+          data-testid="mode-toggle-preferences"
+        >
+          Preferences
+        </button>
+      </div>
+    {/if}
     <form class="query" on:submit|preventDefault={handleSubmit} data-testid="parse-form">
       <label>
         Method
@@ -1262,4 +1286,3 @@
     }
   }
 </style>
-
