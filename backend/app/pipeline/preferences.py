@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from time import perf_counter
 from typing import Mapping
 
@@ -15,6 +16,8 @@ from .preferences_mapping import (
 from ..config import Settings
 from ..fixtures.filter_catalogue import FiltersCatalogue
 from ..services.synonym_store import SynonymStore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -46,35 +49,63 @@ class PreferencesPipeline:
             self._settings.preferences_rules_langs or self._settings.allowed_langs
         )
         self._methods_catalog = methods_catalog or self._settings.load_methods_catalog()
-        self._filters_catalogue = FiltersCatalogue(
-            self._settings.resolve_filters_options_path(),
-            delimiter=self._settings.filters_options_delimiter,
-        )
-        self._synonym_store = SynonymStore(
-            self._filters_catalogue, self._settings.resolve_preferences_rules_synonyms_path()
-        )
+        self._filters_catalogue: FiltersCatalogue | None = None
+        self._synonym_store: SynonymStore | None = None
+        self._strategies: dict[str, PreferenceMappingStrategy] = {}
+
+    def _build_strategies(
+        self,
+        catalogue: FiltersCatalogue,
+        synonym_store: SynonymStore,
+    ) -> dict[str, PreferenceMappingStrategy]:
         threshold = self._settings.preferences_rules_threshold
         negation_penalty = self._settings.preferences_rules_negation_penalty
-        self._strategies: dict[str, PreferenceMappingStrategy] = {
+        return {
             "rules": RulesPreferenceMapper(
-                self._filters_catalogue,
-                synonym_store=self._synonym_store,
+                catalogue,
+                synonym_store=synonym_store,
                 threshold=threshold,
                 negation_penalty=negation_penalty,
             ),
             "llm": LLMPreferenceMapper(
-                self._filters_catalogue,
-                synonym_store=self._synonym_store,
+                catalogue,
+                synonym_store=synonym_store,
                 threshold=threshold,
                 negation_penalty=negation_penalty,
             ),
             "hybrid": HybridPreferenceMapper(
-                self._filters_catalogue,
-                synonym_store=self._synonym_store,
+                catalogue,
+                synonym_store=synonym_store,
                 threshold=threshold,
                 negation_penalty=negation_penalty,
             ),
         }
+
+    def _ensure_catalogue_loaded(self) -> None:
+        if self._filters_catalogue is None:
+            catalogue = FiltersCatalogue(
+                self._settings.resolve_filters_options_path(),
+                delimiter=self._settings.filters_options_delimiter,
+            )
+            synonym_store = SynonymStore(
+                catalogue, self._settings.resolve_preferences_rules_synonyms_path()
+            )
+            self._filters_catalogue = catalogue
+            self._synonym_store = synonym_store
+            if not self._strategies:
+                self._strategies = self._build_strategies(catalogue, synonym_store)
+            return
+
+        if self._synonym_store is None:
+            self._synonym_store = SynonymStore(
+                self._filters_catalogue,
+                self._settings.resolve_preferences_rules_synonyms_path(),
+            )
+
+        if not self._strategies and self._synonym_store is not None:
+            self._strategies = self._build_strategies(
+                self._filters_catalogue, self._synonym_store
+            )
 
     def _resolve_method(self, override: str | None) -> tuple[str | None, MethodConfig]:
         candidate = override or self._settings.llm_method
@@ -109,21 +140,35 @@ class PreferencesPipeline:
         status: str
         filter_payload: list[Mapping[str, object]]
         mappings: list[Mapping[str, object]] | None
-        strategy = self._strategies.get(
-            resolved_method.kind, RulesPreferenceMapper(self._filters_catalogue)
-        )
         error: str | None = None
         try:
-            status, selections, mapping_payload = self._measure(
-                "mappingMs",
-                timings,
-                lambda: strategy.map(utterance, language=detection.language),
-            )
+            self._ensure_catalogue_loaded()
         except Exception as exc:
+            logger.exception("Failed to load preference catalogue")
             status = "invalid-catalogue"
             selections = []
             mapping_payload = []
             error = str(exc)
+        else:
+            strategy = self._strategies.get(resolved_method.kind)
+            if strategy is None and self._filters_catalogue is not None:
+                strategy = RulesPreferenceMapper(self._filters_catalogue)
+
+            try:
+                if strategy is None:
+                    raise ValueError("Preference mapping strategy is unavailable")
+
+                status, selections, mapping_payload = self._measure(
+                    "mappingMs",
+                    timings,
+                    lambda: strategy.map(utterance, language=detection.language),
+                )
+            except Exception as exc:
+                logger.exception("Preference mapping failed")
+                status = "invalid-catalogue"
+                selections = []
+                mapping_payload = []
+                error = str(exc)
 
         filter_payload = [selection.to_payload() for selection in selections]
         mappings = mapping_payload

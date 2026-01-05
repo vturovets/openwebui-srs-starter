@@ -373,6 +373,8 @@ class ImportJobRunner:
                                 final_status = "success"
                             elif status == "error":
                                 final_status = "error"
+                            elif status == "invalid-catalogue":
+                                final_status = "failed"
                             else:
                                 final_status = "failed"
                         else:
