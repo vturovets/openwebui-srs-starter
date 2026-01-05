@@ -369,7 +369,6 @@ describe('Holiday search console', () => {
     await tick();
 
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('fixtures-loaded');
 
     expect(screen.queryByTestId('mode-select')).not.toBeInTheDocument();
   });
@@ -381,7 +380,6 @@ describe('Holiday search console', () => {
     await tick();
 
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('fixtures-loaded');
 
     await fireEvent.click(screen.getByTestId('mode-toggle-preferences'));
 
@@ -474,7 +472,6 @@ describe('Holiday search console', () => {
     component.$$.on_mount.forEach((fn) => fn());
     await tick();
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('fixtures-loaded');
 
     const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
     await fireEvent.input(input, { target: { value: 'Find a trip' } });
@@ -511,7 +508,6 @@ describe('Holiday search console', () => {
     component.$$.on_mount.forEach((fn) => fn());
     await tick();
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('fixtures-loaded');
 
     const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
     await fireEvent.input(input, { target: { value: 'Missing destination' } });
@@ -542,7 +538,6 @@ describe('Holiday search console', () => {
     component.$$.on_mount.forEach((fn) => fn());
     await tick();
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('fixtures-loaded');
 
     expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument();
     expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
@@ -585,6 +580,52 @@ describe('Holiday search console', () => {
     await fireEvent.click(resetButton);
     await waitFor(() => expect(screen.queryByTestId('performance-summary')).not.toBeInTheDocument());
     expect(screen.queryByTestId('usage-summary')).not.toBeInTheDocument();
+
+    component.$destroy();
+  });
+
+  it('imports preference CSV requests and flags filter mismatches', async () => {
+    fetchFixturesMock.mockResolvedValueOnce({ ...FIXTURE_RESPONSE, mode: 'preferences' });
+    parseTextMock.mockResolvedValueOnce(clone(PREFERENCES_PARSE_SUCCESS));
+    summarizeImportMock.mockResolvedValueOnce(
+      cloneSummary({
+        performance: {
+          requestCount: 1,
+          p95: { inference: 'insufficient-data', thresholdMs: 750, valueMs: 120 },
+          accuracy: {
+            value: 0,
+            inference: 'insufficient-data',
+            successCount: 0,
+            threshold: 0.85,
+          },
+        },
+      })
+    );
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+
+    const csvContent =
+      'User input,Expected values\n"Need scuba","Filter: ""Facilities""; Options: ""Scuba"", ""Scuba - additional info"" | Filter: ""Boards""; Options: ""Room Only"""\n';
+    const file = {
+      name: 'requests.csv',
+      type: 'text/csv',
+      text: () => Promise.resolve(csvContent),
+    } as unknown as File;
+    const importInput = screen.getByTestId('import-input') as HTMLInputElement;
+    Object.defineProperty(importInput, 'files', {
+      value: [file],
+      configurable: true,
+    });
+    await fireEvent.change(importInput);
+
+    await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+    expect(screen.getByTestId('status-label')).toHaveTextContent('failed');
+    expect(screen.getByText('Expected value mismatches:')).toBeInTheDocument();
+    expect(screen.getByText('Filter: "Facilities"')).toBeInTheDocument();
 
     component.$destroy();
   });
@@ -1006,4 +1047,3 @@ describe('Holiday search console', () => {
     expect(uploadInput.disabled).toBe(true);
   });
 });
-

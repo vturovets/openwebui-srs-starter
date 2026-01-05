@@ -19,7 +19,12 @@
   import { CSV_LOG_FIELDS } from './lib/types';
   import { getExtractedValueRows } from './lib/extractedValues';
   import { parseCsv } from './lib/csv';
-  import { compareExpectedValues, parseExpectedValues } from './lib/importUtils';
+  import {
+    compareExpectedPreferences,
+    compareExpectedValues,
+    parseExpectedPreferences,
+    parseExpectedValues,
+  } from './lib/importUtils';
   import { appMode, getConsoleConfig } from './lib/appMode';
 
   const metaEnv = (import.meta as any)?.env ?? {};
@@ -504,6 +509,7 @@
 
         const expectedRaw = record['Expected values'] ?? '';
         const expectedValues = parseExpectedValues(expectedRaw);
+        const expectedPreferences = parseExpectedPreferences(expectedRaw);
 
         try {
           const payload = await parseText(baseUrl, userInput, {
@@ -513,9 +519,16 @@
 
           let entry = createEntry('text', payload, userInput);
 
-          if (expectedValues.length) {
-            const actualRows = getExtractedValueRows(entry);
-            const mismatches = compareExpectedValues(actualRows, expectedValues);
+          const preferencesMode =
+            parseMode === 'preferences' ||
+            (typeof payload.metadata?.mode === 'string' &&
+              payload.metadata.mode.trim().toLowerCase() === 'preferences') ||
+            Array.isArray(payload.filters);
+
+          if (preferencesMode ? expectedPreferences.length : expectedValues.length) {
+            const mismatches = preferencesMode
+              ? compareExpectedPreferences(payload.filters ?? [], expectedPreferences)
+              : compareExpectedValues(getExtractedValueRows(entry), expectedValues);
 
             if (mismatches.length) {
               const updatedResult: HolidayResult = {
