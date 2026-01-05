@@ -789,6 +789,7 @@ def _format_preferences_response(
 ):
     """Normalise preference pipeline output for API responses and logging."""
 
+    status_value = result.status
     timings = dict(result.timings)
     total_ms_raw = timings.get("totalMs", 0.0)
     total_ms = float(total_ms_raw) if isinstance(total_ms_raw, (int, float)) else 0.0
@@ -802,7 +803,10 @@ def _format_preferences_response(
     metadata["method"] = result.method_used
     metadata["requestedMethod"] = result.method_requested
     metadata["timings"] = timings
-    metadata["status"] = result.status
+    if result.status == "no-preferences-detected":
+        status_value = "failed"
+        metadata["statusReason"] = result.status
+    metadata["status"] = status_value
     metadata["language"] = {
         "code": result.detection.language,
         "confidence": result.detection.confidence,
@@ -823,7 +827,7 @@ def _format_preferences_response(
         "Request type": "Preferences",
         "Method": method_value,
         "Interaction Mode": metadata["mode"],
-        "Pipeline Status": result.status,
+        "Pipeline Status": status_value,
         "Language Detection": [
             _format_timing_ms(timings.get("languageMs")),
             language_summary,
@@ -837,7 +841,7 @@ def _format_preferences_response(
         "Output": output_serialised,
     }
 
-    return result.status, result.filters, metadata, log_entry, result.error
+    return status_value, result.filters, metadata, log_entry, result.error
 
 
 @api_router.post("/dialog", response_model=DialogResponse)

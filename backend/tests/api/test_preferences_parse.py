@@ -29,6 +29,21 @@ class StubPreferencesPipeline:
         )
 
 
+class StubNoPreferencesPipeline:
+    def run(self, text: str, method: str | None = None) -> PreferenceRunResult:
+        return PreferenceRunResult(
+            status="no-preferences-detected",
+            method_requested=None,
+            method_used="rules-basic",
+            detection=LanguageDetectionResult(language="en", confidence=0.51),
+            filters=[],
+            timings={"languageMs": 2.0, "totalMs": 25.0},
+            metadata={},
+            mappings=None,
+            error=None,
+        )
+
+
 def test_preferences_parse_endpoint_formats_response(monkeypatch) -> None:
     monkeypatch.setenv("PROCESSING_THRESHOLD_MS", "1000")
 
@@ -69,6 +84,44 @@ def test_preferences_parse_endpoint_formats_response(monkeypatch) -> None:
         assert metadata["mappings"] == [
             {"filterId": "wifi", "spans": [{"text": "wifi"}]}
         ]
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+        get_pipeline.cache_clear()
+        get_llm_client.cache_clear()
+        get_methods_catalog.cache_clear()
+        get_preferences_pipeline.cache_clear()
+
+
+def test_preferences_parse_endpoint_maps_no_preferences_status(monkeypatch) -> None:
+    for cache in (
+        get_settings,
+        get_pipeline,
+        get_llm_client,
+        get_methods_catalog,
+        get_preferences_pipeline,
+    ):
+        cache.cache_clear()
+
+    app = create_app()
+    app.dependency_overrides[get_preferences_pipeline] = lambda: StubNoPreferencesPipeline()
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/v1/preferences/parse",
+            json={"text": "Just browsing", "mode": "preferences"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+
+        assert payload["status"] == "failed"
+        assert payload["filters"] == []
+
+        metadata = payload["metadata"]
+        assert metadata["statusReason"] == "no-preferences-detected"
+        assert metadata["status"] == "failed"
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
