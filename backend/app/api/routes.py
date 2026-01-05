@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import AsyncIterator, Iterable, cast
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.params import Depends as DependsMarker
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -160,6 +160,7 @@ class VoiceResponse(BaseModel):
     transcript: str | None
     words: list[VoiceWordTiming] = Field(default_factory=list)
     data: dict[str, object] | None = None
+    filters: list[Mapping[str, object]] | None = None
     metadata: dict[str, object]
 
 
@@ -1068,14 +1069,15 @@ async def voice_endpoint(
             "holiday search pipeline."
         ),
     ),
+    mode: str | None = Form(default=None),
     settings: Settings = Depends(get_settings),
     pipeline: HolidaySearchPipeline = Depends(get_pipeline),
+    preferences_pipeline: PreferencesPipeline = Depends(get_preferences_pipeline),
     logger: CSVLogger = Depends(get_csv_logger),
     stt_client: SpeechToTextClient | None = Depends(get_stt_client),
 ) -> VoiceResponse | PlainTextResponse:
     """Transcribe an audio sample and feed it through the holiday search pipeline."""
 
-    pipeline = cast(HolidaySearchPipeline, _resolve_dependency(pipeline))
     logger = cast(CSVLogger, _resolve_dependency(logger))
     resolved_stt_client = _resolve_dependency(stt_client)
     stt_client = cast(SpeechToTextClient | None, resolved_stt_client)
@@ -1089,7 +1091,7 @@ async def voice_endpoint(
         await audio.close()
         metadata = {
             "timings": {"totalMs": (perf_counter() - total_start) * 1000},
-            "mode": settings.interaction_mode,
+            "mode": mode or settings.interaction_mode,
         }
         return VoiceResponse(
             status="noop",
@@ -1254,6 +1256,50 @@ async def voice_endpoint(
 
         return PlainTextResponse(content=transcript_text)
 
+    if mode == "preferences":
+        resolved_preferences_pipeline = _resolve_dependency(preferences_pipeline)
+        preferences_pipeline = cast(PreferencesPipeline, resolved_preferences_pipeline)
+        try:
+            pipeline_result = preferences_pipeline.run(transcript_text)
+        except LanguageNotPermittedError as exc:
+            message = _format_language_error_message(exc, settings.allowed_langs)
+            raise HTTPException(status_code=400, detail=message) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        status_value, filters, metadata, log_entry, error_detail = _format_preferences_response(
+            result=pipeline_result,
+            settings=settings,
+            mode=mode,
+            input_text=transcript_text,
+        )
+
+        timings = dict(metadata.get("timings", {}))
+        pipeline_total_ms = timings.get("totalMs", 0.0)
+        combined_total_ms = pipeline_total_ms + stt_ms
+        timings["pipelineTotalMs"] = pipeline_total_ms
+        timings["sttMs"] = stt_ms
+        timings["totalMs"] = combined_total_ms
+        timings["thresholdBreached"] = combined_total_ms > settings.processing_threshold_ms
+        metadata["timings"] = timings
+
+        logger.log(log_entry)
+
+        if status_value == "error" and error_detail:
+            raise HTTPException(status_code=400, detail=error_detail)
+
+        return VoiceResponse(
+            status=status_value,
+            voice_enabled=True,
+            engine=settings.stt_engine,
+            transcript=transcript_text,
+            words=word_timings,
+            data=None,
+            filters=filters,
+            metadata=metadata,
+        )
+
+    pipeline = cast(HolidaySearchPipeline, _resolve_dependency(pipeline))
     try:
         pipeline_result = pipeline.run(transcript_text)
     except LanguageNotPermittedError as exc:
@@ -1267,7 +1313,7 @@ async def voice_endpoint(
     status_value, data_payload, metadata, log_entry, error_detail = _format_pipeline_response(
         result=pipeline_result,
         settings=settings,
-        mode=None,
+        mode=mode,
         input_text=transcript_text,
         stt_source_override=settings.stt_engine,
         transcript_log=transcript_log,
