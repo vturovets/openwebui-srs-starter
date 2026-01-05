@@ -40,6 +40,10 @@ class FiltersCatalogue:
     """Load and cache filters/options from ``filters_options.csv``."""
 
     REQUIRED_COLUMNS = ("filterId", "filterLabel", "optionId", "optionLabel")
+    COLUMN_ALIASES = {
+        "filterName": "filterLabel",
+        "optionName": "optionLabel",
+    }
 
     _NORMALIZE_PATTERN = re.compile(r"[^\w\s]+")
 
@@ -65,7 +69,8 @@ class FiltersCatalogue:
         try:
             with self._path.open(encoding="utf-8", newline="") as handle:
                 reader = csv.DictReader(handle, delimiter=self._delimiter)
-                self._validate_columns(reader.fieldnames)
+                resolved_columns = self._validate_columns(reader.fieldnames)
+                reader.fieldnames = list(resolved_columns)
                 rows = list(reader)
         except OSError as exc:  # pragma: no cover - filesystem errors
             raise FileNotFoundError(
@@ -81,8 +86,8 @@ class FiltersCatalogue:
         for entry in rows:
             filter_id = self._clean_field(entry, "filterId")
             option_id = self._clean_field(entry, "optionId")
-            filter_label = self._clean_field(entry, "filterLabel")
-            option_label = self._clean_field(entry, "optionLabel")
+            filter_label = self._clean_label_field(entry, "filterLabel", "filterName")
+            option_label = self._clean_label_field(entry, "optionLabel", "optionName")
 
             synonyms_raw = entry.get("synonyms") or ""
             synonyms: Tuple[str, ...] = tuple(
@@ -110,20 +115,42 @@ class FiltersCatalogue:
                 options=tuple(options),
             )
 
-    def _validate_columns(self, columns: Sequence[str] | None) -> None:
+    def _resolve_columns(self, columns: Sequence[str]) -> List[str]:
+        resolved = list(columns)
+        for alias, canonical in self.COLUMN_ALIASES.items():
+            if canonical not in resolved and alias in resolved:
+                resolved = [canonical if column == alias else column for column in resolved]
+        return resolved
+
+    def _validate_columns(self, columns: Sequence[str] | None) -> List[str]:
         if not columns:
             raise ValueError("Filters catalogue is missing a header row")
-        missing = [column for column in self.REQUIRED_COLUMNS if column not in columns]
+        resolved = self._resolve_columns(columns)
+        missing = [column for column in self.REQUIRED_COLUMNS if column not in resolved]
         if missing:
             raise ValueError(
                 "Filters catalogue is missing required columns: " + ", ".join(missing)
             )
+        return resolved
 
     def _clean_field(self, entry: Mapping[str, str], field: str) -> str:
         value = (entry.get(field) or "").strip()
         if not value:
             raise ValueError(f"Field '{field}' must not be empty in filters catalogue")
         return value
+
+    def _clean_label_field(
+        self, entry: Mapping[str, str], primary: str, fallback: str
+    ) -> str:
+        value = (entry.get(primary) or "").strip()
+        if value:
+            return value
+        fallback_value = (entry.get(fallback) or "").strip()
+        if fallback_value:
+            return fallback_value
+        raise ValueError(
+            f"Fields '{primary}' and '{fallback}' must not be empty in filters catalogue"
+        )
 
     def _build_options(self, entries: Iterable[Mapping[str, object]]) -> List[FilterOption]:
         options: List[FilterOption] = []
