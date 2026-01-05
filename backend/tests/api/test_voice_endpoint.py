@@ -10,7 +10,9 @@ from starlette.datastructures import Headers
 from backend.app.api.routes import VoiceResponse, voice_endpoint
 from backend.app.config import Settings
 from backend.app.integrations.stt import TranscribedWord, TranscriptionResult
+from backend.app.pipeline.language import LanguageDetectionResult
 from backend.app.pipeline.pipeline import PipelineRunResult
+from backend.app.pipeline.preferences import PreferenceRunResult
 
 
 class StubLogger:
@@ -95,6 +97,25 @@ class StubSTTClient:
             for part, (start, end) in zip(transcript_words, timings)
         ]
         return TranscriptionResult(text=self.transcript, words=words)
+
+
+class StubPreferencesPipeline:
+    def __init__(self, timings: dict[str, float] | None = None) -> None:
+        self.timings = timings or {"totalMs": 55.0}
+        self.invocations: list[str] = []
+
+    def run(self, utterance: str, method: str | None = None) -> PreferenceRunResult:
+        self.invocations.append(utterance)
+        detection = LanguageDetectionResult(language="en", confidence=0.91)
+        return PreferenceRunResult(
+            status="success",
+            method_requested=method,
+            method_used="rules",
+            detection=detection,
+            filters=[{"filterId": "budget", "options": [{"optionId": "luxury"}]}],
+            timings=dict(self.timings),
+            metadata={"methodType": "rules"},
+        )
 
 
 def create_upload(
@@ -346,5 +367,40 @@ def test_voice_endpoint_handles_streams_without_seek(tmp_path):
 
         assert response.status == "success"
         assert stt_client.payloads[-1] == audio_bytes
+
+    asyncio.run(scenario())
+
+
+def test_voice_endpoint_preferences_mode_uses_preferences_pipeline():
+    async def scenario() -> None:
+        settings = Settings(
+            voice_enabled=True,
+            stt_engine="deepgram",
+            deepgram_api_key="dg",
+            voice_max_bytes=1024,
+        )
+        pipeline = StubPipeline()
+        preferences_pipeline = StubPreferencesPipeline(timings={"totalMs": 40.0})
+        logger = StubLogger()
+        stt_client = StubSTTClient(transcript="avoid long flights", duration_ms=20.0)
+        upload = create_upload(b"audio-bytes", content_type="audio/wav")
+
+        response = await voice_endpoint(
+            audio=upload,
+            mode="preferences",
+            settings=settings,
+            pipeline=pipeline,
+            preferences_pipeline=preferences_pipeline,
+            logger=logger,
+            stt_client=stt_client,
+        )
+
+        assert isinstance(response, VoiceResponse)
+        assert response.status == "success"
+        assert response.filters == [{"filterId": "budget", "options": [{"optionId": "luxury"}]}]
+        assert response.metadata["mode"] == "preferences"
+        assert response.metadata["timings"]["sttMs"] >= stt_client.duration_ms
+        assert pipeline.invocations == []
+        assert preferences_pipeline.invocations == ["avoid long flights"]
 
     asyncio.run(scenario())

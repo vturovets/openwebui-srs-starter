@@ -18,6 +18,12 @@
   let recordedChunks: BlobPart[] = [];
   let resetTimer: ReturnType<typeof setTimeout> | null = null;
 
+  function appendModeToForm(form: FormData) {
+    if (mode) {
+      form.append('mode', mode);
+    }
+  }
+
   function idleMessageFor(voiceActive: boolean, supported: boolean): string {
     if (!voiceActive) {
       return 'Voice input is disabled by configuration.';
@@ -71,6 +77,7 @@
   });
 
   async function submitForm(form: FormData) {
+    appendModeToForm(form);
     clearResetTimer();
     status = 'uploading';
     message = 'Uploading audio…';
@@ -360,4 +367,3 @@
     color: #f87171;
   }
 </style>
-
