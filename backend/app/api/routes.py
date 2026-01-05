@@ -803,9 +803,11 @@ def _format_preferences_response(
     metadata["method"] = result.method_used
     metadata["requestedMethod"] = result.method_requested
     metadata["timings"] = timings
-    if result.status == "no-preferences-detected":
+    if result.status in {"no-preferences-detected", "invalid-catalogue"}:
         status_value = "failed"
         metadata["statusReason"] = result.status
+        if result.error:
+            metadata["error"] = result.error
     metadata["status"] = status_value
     metadata["language"] = {
         "code": result.detection.language,

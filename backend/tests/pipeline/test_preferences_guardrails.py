@@ -33,6 +33,7 @@ class _BrokenPreferenceMapper(PreferenceMappingStrategy):
 def test_preferences_pipeline_flags_threshold(monkeypatch):
     monkeypatch.setenv("PROCESSING_THRESHOLD_MS", "5")
     pipeline = PreferencesPipeline()
+    pipeline._ensure_catalogue_loaded()
     pipeline._strategies = {"rules": _SlowPreferenceMapper(pipeline._filters_catalogue)}
 
     result = pipeline.run("need wifi", method="rules")
@@ -43,6 +44,7 @@ def test_preferences_pipeline_flags_threshold(monkeypatch):
 
 def test_preferences_pipeline_surfaces_catalogue_errors():
     pipeline = PreferencesPipeline()
+    pipeline._ensure_catalogue_loaded()
     pipeline._strategies = {"rules": _BrokenPreferenceMapper(pipeline._filters_catalogue)}
 
     result = pipeline.run("need wifi", method="rules")
@@ -51,4 +53,3 @@ def test_preferences_pipeline_surfaces_catalogue_errors():
     assert result.filters == []
     assert result.mappings == []
     assert result.error == "Catalogue missing"
-
