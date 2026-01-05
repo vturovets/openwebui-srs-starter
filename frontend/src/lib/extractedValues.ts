@@ -189,7 +189,55 @@ function formatValueByKey(key: string, value: unknown): string {
   }
 }
 
+function isPreferencesEntry(entry: HolidayResultEntry): boolean {
+  const metadataMode =
+    typeof entry.result.metadata?.mode === 'string'
+      ? entry.result.metadata.mode.trim().toLowerCase()
+      : '';
+  if (metadataMode === 'preferences') {
+    return true;
+  }
+
+  return Array.isArray(entry.result.filters);
+}
+
+function normalisePreferenceLabel(value: string): string {
+  return value.trim().replace(/^["']|["']$/g, '');
+}
+
+function formatPreferenceOptionValue(value: string): string {
+  const normalized = normalisePreferenceLabel(value);
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+function formatPreferenceRow(
+  filterLabel: string,
+  options: string[]
+): ExtractedValueRow {
+  const uniqueOptions = Array.from(
+    new Set(options.map((option) => normalisePreferenceLabel(option)).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+  const formattedOptions = uniqueOptions.map(formatPreferenceOptionValue).join(', ');
+  const optionsSegment = formattedOptions ? ` Options: ${formattedOptions}` : ' Options:';
+  return {
+    label: 'Filter',
+    value: `"${normalisePreferenceLabel(filterLabel)}";${optionsSegment}`,
+  };
+}
+
 export function getExtractedValueRows(entry: HolidayResultEntry): ExtractedValueRow[] {
+  if (isPreferencesEntry(entry)) {
+    const filters = Array.isArray(entry.result.filters) ? entry.result.filters : [];
+    return filters.map((filter) => {
+      const label = filter.filterLabel ?? filter.filterId ?? '';
+      const options = (filter.options ?? [])
+        .filter((option) => option.selected !== false)
+        .map((option) => option.optionLabel ?? option.optionId ?? '')
+        .filter(Boolean);
+      return formatPreferenceRow(label, options);
+    });
+  }
+
   const data = (entry.result.data ?? {}) as Record<string, unknown>;
   const seen = new Set<string>();
   const rows: ExtractedValueRow[] = [];
