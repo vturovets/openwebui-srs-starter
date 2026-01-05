@@ -28,6 +28,11 @@
     }
 
     const statusLabel = typeof entry.result.status === 'string' ? entry.result.status.trim() : '';
+    const statusReason =
+      typeof metadata.statusReason === 'string' ? metadata.statusReason.trim() : '';
+    if (statusReason.toLowerCase() === 'no-preferences-detected') {
+      return 'No preferences detected from your input.';
+    }
     if (statusLabel.toLowerCase().includes('no-preferences')) {
       return 'No preferences detected from your input.';
     }

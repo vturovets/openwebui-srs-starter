@@ -64,4 +64,30 @@ describe('StructuredResult', () => {
     expect(normalised).toMatch(/expected “Spain” but got “\s*Italy”/);
     expect(normalised).toMatch(/expected “7 nights” but got “\s*—”/);
   });
+
+  it('shows failed status with no-preferences message in preferences mode', () => {
+    const entry: HolidayResultEntry = {
+      id: 'entry-3',
+      source: 'text',
+      input: 'Just browsing',
+      prompt: '',
+      timestamp: '2025-01-01T12:00:00.000Z',
+      result: {
+        status: 'failed',
+        filters: [],
+        metadata: {
+          mode: 'preferences',
+          statusReason: 'no-preferences-detected',
+          timings: {},
+        },
+      },
+    };
+
+    render(StructuredResult, { entry });
+
+    expect(screen.getByTestId('status-label')).toHaveTextContent('failed');
+    expect(
+      screen.getByText('No preferences detected from your input.')
+    ).toBeInTheDocument();
+  });
 });
