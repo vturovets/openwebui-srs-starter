@@ -1,0 +1,26 @@
+filterId,filterLabel,optionId,optionLabel,synonyms
+ACCESSIBILITY,Accessibility,Accessibility,accessibilityInfo,accessible hotel|accessibility info|wheelchair accessible|disabled access|step-free access|mobility access|accessible rooms|reduced mobility friendly|prm friendly|accessible facilities
+BOARDBASIS,Boards,Gourmet Inclusive,AIG,gourmet inclusive|gourmet all inclusive|gourmet ai|fine dining all inclusive|premium dining all inclusive|gourmet-inclusive
+BOARDBASIS,Boards,Ultra Inclusive,AIU,ultra inclusive|ultra all inclusive|ultra ai|ultra-inclusive|ultra all-inclusive
+BOARDBASIS,Boards,Half Board,HB,half board|hb|half-board|breakfast and dinner|breakfast & dinner|breakfast dinner included
+BOARDBASIS,Boards,Self Catering,SC,self catering|self-catering|sc|catering not included|no meals included|kitchenette|cook for yourself
+BOARDBASIS,Boards,Room Only,RO,room only|ro|room-only|accommodation only|hotel only|no meals
+BOARDBASIS,Boards,24-hour All Inclusive,A24,24 hour all inclusive|24-hour all inclusive|24h all inclusive|all inclusive 24 hours|all inclusive 24/7|24/7 all inclusive|24hr all inclusive
+BOARDBASIS,Boards,All Inclusive Plus,AI+,all inclusive plus|ai+|all-inclusive plus|all inclusive +|all inclusive premium|plus all inclusive
+BOARDBASIS,Boards,Full Board,FB,"full board|fb|full-board|breakfast lunch and dinner|breakfast, lunch and dinner|3 meals included|all meals included"
+BOARDBASIS,Boards,Bed & Breakfast,BB,bed and breakfast|bed & breakfast|b&b|bb|b and b|bnb|breakfast included
+BOARDBASIS,Boards,Self-catering Plus,SC+,self catering plus|self-catering plus|sc+|self catering +|self-catering +
+BOARDBASIS,Boards,Half Board Plus,HB+,half board plus|half-board plus|hb+|half board +|half-board +
+BOARDBASIS,Boards,Full Board Plus,FB+,full board plus|full-board plus|fb+|full board +|full-board +
+BOARDBASIS,Boards,All Inclusive,AI,all inclusive|all-inclusive|ai|a/i|all inc|all incl|everything included
+BOARDBASIS,Boards,Premium All Inclusive,PI,premium all inclusive|premium all-inclusive|premium ai|pi|premium inclusive
+BOARDBASIS,Boards,As per Itinerary,IT,as per itinerary|as per the itinerary|per itinerary|itinerary basis|meals as per itinerary
+BOARDBASIS,Boards,As Brochured,AB,as brochured|as per brochure|as per the brochure|brochure basis|ab
+BOARDBASIS,Boards,Catered Chalet,SCC,catered chalet|fully catered chalet|chalet catering included|catered ski chalet|scc
+DESTINATIONS,Destination,Africa,AAA,africa|african destinations|africa holidays|africa vacation
+DESTINATIONS,Destination,Cape Verde,CPV,cape verde|cabo verde|cape verde islands|cape verde holiday|cape verde vacation
+DESTINATIONS,Destination,Boa Vista,'004235',boa vista|boa vista cape verde|boa vista island|boavista
+DESTINATIONS,Destination,Sal,'003838',sal|sal cape verde|sal island|ilha do sal
+DESTINATIONS,Destination,Mindelo,L38041,mindelo|mindelo cape verde|mindelo sao vicente|mindelo são vicente
+DESTINATIONS,Destination,Praia,L58162,praia|praia cape verde|praia santiago|praia (santiago)
+DESTINATIONS,Destination,Egypt,EGY,egypt|egypt holidays|egypt vacation|egypt trips
