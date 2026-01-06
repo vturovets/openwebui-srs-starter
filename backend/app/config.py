@@ -283,7 +283,7 @@ class Settings(BaseSettings):
         description="Filesystem path to the methods catalogue YAML file.",
     )
     preferences_rules_synonyms_path: Path = Field(
-        default=Path("fixtures/rule_based_synonyms_refined.json"),
+        default=Path("fixtures/rule_based_synonyms.json"),
         alias="PREFERENCES_RULES_SYNONYMS_PATH",
         description=(
             "Path to the rule-based synonyms dictionary consumed by the preference mapper."
