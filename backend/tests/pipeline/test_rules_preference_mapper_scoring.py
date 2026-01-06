@@ -9,8 +9,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _build_mapper(*, threshold: float = 0.6, negation_penalty: float = 0.25) -> RulesPreferenceMapper:
-    catalogue = FiltersCatalogue(REPO_ROOT / "fixtures" / "filters_options.csv")
-    synonyms = SynonymStore(catalogue, REPO_ROOT / "fixtures" / "rule_based_synonyms.json")
+    catalogue = FiltersCatalogue(REPO_ROOT / "fixtures" / "filters_options_rules_test.csv")
+    synonyms = SynonymStore(catalogue)
     return RulesPreferenceMapper(
         catalogue,
         synonym_store=synonyms,

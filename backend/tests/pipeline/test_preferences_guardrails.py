@@ -32,6 +32,9 @@ class _BrokenPreferenceMapper(PreferenceMappingStrategy):
 
 def test_preferences_pipeline_flags_threshold(monkeypatch):
     monkeypatch.setenv("PROCESSING_THRESHOLD_MS", "5")
+    monkeypatch.setenv(
+        "FILTERS_OPTIONS_PATH", "fixtures/filters_options_rules_test.csv"
+    )
     pipeline = PreferencesPipeline()
     pipeline._ensure_catalogue_loaded()
     pipeline._strategies = {"rules": _SlowPreferenceMapper(pipeline._filters_catalogue)}
@@ -42,7 +45,10 @@ def test_preferences_pipeline_flags_threshold(monkeypatch):
     assert result.timings["thresholdBreached"] is True
 
 
-def test_preferences_pipeline_surfaces_catalogue_errors():
+def test_preferences_pipeline_surfaces_catalogue_errors(monkeypatch):
+    monkeypatch.setenv(
+        "FILTERS_OPTIONS_PATH", "fixtures/filters_options_rules_test.csv"
+    )
     pipeline = PreferencesPipeline()
     pipeline._ensure_catalogue_loaded()
     pipeline._strategies = {"rules": _BrokenPreferenceMapper(pipeline._filters_catalogue)}

@@ -8,7 +8,10 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def build_pipeline() -> PreferencesPipeline:
-    settings = Settings(fixtures_dir=REPO_ROOT / "fixtures")
+    settings = Settings(
+        fixtures_dir=REPO_ROOT / "fixtures",
+        filters_options_path=REPO_ROOT / "fixtures" / "filters_options_rules_test.csv",
+    )
     return PreferencesPipeline(settings=settings)
 
 

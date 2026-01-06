@@ -29,7 +29,7 @@ Goal: deliver the rule-based preference mapping method outlined in **Rule‑Base
 - Ensure mutually exclusive interpretation modes: holiday request flow unchanged; preference mode returns `status` values (`success`, `no-preferences-detected`, `invalid-catalogue`) and empty filters when nothing crosses threshold.【F:docs/CR-004.md†L253-L276】【F:docs/CR-004.md†L365-L370】
 
 ### 5) Configuration & Ops
-- Add env keys: `PREFERENCES_RULES_SYNONYMS_PATH`, `PREFERENCES_RULES_THRESHOLD`, `PREFERENCES_RULES_NEGATION_PENALTY`, `PREFERENCES_RULES_LANGS` (default `en`), leveraging existing config loader pattern; document defaults in `.env` template and README.【F:docs/Implementation Guide Rule Based method.md†L57-L89】【F:docs/SDD_v001_041125.md†L9-L26】
+- Add env keys: `PREFERENCES_RULES_THRESHOLD`, `PREFERENCES_RULES_NEGATION_PENALTY`, `PREFERENCES_RULES_LANGS` (default `en`), leveraging existing config loader pattern; document defaults in `.env` template and README.【F:docs/Implementation Guide Rule Based method.md†L57-L89】【F:docs/SDD_v001_041125.md†L9-L26】
 - Provide seed `synonyms.json` aligned with fixture examples (Wi‑Fi, Room Only, Scuba) to support demos/tests and keep under version control alongside `filters_options.csv`.【F:docs/Implementation Guide Rule Based method.md†L33-L45】【F:docs/CR-004.md†L90-L107】
 - Update CSV logger to include filters/options JSON and confidence scores in `Output`, set `Method=rules`, and record timing for latency guardrails; ensure import runner passes method/mode through for summary stats.【F:docs/CR-004.md†L196-L225】【F:docs/SDD_v001_041125.md†L9-L26】
 

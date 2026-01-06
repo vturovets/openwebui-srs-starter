@@ -87,9 +87,7 @@ class PreferencesPipeline:
                 self._settings.resolve_filters_options_path(),
                 delimiter=self._settings.filters_options_delimiter,
             )
-            synonym_store = SynonymStore(
-                catalogue, self._settings.resolve_preferences_rules_synonyms_path()
-            )
+            synonym_store = SynonymStore(catalogue)
             self._filters_catalogue = catalogue
             self._synonym_store = synonym_store
             if not self._strategies:
@@ -97,10 +95,7 @@ class PreferencesPipeline:
             return
 
         if self._synonym_store is None:
-            self._synonym_store = SynonymStore(
-                self._filters_catalogue,
-                self._settings.resolve_preferences_rules_synonyms_path(),
-            )
+            self._synonym_store = SynonymStore(self._filters_catalogue)
 
         if not self._strategies and self._synonym_store is not None:
             self._strategies = self._build_strategies(

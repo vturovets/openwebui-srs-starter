@@ -1,0 +1,5 @@
+filterId,filterLabel,optionId,optionLabel,synonyms
+facilities,Facilities,wifi,Wi-Fi,wifi|wi-fi|free wifi|free wi fi|wireless internet
+facilities,Facilities,scuba,Scuba,scuba|scuba diving
+boards,Boards,room_only,Room Only,room only|no meals|catering
+boards,Boards,half_board,Half Board,half board|hb

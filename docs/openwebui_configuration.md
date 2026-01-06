@@ -30,7 +30,6 @@ below. 【F:backend/app/config.py†L18-L158】
 | `voice_allowed_content_types` | `VOICE_ALLOWED_CONTENT_TYPES` | `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/webm`, `video/webm`, `audio/flac` | Whitelisted MIME types for audio uploads. |
 | `fixtures_dir` | `FIXTURES_DIR` | `fixtures` | Directory containing JSON fixtures used by the pipeline. |
 | `filters_options_path` | `FILTERS_OPTIONS_PATH` | `fixtures/filters_options.csv` | Catalogue of filters/options used by preference mapping strategies. Relative paths resolve under `fixtures_dir`. |
-| `preferences_rules_synonyms_path` | `PREFERENCES_RULES_SYNONYMS_PATH` | `fixtures/rule_based_synonyms.json` | Path to the rule-based synonyms dictionary. |
 | `preferences_rules_langs` | `PREFERENCES_RULES_LANGS` | `["en"]` | Comma-separated list of languages accepted by the rule-based preferences pipeline. |
 | `preferences_rules_threshold` | `PREFERENCES_RULES_THRESHOLD` | `0.6` | Confidence cut-off applied when marking preference options as selected. |
 | `preferences_rules_negation_penalty` | `PREFERENCES_RULES_NEGATION_PENALTY` | `0.25` | Penalty per negated hit used when scoring rule-based matches. |
