@@ -17,6 +17,7 @@ from .io import (
     compute_file_hash,
     load_existing_output,
     read_input_rows,
+    update_catalogue_synonyms,
     write_metadata,
     write_output,
 )
@@ -57,6 +58,17 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--rate-limit-sleep", type=float, default=DEFAULT_RATE_LIMIT_SLEEP)
     parser.add_argument("--max-retries", type=int, default=DEFAULT_MAX_RETRIES)
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    parser.add_argument(
+        "--update-catalogue",
+        type=str,
+        help="Path to filters_options.csv to update with generated synonyms.",
+    )
+    parser.add_argument(
+        "--catalogue-delimiter",
+        type=str,
+        default=",",
+        help="Delimiter used when updating filters_options.csv.",
+    )
     return parser.parse_args(argv)
 
 
@@ -254,6 +266,13 @@ def run(args: argparse.Namespace) -> None:
         processed_rows=len(ordered_output),
     )
     write_metadata(output_path.with_suffix(output_path.suffix + ".metadata.json"), metadata)
+    if args.update_catalogue:
+        updated = update_catalogue_synonyms(
+            Path(args.update_catalogue),
+            ordered_output,
+            delimiter=args.catalogue_delimiter,
+        )
+        logger.info("Catalogue update complete: %s rows updated", updated)
 
 
 def main(argv: List[str] | None = None) -> None:

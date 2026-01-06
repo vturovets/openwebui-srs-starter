@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -103,3 +103,50 @@ def build_processed_index(existing: List[Dict[str, str]]) -> Dict[Tuple[str, str
     for row in existing:
         index[(str(row.get("filterId")), str(row.get("optionId")))] = row
     return index
+
+
+def update_catalogue_synonyms(
+    path: Path,
+    lexicon_entries: Iterable[Mapping[str, object]],
+    *,
+    delimiter: str = ",",
+) -> int:
+    if not path.exists():
+        raise FileNotFoundError(f"Catalogue file not found: {path}")
+    if len(delimiter) != 1:
+        raise ValueError("Catalogue delimiter must be a single character")
+
+    synonym_index = {
+        (str(entry.get("filterId")), str(entry.get("optionId"))): entry.get("synonyms", [])
+        for entry in lexicon_entries
+    }
+
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter=delimiter)
+        if reader.fieldnames is None:
+            raise InputValidationError("Catalogue CSV has no headers")
+        fieldnames = list(reader.fieldnames)
+        rows = list(reader)
+
+    if "synonyms" not in fieldnames:
+        fieldnames.append("synonyms")
+
+    updated = 0
+    for row in rows:
+        key = (str(row.get("filterId", "")).strip(), str(row.get("optionId", "")).strip())
+        if key not in synonym_index:
+            continue
+        synonyms = synonym_index[key]
+        if not isinstance(synonyms, Iterable) or isinstance(synonyms, (str, bytes)):
+            raise ValueError(f"Synonyms for {key} must be a list of strings")
+        normalized = [str(value).strip() for value in synonyms if str(value).strip()]
+        row["synonyms"] = "|".join(normalized)
+        updated += 1
+
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter=delimiter)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    logger.info("Updated %s rows in catalogue %s", updated, path)
+    return updated
