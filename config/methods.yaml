@@ -3,7 +3,7 @@ defaults:
   timeout_s: 30
   temperature: 0.0
 
-default: hybrid-v1
+default: rules-basic
 
 methods:
   - id: rules-basic
