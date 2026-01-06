@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_filters_catalogue_loads_fixture() -> None:
-    catalogue_path = REPO_ROOT / "fixtures" / "filters_options.csv"
+    catalogue_path = REPO_ROOT / "fixtures" / "filters_options_rules_test.csv"
     catalogue = FiltersCatalogue(catalogue_path)
 
     filters = catalogue.list_filters()
@@ -21,13 +21,13 @@ def test_filters_catalogue_loads_fixture() -> None:
 
 
 def test_filters_catalogue_normalizes_labels() -> None:
-    catalogue = FiltersCatalogue(REPO_ROOT / "fixtures" / "filters_options.csv")
+    catalogue = FiltersCatalogue(REPO_ROOT / "fixtures" / "filters_options_rules_test.csv")
 
     facilities = catalogue.get_filter("facilities")
     assert facilities.normalized_label == "facilities"
 
     wifi = facilities.get_option("wifi")
-    assert wifi.normalized_label == "free wi fi"
+    assert wifi.normalized_label == "wi fi"
     assert "wi fi" in wifi.normalized_synonyms
 
 
@@ -37,7 +37,7 @@ def test_filters_catalogue_missing_file(tmp_path: Path) -> None:
 
 
 def test_filters_catalogue_rejects_invalid_delimiter(monkeypatch) -> None:
-    catalogue_path = REPO_ROOT / "fixtures" / "filters_options.csv"
+    catalogue_path = REPO_ROOT / "fixtures" / "filters_options_rules_test.csv"
     with pytest.raises(ValueError):
         FiltersCatalogue(catalogue_path, delimiter="::")
 

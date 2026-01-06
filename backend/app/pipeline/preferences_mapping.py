@@ -109,9 +109,7 @@ class RulesPreferenceMapper(PreferenceMappingStrategy):
         super().__init__(catalogue)
         self._preprocessor = TextPreprocessor(normalizer=self._catalogue.normalize_label)
         self._negation = NegationHandler()
-        self._synonyms = synonym_store or SynonymStore(
-            self._catalogue, self._catalogue.path.parent / "rule_based_synonyms.json"
-        )
+        self._synonyms = synonym_store or SynonymStore(self._catalogue)
         self._threshold = max(0.0, min(1.0, threshold))
         self._negation_penalty = max(0.0, negation_penalty)
 

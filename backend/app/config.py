@@ -282,13 +282,6 @@ class Settings(BaseSettings):
         alias="METHODS_CONFIG_PATH",
         description="Filesystem path to the methods catalogue YAML file.",
     )
-    preferences_rules_synonyms_path: Path = Field(
-        default=Path("fixtures/rule_based_synonyms.json"),
-        alias="PREFERENCES_RULES_SYNONYMS_PATH",
-        description=(
-            "Path to the rule-based synonyms dictionary consumed by the preference mapper."
-        ),
-    )
     preferences_rules_langs: List[str] = Field(
         default_factory=lambda: ["en"],
         alias="PREFERENCES_RULES_LANGS",
@@ -769,23 +762,5 @@ class Settings(BaseSettings):
             pass
 
         return (fixtures_dir / relative_path).resolve()
-
-    def resolve_preferences_rules_synonyms_path(self) -> Path:
-        """Return an absolute path to the rule-based synonyms dictionary."""
-
-        path = self.preferences_rules_synonyms_path
-        if path.is_absolute():
-            return path
-
-        fixtures_dir = self.fixtures_dir
-        default_root = Path("fixtures")
-        relative_path = path
-        try:
-            relative_path = path.relative_to(default_root)
-        except ValueError:
-            pass
-
-        return (fixtures_dir / relative_path).resolve()
-
 
 __all__ = ["Settings"]
