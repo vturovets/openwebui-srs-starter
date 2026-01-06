@@ -205,6 +205,11 @@ function normalisePreferenceLabel(value: string): string {
   return value.trim().replace(/^["']|["']$/g, '');
 }
 
+function formatPreferenceOptionValue(value: string): string {
+  const normalized = normalisePreferenceLabel(value);
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
 function formatPreferenceRow(
   filterLabel: string,
   options: string[]
@@ -212,11 +217,11 @@ function formatPreferenceRow(
   const uniqueOptions = Array.from(
     new Set(options.map((option) => normalisePreferenceLabel(option)).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b));
-  const formattedOptions = uniqueOptions.join(', ');
+  const formattedOptions = uniqueOptions.map(formatPreferenceOptionValue).join(', ');
   const optionsSegment = formattedOptions ? ` Options: ${formattedOptions}` : ' Options:';
   return {
     label: 'Filter',
-    value: `${normalisePreferenceLabel(filterLabel)};${optionsSegment}`,
+    value: `"${normalisePreferenceLabel(filterLabel)}";${optionsSegment}`,
   };
 }
 
