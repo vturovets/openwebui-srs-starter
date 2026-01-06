@@ -70,7 +70,7 @@ describe('importUtils', () => {
       {
         label: 'Filter: "Facilities"',
         expected: 'Options: "Scuba", "Scuba - additional info"',
-        actual: 'Options: "Scuba"',
+        actual: 'Options: "Scuba", "Wi-Fi"',
       },
     ]);
   });

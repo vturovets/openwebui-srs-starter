@@ -211,8 +211,8 @@ export function compareExpectedPreferences(
     actualFilters.map((filter) => ({
       label: filter.filterLabel ?? filter.filterId ?? '',
       options: (filter.options ?? [])
-        .filter((option) => option.selected !== false)
-        .map((option) => option.optionLabel ?? option.optionId ?? ''),
+        .map((option) => option.optionLabel ?? option.optionId ?? '')
+        .filter((option) => option.trim().length > 0),
     }))
   );
 
