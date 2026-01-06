@@ -99,8 +99,17 @@ class FiltersCatalogue:
                 if synonym.strip()
             )
 
-            normalized_filter_id = self.normalize_identifier(filter_id)
-            normalized_option_id = self.normalize_identifier(option_id)
+            filter_id_source = (
+                filter_label if self._looks_like_code(filter_id) else filter_id
+            )
+            normalized_filter_id = self.normalize_identifier(filter_id_source)
+            option_id_source = (
+                option_label_raw
+                if self._looks_like_code(option_id)
+                and not self._looks_like_code(option_label_raw)
+                else option_id
+            )
+            normalized_option_id = self.normalize_identifier(option_id_source)
             option_label = self._resolve_option_label(option_id, option_label_raw)
 
             payload = {
