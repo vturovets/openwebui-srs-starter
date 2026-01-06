@@ -70,7 +70,7 @@ class FiltersCatalogue:
 
     def _load(self) -> None:
         try:
-            with self._path.open(encoding="utf-8", newline="") as handle:
+            with self._path.open(encoding="utf-8-sig", newline="") as handle:
                 reader = csv.DictReader(handle, delimiter=self._delimiter)
                 resolved_columns = self._validate_columns(reader.fieldnames)
                 reader.fieldnames = list(resolved_columns)
@@ -99,7 +99,7 @@ class FiltersCatalogue:
                 if synonym.strip()
             )
 
-            normalized_filter_id = self.normalize_identifier(filter_label)
+            normalized_filter_id = self.normalize_identifier(filter_id)
             normalized_option_id = self.normalize_identifier(option_id)
             option_label = self._resolve_option_label(option_id, option_label_raw)
 
@@ -111,9 +111,13 @@ class FiltersCatalogue:
                 "synonyms": synonyms,
             }
             grouped.setdefault(normalized_filter_id, []).append(payload)
-            alias_key = self.normalize_identifier(filter_id)
-            if alias_key != normalized_filter_id:
-                self._filter_aliases.setdefault(alias_key, normalized_filter_id)
+            alias_keys = {
+                self.normalize_identifier(filter_id),
+                self.normalize_identifier(filter_label),
+            }
+            for alias_key in alias_keys:
+                if alias_key != normalized_filter_id:
+                    self._filter_aliases.setdefault(alias_key, normalized_filter_id)
 
         for filter_id, entries in grouped.items():
             filter_label = entries[0]["filterLabel"]
@@ -126,7 +130,7 @@ class FiltersCatalogue:
             )
 
     def _resolve_columns(self, columns: Sequence[str]) -> List[str]:
-        resolved = list(columns)
+        resolved = [column.lstrip("\ufeff") for column in columns]
         for alias, canonical in self.COLUMN_ALIASES.items():
             if canonical not in resolved and alias in resolved:
                 resolved = [canonical if column == alias else column for column in resolved]
@@ -164,14 +168,15 @@ class FiltersCatalogue:
 
     def _build_options(self, entries: Iterable[Mapping[str, object]]) -> List[FilterOption]:
         options: List[FilterOption] = []
-        seen: set[str] = set()
+        seen: Dict[str, int] = {}
         for entry in entries:
             option_id = str(entry["optionId"]).strip()
-            if option_id.lower() in seen:
-                raise ValueError(
-                    f"Duplicate option identifier '{option_id}' detected for filter '{entry['filterId']}'"
-                )
-            seen.add(option_id.lower())
+            option_key = option_id.lower()
+            if option_key in seen:
+                seen[option_key] += 1
+                option_id = f"{option_id}_{seen[option_key]}"
+            else:
+                seen[option_key] = 0
             option_label = str(entry["optionLabel"])
             synonyms = tuple(entry.get("synonyms", ()) or ())
             normalized_synonyms = tuple(
