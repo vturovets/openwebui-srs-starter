@@ -30,8 +30,9 @@ class FilterDefinition:
     options: Tuple[FilterOption, ...]
 
     def get_option(self, option_id: str) -> FilterOption:
+        normalized = FiltersCatalogue.normalize_identifier(option_id)
         for option in self.options:
-            if option.id.lower() == option_id.lower():
+            if option.id == normalized:
                 return option
         raise KeyError(f"Unknown option '{option_id}' for filter '{self.id}'")
 
@@ -46,6 +47,7 @@ class FiltersCatalogue:
     }
 
     _NORMALIZE_PATTERN = re.compile(r"[^\w\s]+")
+    _CODE_PATTERN = re.compile(r"^[A-Z0-9._+-]+$")
 
     def __init__(self, path: str | Path, *, delimiter: str = ",") -> None:
         self._path = Path(path)
@@ -59,6 +61,7 @@ class FiltersCatalogue:
             )
 
         self._filters: Dict[str, FilterDefinition] = {}
+        self._filter_aliases: Dict[str, str] = {}
         self._load()
 
     @property
@@ -67,7 +70,7 @@ class FiltersCatalogue:
 
     def _load(self) -> None:
         try:
-            with self._path.open(encoding="utf-8", newline="") as handle:
+            with self._path.open(encoding="utf-8-sig", newline="") as handle:
                 reader = csv.DictReader(handle, delimiter=self._delimiter)
                 resolved_columns = self._validate_columns(reader.fieldnames)
                 reader.fieldnames = list(resolved_columns)
@@ -87,7 +90,7 @@ class FiltersCatalogue:
             filter_id = self._clean_field(entry, "filterId")
             option_id = self._clean_field(entry, "optionId")
             filter_label = self._clean_label_field(entry, "filterLabel", "filterName")
-            option_label = self._clean_label_field(entry, "optionLabel", "optionName")
+            option_label_raw = self._clean_label_field(entry, "optionLabel", "optionName")
 
             synonyms_raw = entry.get("synonyms") or ""
             synonyms: Tuple[str, ...] = tuple(
@@ -96,14 +99,34 @@ class FiltersCatalogue:
                 if synonym.strip()
             )
 
+            filter_id_source = (
+                filter_label if self._looks_like_code(filter_id) else filter_id
+            )
+            normalized_filter_id = self.normalize_identifier(filter_id_source)
+            option_id_source = (
+                option_label_raw
+                if self._looks_like_code(option_id)
+                and not self._looks_like_code(option_label_raw)
+                else option_id
+            )
+            normalized_option_id = self.normalize_identifier(option_id_source)
+            option_label = self._resolve_option_label(option_id, option_label_raw)
+
             payload = {
-                "filterId": filter_id,
+                "filterId": normalized_filter_id,
                 "filterLabel": filter_label,
-                "optionId": option_id,
+                "optionId": normalized_option_id,
                 "optionLabel": option_label,
                 "synonyms": synonyms,
             }
-            grouped.setdefault(filter_id, []).append(payload)
+            grouped.setdefault(normalized_filter_id, []).append(payload)
+            alias_keys = {
+                self.normalize_identifier(filter_id),
+                self.normalize_identifier(filter_label),
+            }
+            for alias_key in alias_keys:
+                if alias_key != normalized_filter_id:
+                    self._filter_aliases.setdefault(alias_key, normalized_filter_id)
 
         for filter_id, entries in grouped.items():
             filter_label = entries[0]["filterLabel"]
@@ -116,7 +139,7 @@ class FiltersCatalogue:
             )
 
     def _resolve_columns(self, columns: Sequence[str]) -> List[str]:
-        resolved = list(columns)
+        resolved = [column.lstrip("\ufeff") for column in columns]
         for alias, canonical in self.COLUMN_ALIASES.items():
             if canonical not in resolved and alias in resolved:
                 resolved = [canonical if column == alias else column for column in resolved]
@@ -154,14 +177,15 @@ class FiltersCatalogue:
 
     def _build_options(self, entries: Iterable[Mapping[str, object]]) -> List[FilterOption]:
         options: List[FilterOption] = []
-        seen: set[str] = set()
+        seen: Dict[str, int] = {}
         for entry in entries:
             option_id = str(entry["optionId"]).strip()
-            if option_id.lower() in seen:
-                raise ValueError(
-                    f"Duplicate option identifier '{option_id}' detected for filter '{entry['filterId']}'"
-                )
-            seen.add(option_id.lower())
+            option_key = option_id.lower()
+            if option_key in seen:
+                seen[option_key] += 1
+                option_id = f"{option_id}_{seen[option_key]}"
+            else:
+                seen[option_key] = 0
             option_label = str(entry["optionLabel"])
             synonyms = tuple(entry.get("synonyms", ()) or ())
             normalized_synonyms = tuple(
@@ -188,12 +212,40 @@ class FiltersCatalogue:
             raise ValueError("Normalized label must not be empty")
         return normalized
 
+    @classmethod
+    def normalize_identifier(cls, value: str) -> str:
+        """Normalize identifiers for filter/option keys."""
+
+        normalized = cls.normalize_label(value)
+        tokens = normalized.split()
+        if not tokens:
+            raise ValueError("Normalized identifier must not be empty")
+        if len(tokens) == 1:
+            return tokens[0]
+        if any(len(token) > 2 for token in tokens):
+            return "_".join(tokens)
+        return "".join(tokens)
+
+    def _looks_like_code(self, value: str) -> bool:
+        return bool(self._CODE_PATTERN.fullmatch(value.strip()))
+
+    def _resolve_option_label(self, option_id: str, option_label: str) -> str:
+        label = option_label
+        if self._looks_like_code(option_label):
+            label = option_id
+        label = label.strip()
+        if label.endswith("*") and not label.lower().startswith("free "):
+            label = f"Free {label.rstrip('*').strip()}"
+        return label
+
     def list_filters(self) -> Tuple[FilterDefinition, ...]:
         return tuple(self._filters.values())
 
     def get_filter(self, filter_id: str) -> FilterDefinition:
+        normalized = self.normalize_identifier(filter_id)
+        canonical = self._filter_aliases.get(normalized, normalized)
         try:
-            return self._filters[filter_id]
+            return self._filters[canonical]
         except KeyError as exc:
             raise KeyError(f"Unknown filter '{filter_id}'") from exc
 
