@@ -33,6 +33,16 @@ def test_methods_catalog_expands_env_defaults(monkeypatch) -> None:
     assert llm.params["temperature"] == 0.1
 
 
+def test_methods_catalog_loads_semantic_method_and_defaults() -> None:
+    catalog = load_methods_catalog(METHODS_FILE)
+
+    semantic = catalog.methods["semantic-basic"]
+    assert semantic.kind == "semantic"
+    assert semantic.label == "Semantic mapping (MiniLM)"
+    assert semantic.params["model_name"] == "all-MiniLM-L6-v2"
+    assert catalog.default_method_id == "semantic-basic"
+
+
 def test_methods_catalog_honours_explicit_default(tmp_path: Path) -> None:
     methods_yaml = tmp_path / "methods.yaml"
     methods_yaml.write_text(
