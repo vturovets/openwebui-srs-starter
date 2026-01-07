@@ -21,6 +21,7 @@ dependencies = [
     "openai>=1.51",
     "python-dotenv>=1.0",
     "sentence-transformers>=2.2.0",
+    "torch>=2.0.0",
 ]
 
 [project.scripts]

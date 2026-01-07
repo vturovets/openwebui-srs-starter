@@ -246,7 +246,12 @@ class SemanticPreferenceMapper(PreferenceMappingStrategy):
         self._threshold = max(0.0, min(1.0, similarity_threshold))
         self._top_k = max(1, top_k)
         self._negation_penalty = max(0.0, negation_penalty)
-        self._model = SentenceTransformer(model_name)
+        try:
+            self._model = SentenceTransformer(model_name)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to load sentence-transformer model '{model_name}'"
+            ) from exc
         self._option_vectors: Dict[tuple[str, str], np.ndarray] = {}
         self._precompute_option_embeddings()
 
