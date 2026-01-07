@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Mapping, MutableMapping, Tuple
 
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
 from ..fixtures.filter_catalogue import FilterDefinition, FilterOption, FiltersCatalogue
 from ..services.text_processing import NegationHandler, TextPreprocessor
 from ..services.synonym_store import SynonymStore
@@ -223,6 +226,131 @@ class LLMPreferenceMapper(RulesPreferenceMapper):
         return super().map(utterance, language=language)
 
 
+class SemanticPreferenceMapper(PreferenceMappingStrategy):
+    """Semantic mapper using sentence embeddings for preference matching."""
+
+    def __init__(
+        self,
+        catalogue: FiltersCatalogue,
+        *,
+        model_name: str = "all-MiniLM-L6-v2",
+        similarity_threshold: float = 0.35,
+        top_k: int = 5,
+        synonym_store: SynonymStore | None = None,
+        negation_penalty: float = 0.25,
+    ) -> None:
+        super().__init__(catalogue)
+        self._preprocessor = TextPreprocessor(normalizer=self._catalogue.normalize_label)
+        self._negation = NegationHandler()
+        self._synonyms = synonym_store or SynonymStore(self._catalogue)
+        self._threshold = max(0.0, min(1.0, similarity_threshold))
+        self._top_k = max(1, top_k)
+        self._negation_penalty = max(0.0, negation_penalty)
+        self._model = SentenceTransformer(model_name)
+        self._option_vectors: Dict[tuple[str, str], np.ndarray] = {}
+        self._precompute_option_embeddings()
+
+    def _precompute_option_embeddings(self) -> None:
+        for definition in self._catalogue.list_filters():
+            for option in definition.options:
+                context = f"{definition.label}: {option.label}"
+                vector = self._model.encode(context)
+                normalized = self._normalize_vector(vector)
+                key = (definition.id, option.id)
+                self._option_vectors[key] = normalized
+
+    def map(
+        self, utterance: str, *, language: str
+    ) -> Tuple[str, List[FilterSelection], List[Mapping[str, object]]]:
+        candidate_scores: List[tuple[str, str, float]] = []
+        mappings: List[Mapping[str, object]] = []
+
+        negation_cleaned, negation_spans = self._negation.apply(
+            utterance, normalizer=self._catalogue.normalize_label
+        )
+        processed = self._preprocessor.preprocess(negation_cleaned)
+        if not processed.cleaned_text:
+            return "no-preferences-detected", [], []
+
+        negation_replacements = {
+            self._catalogue.normalize_label(span.replacement)
+            for span in negation_spans
+            if span.replacement
+        }
+        negated_phrases = {
+            self._catalogue.normalize_label(span.phrase)
+            for span in negation_spans
+            if not span.replacement
+        }
+
+        query_vector = self._normalize_vector(self._model.encode(processed.cleaned_text))
+
+        for (filter_id, option_id), option_vector in self._option_vectors.items():
+            similarity = float(np.dot(query_vector, option_vector))
+            candidate_scores.append((filter_id, option_id, similarity))
+
+        candidate_scores.sort(key=lambda item: item[2], reverse=True)
+        selected_candidates = [
+            candidate for candidate in candidate_scores if candidate[2] >= self._threshold
+        ]
+
+        if selected_candidates:
+            ranked_candidates = selected_candidates
+        else:
+            ranked_candidates = candidate_scores[: self._top_k]
+
+        filter_selections: Dict[str, List[FilterOptionSelection]] = {}
+
+        for filter_id, option_id, similarity in ranked_candidates:
+            definition = self._catalogue.get_filter(filter_id)
+            option = definition.get_option(option_id)
+            synonyms = self._synonyms.synonyms_for(filter_id, option_id)
+            negated_match = any(synonym in negated_phrases for synonym in synonyms)
+            replacement_match = any(
+                synonym in negation_replacements for synonym in synonyms
+            )
+            penalty_hits = int(negated_match) + int(replacement_match)
+            confidence = max(0.0, similarity - self._negation_penalty * penalty_hits)
+            selected = similarity >= self._threshold and not negated_match
+            selection = FilterOptionSelection(
+                id=option.id,
+                label=option.label,
+                selected=selected,
+                confidence=confidence,
+            )
+            filter_selections.setdefault(filter_id, []).append(selection)
+            mappings.append(
+                {
+                    "filterId": filter_id,
+                    "optionId": option_id,
+                    "spans": [
+                        {
+                            "text": processed.cleaned_text,
+                            "normalized": processed.cleaned_text,
+                        }
+                    ],
+                    "confidence": confidence,
+                    "hits": 1,
+                    "blocked": negated_match,
+                }
+            )
+
+        compiled: List[FilterSelection] = []
+        for filter_id, options in filter_selections.items():
+            definition = self._catalogue.get_filter(filter_id)
+            compiled.append(FilterSelection.from_catalogue(definition, options))
+
+        status = "success" if compiled else "no-preferences-detected"
+        return status, compiled, mappings
+
+    @staticmethod
+    def _normalize_vector(vector: np.ndarray) -> np.ndarray:
+        norm = np.linalg.norm(vector)
+        if norm == 0:
+            return vector.astype(float)
+        return vector / norm
+
+
 class HybridPreferenceMapper(RulesPreferenceMapper):
     """Cascade mapper to mirror hybrid method semantics."""
 
@@ -240,4 +368,5 @@ __all__ = [
     "LLMPreferenceMapper",
     "PreferenceMappingStrategy",
     "RulesPreferenceMapper",
+    "SemanticPreferenceMapper",
 ]
