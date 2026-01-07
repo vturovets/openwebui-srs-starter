@@ -32,6 +32,9 @@ be swapped in while retaining comparable output for experiments.
 - **Utterance dataset generator (CR-006)** – [`tools/utterance_generator`](tools/utterance_generator)
   builds single-option and multi-option utterance datasets from the filters
   lexicon and scores embeddings for purity/separation checks.
+- **Semantic preference mapper (CR-007)** – [`backend/app/pipeline/preferences_mapping.py`](backend/app/pipeline/preferences_mapping.py)
+  adds a sentence-transformer-based strategy for matching free-text preferences
+  to filter options using cosine similarity with negation handling.
 - **Free-text preference mapping (CR-004)** – [`backend/app/pipeline/preferences.py`](backend/app/pipeline/preferences.py)
   interprets preference-oriented utterances (e.g. _“room only, scuba, strong
   Wi‑Fi”_) and maps them to structured filters/options from
@@ -157,7 +160,7 @@ serving traffic. Key options mirror the SRS:
 | `CSV_DELIMITER` | `,` | Single-character delimiter used when writing the CSV audit log. |
 | `IMPORT_SUMMARY_PATH` | `data/import_summary.csv` | Optional path for persisting roll-up import summaries (empty string disables the sink). |
 | `IMPORT_SUMMARY_DELIMITER` | `,` | Single-character delimiter for the import summary CSV sink. |
-| `LLM_METHOD` | _(unset)_ | Optional identifier for the NLP technique under evaluation (e.g., `rules`, `llm`, `hybrid`). |
+| `LLM_METHOD` | _(unset)_ | Optional identifier for the NLP technique under evaluation (e.g., `rules`, `llm`, `hybrid`, `semantic-basic`). |
 | `LLM_API_BASE` | _(unset)_ | Override the LLM provider base URL when using a proxy or self-hosted gateway. |
 | `LLM_API_KEY` | _(unset)_ | Credential passed to the structured LLM client when `LLM_METHOD=llm` or `hybrid`. |
 | `LLM_MODEL` | `gemini-2.5-flash` | Model identifier requested from the LLM provider. |
@@ -181,6 +184,9 @@ serving traffic. Key options mirror the SRS:
 | `METHODS_CONFIG_PATH` | `config/methods.yaml` | YAML catalogue describing available parsing methods and hybrid strategies. |
 | `PROCESSING_THRESHOLD_MS` | `1000` | Millisecond budget; responses note if total processing time exceeds this value. |
 | `SHOW_RESULTS` | `SHOW_ALL` | Controls whether imported CSV logs are visible in the UI: `SHOW_ALL` (default) displays everything, `SHOW_FAILED_ONLY` limits visibility to failures, and `SUPPRESS` hides all rows. |
+| `PREF_EMBED_MODEL_NAME` | `all-MiniLM-L6-v2` | Sentence-transformer model name used for semantic preference mapping. |
+| `PREF_EMBED_SIMILARITY_THRESHOLD` | `0.35` | Minimum cosine similarity required to mark a semantic preference option as selected. |
+| `PREF_EMBED_TOP_K` | `5` | Number of top semantic options to return if no option clears the threshold. |
 | `IMPORT_P95_THRESHOLD_MS` | `750` | Target P95 latency (ms) used when flagging slow imported runs in the performance summary. |
 | `IMPORT_P95_SAMPLE_SIZE` | `1000` | Minimum number of imported rows required before computing a P95 value. |
 | `IMPORT_P95_SIGNIFICANCE` | `0.95` | Percentile (0–1) applied when calculating the imported response-time P95 metric. |
@@ -217,6 +223,10 @@ LLM_API_KEY=sk-your-key
 LLM_MODEL=gemini-2.5-flash
 # Optional when routing through a proxy/self-hosted gateway
 # LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta
+# Semantic preference mapping configuration
+PREF_EMBED_MODEL_NAME=all-MiniLM-L6-v2
+PREF_EMBED_SIMILARITY_THRESHOLD=0.35
+PREF_EMBED_TOP_K=5
 # Rule-based preferences configuration
 PREFERENCES_RULES_LANGS=en
 PREFERENCES_RULES_THRESHOLD=0.6
@@ -262,8 +272,11 @@ Structured extraction strategies are described in [`config/methods.yaml`](config
 
 - **Rules/LLM entries** – declare provider metadata, tunable parameters, and optional `api_key_env` indirection to avoid storing secrets in the catalog.
 - **Hybrid entries** – reference existing methods via `stages` and optionally specify a `fallback` that runs when upstream stages fail.
+- **Semantic entries** – configure sentence-transformer model names plus similarity thresholds and top‑K fallback for preference mapping.
 
-Update `METHODS_CONFIG_PATH` to point at an alternate YAML file if you need to swap in different evaluation strategies per environment.
+The shipped catalogue defaults to `semantic-basic`; override `LLM_METHOD` to choose
+another enabled method. Update `METHODS_CONFIG_PATH` to point at an alternate
+YAML file if you need to swap in different evaluation strategies per environment.
 
 ### Preference mapping mode (CR-004)
 
@@ -272,12 +285,14 @@ utterances via `POST /v1/preferences/parse` using the same request envelope as
 `/v1/parse` (`{ text, mode, method? }`). Responses include detected language,
 mapped filters/options grouped by filter label, mapping spans, and timing
 metadata. The method catalogue (`LLM_METHOD` and `config/methods.yaml`) drives
-which rule/LLM/hybrid strategies are used, while the canonical filter taxonomy
-is loaded from [`fixtures/filters_options.csv`](fixtures/filters_options.csv) and
-tunable via `FILTERS_OPTIONS_*` and `PREFERENCES_RULES_*` settings (synonyms,
-accepted languages, thresholds, negation penalties). Preference mapping calls
-participate in the same CSV logging and import/summary flow as holiday search so
-P95/accuracy stats can be compared across methods.
+which rule/LLM/hybrid/semantic strategies are used, while the canonical filter
+taxonomy is loaded from [`fixtures/filters_options.csv`](fixtures/filters_options.csv)
+and tunable via `FILTERS_OPTIONS_*`, `PREFERENCES_RULES_*`, and `PREF_EMBED_*`
+settings (synonyms, accepted languages, thresholds, model choice). When the
+semantic method is active, the pipeline uses sentence-transformer embeddings and
+cosine similarity to rank options while still respecting negation handling.
+Preference mapping calls participate in the same CSV logging and import/summary
+flow as holiday search so P95/accuracy stats can be compared across methods.
 
 ## Bulk import operations
 
