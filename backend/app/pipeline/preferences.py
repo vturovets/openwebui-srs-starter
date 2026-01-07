@@ -12,6 +12,7 @@ from .preferences_mapping import (
     LLMPreferenceMapper,
     PreferenceMappingStrategy,
     RulesPreferenceMapper,
+    SemanticPreferenceMapper,
 )
 from ..config import Settings
 from ..fixtures.filter_catalogue import FiltersCatalogue
@@ -60,6 +61,41 @@ class PreferencesPipeline:
     ) -> dict[str, PreferenceMappingStrategy]:
         threshold = self._settings.preferences_rules_threshold
         negation_penalty = self._settings.preferences_rules_negation_penalty
+        semantic_method = self._methods_catalog.lookup("semantic")
+        semantic_params = (
+            dict(semantic_method.params) if semantic_method is not None else {}
+        )
+
+        def coerce_float(value: object, fallback: float) -> float:
+            if value is None:
+                return fallback
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return fallback
+
+        def coerce_int(value: object, fallback: int) -> int:
+            if value is None:
+                return fallback
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return fallback
+
+        model_name = semantic_params.get("model_name")
+        if model_name is None:
+            model_name = self._settings.pref_embed_model_name
+        else:
+            model_name = str(model_name).strip() or self._settings.pref_embed_model_name
+
+        similarity_threshold = coerce_float(
+            semantic_params.get("similarity_threshold"),
+            self._settings.pref_embed_similarity_threshold,
+        )
+        top_k = coerce_int(
+            semantic_params.get("top_k"),
+            self._settings.pref_embed_top_k,
+        )
         return {
             "rules": RulesPreferenceMapper(
                 catalogue,
@@ -77,6 +113,14 @@ class PreferencesPipeline:
                 catalogue,
                 synonym_store=synonym_store,
                 threshold=threshold,
+                negation_penalty=negation_penalty,
+            ),
+            "semantic": SemanticPreferenceMapper(
+                catalogue,
+                synonym_store=synonym_store,
+                model_name=model_name,
+                similarity_threshold=similarity_threshold,
+                top_k=top_k,
                 negation_penalty=negation_penalty,
             ),
         }
