@@ -27,6 +27,8 @@ be swapped in while retaining comparable output for experiments.
   regressions analysis.
 - **Frontend parity** – [`frontend/`](frontend) reproduces the OpenWebUI flow with
   component tests (Vitest) and Playwright E2E coverage for interactive journeys.
+- **Enter-to-parse preference input** – Pressing Enter in the free-text preference input
+  triggers the same parse flow as clicking “Parse request.”
 - **Utterance dataset generator (CR-006)** – [`tools/utterance_generator`](tools/utterance_generator)
   builds single-option and multi-option utterance datasets from the filters
   lexicon and scores embeddings for purity/separation checks.

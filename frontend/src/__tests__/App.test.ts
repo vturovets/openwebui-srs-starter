@@ -482,6 +482,67 @@ describe('Holiday search console', () => {
     expect(screen.getByTestId('status-label')).toHaveTextContent('success');
   });
 
+  it('submits the parse request once when Enter is pressed in the query input', async () => {
+    parseTextMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(clone(PARSE_SUCCESS)), 0);
+        })
+    );
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'Find a trip' } });
+    await fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+    await fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+    expect(parseTextMock).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => expect(screen.getByTestId('structured-result')).toBeInTheDocument());
+  });
+
+  it('does not submit when Shift+Enter is pressed in the query input', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: 'Find a trip' } });
+    await fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13, shiftKey: true });
+    await tick();
+
+    expect(parseTextMock).not.toHaveBeenCalled();
+  });
+
+  it('does not submit when Enter is pressed with empty input', async () => {
+    parseTextMock.mockResolvedValueOnce(clone(PARSE_SUCCESS));
+
+    const { component } = render(App);
+    await tick();
+    component.$$.on_mount.forEach((fn) => fn());
+    await tick();
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalledTimes(1));
+    await screen.findByTestId('fixtures-loaded');
+
+    const input = screen.getByTestId('query-input') as HTMLTextAreaElement;
+    await fireEvent.input(input, { target: { value: '   ' } });
+    await fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+    await tick();
+
+    expect(parseTextMock).not.toHaveBeenCalled();
+  });
+
   it('surfaces language support errors to the user', async () => {
     parseTextMock.mockRejectedValueOnce(new Error("Language 'fr' is not supported"));
 
