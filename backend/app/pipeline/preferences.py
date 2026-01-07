@@ -202,6 +202,15 @@ class PreferencesPipeline:
                     timings,
                     lambda: strategy.map(utterance, language=detection.language),
                 )
+                if resolved_method.kind == "semantic":
+                    options_count = sum(
+                        len(selection.options) for selection in selections
+                    )
+                    logger.info(
+                        "Semantic mapping completed in %.2fms with %d options",
+                        timings.get("mappingMs", 0.0),
+                        options_count,
+                    )
             except Exception as exc:
                 logger.exception("Preference mapping failed")
                 status = "invalid-catalogue"
