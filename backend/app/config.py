@@ -299,6 +299,21 @@ class Settings(BaseSettings):
         alias="PREFERENCES_RULES_NEGATION_PENALTY",
         description="Penalty applied per negated hit when scoring rule-based matches.",
     )
+    pref_embed_model_name: str = Field(
+        default="all-MiniLM-L6-v2",
+        alias="PREF_EMBED_MODEL_NAME",
+        description="Name of the sentence-transformer model used for semantic preference mapping.",
+    )
+    pref_embed_similarity_threshold: float = Field(
+        default=0.35,
+        alias="PREF_EMBED_SIMILARITY_THRESHOLD",
+        description="Minimum cosine similarity required to mark an option as selected.",
+    )
+    pref_embed_top_k: int = Field(
+        default=5,
+        alias="PREF_EMBED_TOP_K",
+        description="Number of top options to consider if no thresholded options are found.",
+    )
     processing_threshold_ms: int = Field(
         default=1000,
         alias="PROCESSING_THRESHOLD_MS",

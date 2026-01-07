@@ -3,15 +3,25 @@ defaults:
   timeout_s: 30
   temperature: 0.0
 
-default: rules-basic
+default: semantic-basic
 
 methods:
   - id: rules-basic
-    type: rules                       # rules | llm | hybrid
+    type: rules                       # rules | llm | hybrid | semantic
     enabled: true
     params:
       dictionary_filename: data/dictionary.csv
       configuration_filename: configs/rules.conf
+
+  - id: semantic-basic
+    type: semantic
+    enabled: true
+    label: Semantic mapping (MiniLM)
+    description: Use sentence embeddings and cosine similarity for preference mapping.
+    params:
+      model_name: ${PREF_EMBED_MODEL_NAME:-all-MiniLM-L6-v2}
+      similarity_threshold: ${PREF_EMBED_SIMILARITY_THRESHOLD:-0.35}
+      top_k: ${PREF_EMBED_TOP_K:-5}
 
   - id: hybrid-v1
     type: hybrid

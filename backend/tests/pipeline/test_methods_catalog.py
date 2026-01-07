@@ -18,7 +18,7 @@ def test_methods_catalog_resolves_hybrid_structure() -> None:
     catalog = load_methods_catalog(METHODS_FILE)
 
     assert isinstance(catalog, MethodsCatalog)
-    assert catalog.default_method_id == "hybrid-v1"
+    assert catalog.default_method_id == "semantic-basic"
     hybrid = catalog.methods.get("hybrid-v1")
     assert isinstance(hybrid, HybridMethodConfig)
     assert [stage.method.id for stage in hybrid.stages] == ["rules-basic", "gemini-2.5-flash"]
@@ -66,7 +66,7 @@ methods:
         ("rules-basic", "rules-basic"),
         ("rules", "rules-basic"),
         ("LLM", "gemini-2.5-flash"),
-        (None, "rules-basic"),
+        (None, "semantic-basic"),
     ],
 )
 def test_methods_catalog_lookup(identifier, expected) -> None:

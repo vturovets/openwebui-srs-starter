@@ -162,7 +162,7 @@ def _build_method_config(entry: Mapping[str, Any], defaults: Mapping[str, Any]) 
     if not method_id:
         raise ValueError("Method entries must define an 'id'")
     method_type = str(entry.get("type", "")).strip().lower()
-    if method_type not in {"rules", "llm", "hybrid"}:
+    if method_type not in {"rules", "llm", "hybrid", "semantic"}:
         raise ValueError(f"Method '{method_id}' declared unsupported type '{method_type}'")
 
     label = entry.get("label")

@@ -36,7 +36,7 @@ def test_fixtures_endpoint_includes_voice_configuration(monkeypatch) -> None:
         assert payload["llmMethod"] == "rules-basic"
         assert payload["llmMethodAlias"] == "rules"
         assert isinstance(payload["availableMethods"], list)
-        assert payload["defaultMethod"] == "hybrid-v1"
+        assert payload["defaultMethod"] == "semantic-basic"
         assert isinstance(payload["methodDefaults"], dict)
         performance_targets = payload["performanceTargets"]
         assert performance_targets == {
