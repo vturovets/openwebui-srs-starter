@@ -20,6 +20,7 @@ dependencies = [
     "python-multipart>=0.0.6",
     "openai>=1.51",
     "python-dotenv>=1.0",
+    "sentence-transformers>=2.2.0",
 ]
 
 [project.scripts]
