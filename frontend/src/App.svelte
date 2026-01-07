@@ -416,6 +416,9 @@
 
   async function handleSubmit(event: Event) {
     event.preventDefault();
+    if (busy) {
+      return;
+    }
     if (!query.trim()) {
       return;
     }
@@ -438,6 +441,17 @@
     } finally {
       busy = false;
     }
+  }
+
+  function handleQueryKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) {
+      return;
+    }
+    event.preventDefault();
+    void handleSubmit(new Event('submit'));
   }
 
   async function handleVoice(event: CustomEvent<{ transcript: string; response: VoiceResponse }>) {
@@ -759,6 +773,7 @@
               : 'Find me a trip from Amsterdam to Chile next October'
           }
           data-testid="query-input"
+          on:keydown={handleQueryKeydown}
         ></textarea>
       </label>
 
