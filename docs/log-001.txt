@@ -1,237 +1,221 @@
-(.venv) PS C:\Users\votu\Documents\Ciklum\2025\AI Academy\Capstone project\openwebui-ai-search> pytest -q backend/tests/tools/test_synonyms_lexicon.py
-....FF.                                                                                                                                                                      [100%]
-==================================================================================== FAILURES =====================================================================================
-_______________________________________________________________________ test_resume_merges_existing_results _______________________________________________________________________
+[0KRunning with gitlab-runner 18.6.3 (dbac4904)[0;m
+[0K  on devexp-prod-shared-runner dFiRyLzDp, system ID: r_HiAv4vRfVrnj[0;m
+[0K  feature flags: FF_WAIT_FOR_POD_TO_BE_REACHABLE:true[0;m
+[0K[36;1mResolving secrets[0;m[0;m
+section_start:1767874419:prepare_executor
+[0K[0K[36;1mPreparing the "kubernetes" executor[0;m[0;m
+[0KUsing Kubernetes namespace: gitlab-ci[0;m
+[0KUsing Kubernetes executor with image python:3.10-slim ...[0;m
+[0KUsing attach strategy to execute scripts...[0;m
+[0KUsing effective pull policy of [] for container build[0;m
+[0KUsing effective pull policy of [] for container helper[0;m
+[0KUsing effective pull policy of [] for container init-permissions[0;m
+section_end:1767874419:prepare_executor
+[0Ksection_start:1767874419:prepare_script
+[0K[0K[36;1mPreparing environment[0;m[0;m
+[0KUsing FF_USE_POD_ACTIVE_DEADLINE_SECONDS, the Pod activeDeadlineSeconds will be set to the job timeout: 1h0m0s...[0;m
+Waiting for pod gitlab-ci/runner-dfirylzdp-project-88971-concurrent-0-k10kgeva to be running, status is Pending
+Waiting for pod gitlab-ci/runner-dfirylzdp-project-88971-concurrent-0-k10kgeva to be running, status is Pending
+	ContainersNotReady: "containers with unready status: [build helper]"
+	ContainersNotReady: "containers with unready status: [build helper]"
+Running on runner-dfirylzdp-project-88971-concurrent-0-k10kgeva via gitlab-kubernetes-runner-gitlab-runner-58b94d8c6f-7tgdp...
 
-args = Namespace(input='C:\\Users\\votu\\AppData\\Local\\Temp\\pytest-of-votu\\pytest-402\\test_resume_merges_existing_re0\\d...ture=0.3, max_synonyms=10, resume=False, raw_dir=None, dry_run=False, rate_limit_sleep=2.0, max_retries=5, timeout=120)
+section_end:1767874426:prepare_script
+[0Ksection_start:1767874426:get_sources
+[0K[0K[36;1mGetting source from Git repository[0;m[0;m
+[32;1mGitaly correlation ID: 01KEERDP09J759XGCHD6YXNTCA[0;m
+[32;1mFetching changes with git depth set to 20...[0;m
+Initialized empty Git repository in /builds/osp/search/search-services/semantic-search/openwebui-srs-starter/.git/
+[32;1mCreated fresh repository.[0;m
+[32;1mChecking out ea9b4131 as detached HEAD (ref is main)...[0;m
 
-    def run(args: argparse.Namespace) -> None:
-        load_environment()
-        _ensure_max_synonyms(args.max_synonyms)
-        input_path = Path(args.input)
-        output_path = Path(args.output)
-        raw_dir = Path(args.raw_dir) if args.raw_dir else None
-    
-        try:
-            rows = read_input_rows(input_path)
-        except (InputValidationError, FileNotFoundError) as exc:
-            logger.error("Input validation failed: %s", exc)
-            raise SystemExit(1)
-    
-        existing: List[Dict[str, object]] = []
-        processed_index: Dict[tuple, Dict[str, object]] = {}
-        if args.resume and output_path.exists():
-            existing = load_existing_output(output_path)
-            processed_index = build_processed_index(existing)
-            logger.info("Resuming run: %s existing rows detected", len(processed_index))
-    
-        pending_rows = [row for row in rows if (row.filterId, row.optionId) not in processed_index]
-        if args.dry_run:
-            logger.info(
-                "Dry run complete: total rows=%s, pending=%s, batch_size=%s",
-                len(rows),
-                len(pending_rows),
-                args.batch_size,
-            )
-            raise DryRunComplete()
-    
-        instructions = load_prompt_text()
-        client = ResponsesAPI(
-            model=args.model,
-            temperature=args.temperature,
-            timeout=args.timeout,
-            max_retries=args.max_retries,
-            rate_limit_sleep=args.rate_limit_sleep,
-        )
-    
-        batches = chunk_rows(pending_rows, args.batch_size)
-        try:
->           new_results = process_batches(
-                batches=batches,
-                client=client,
-                instructions=instructions,
-                max_synonyms=args.max_synonyms,
-                raw_dir=raw_dir,
-                resume_offset=len(processed_index) // max(args.batch_size, 1),
-            )
+[32;1mSkipping Git submodules setup[0;m
 
-tools\synonyms_lexicon\cli.py:215: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-tools\synonyms_lexicon\cli.py:132: in process_batches
-    enforce_schema(raw_results)
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+section_end:1767874427:get_sources
+[0Ksection_start:1767874427:restore_cache
+[0K[0K[36;1mRestoring cache[0;m[0;m
+[32;1mChecking cache for 0_requirements-default-protected...[0;m
+[0;33mWARNING: file does not exist                      [0;m 
+[0;33mFailed to extract cache[0;m
 
-batch = [{'ID': '2', 'filterId': 'F2', 'filterName': 'Filter', 'optionId': 'O2', ...}]
+section_end:1767874428:restore_cache
+[0Ksection_start:1767874428:step_script
+[0K[0K[36;1mExecuting "step_script" stage of the job script[0;m[0;m
+[32;1m$ pip install ruff==$TUI_LINT_RUFF_VERSION[0;m
+Collecting ruff==0.14.10
+  Downloading ruff-0.14.10-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (14.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.2/14.2 MB 78.1 MB/s eta 0:00:00
+Installing collected packages: ruff
+Successfully installed ruff-0.14.10
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
 
-    def enforce_schema(batch: List[Dict[str, object]]) -> None:
-        errors: List[str] = []
-        for idx, item in enumerate(batch):
-            item_errors = validate_response_item(item)
-            if item_errors:
-                errors.append(f"Item {idx}: {', '.join(item_errors)}")
-        if errors:
->           raise ResponseValidationError("; ".join(errors))
-E           tools.synonyms_lexicon.validate.ResponseValidationError: Item 0: Missing required field: notes
+[notice] A new release of pip is available: 23.0.1 -> 25.3
+[notice] To update, run: pip install --upgrade pip
+[32;1m$ ruff check backend/[0;m
+F841 Local variable `llm_provider` is assigned to but never used
+   --> backend/app/api/routes.py:628:5
+    |
+626 |     metadata["llm"] = llm_metadata
+627 |
+628 |     llm_provider = str(
+    |     ^^^^^^^^^^^^
+629 |         llm_metadata.get("provider")
+630 |         or llm_metadata.get("engine")
+    |
+help: Remove assignment to unused variable `llm_provider`
 
-tools\synonyms_lexicon\validate.py:60: ResponseValidationError
+F841 Local variable `llm_provider` is assigned to but never used
+   --> backend/app/api/routes.py:954:5
+    |
+952 |     metadata["llm"] = llm_metadata
+953 |
+954 |     llm_provider = str(
+    |     ^^^^^^^^^^^^
+955 |         llm_metadata.get("provider")
+956 |         or llm_metadata.get("engine")
+    |
+help: Remove assignment to unused variable `llm_provider`
 
-During handling of the above exception, another exception occurred:
+E402 Module level import not at top of file
+  --> backend/app/dependencies.py:43:1
+   |
+41 |     "Output",
+42 | )
+43 | from .pipeline.dialog import DialogOrchestrator
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+44 | from .pipeline.pipeline import HolidaySearchPipeline
+45 | from .pipeline.preferences import PreferencesPipeline
+   |
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-402/test_resume_merges_existing_re0')
-monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001CE6345BC50>
+E402 Module level import not at top of file
+  --> backend/app/dependencies.py:44:1
+   |
+42 | )
+43 | from .pipeline.dialog import DialogOrchestrator
+44 | from .pipeline.pipeline import HolidaySearchPipeline
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+45 | from .pipeline.preferences import PreferencesPipeline
+   |
 
-    def test_resume_merges_existing_results(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        csv_path = write_csv(
-            tmp_path,
-            ["ID", "filterId", "filterName", "optionId", "optionName"],
-            [["1", "F1", "Filter", "O1", "One"], ["2", "F2", "Filter", "O2", "Two"]],
-        )
-        existing_output = [
-            {"ID": "1", "filterId": "F1", "filterName": "Filter", "optionId": "O1", "optionName": "One", "synonyms": ["one"]}
-        ]
-        output_path = tmp_path / "out.json"
-        output_path.write_text(json.dumps(existing_output), encoding="utf-8")
-    
-        dummy_client = DummyClient(
-            [
-                [
-                    {
-                        "ID": "2",
-                        "filterId": "F2",
-                        "filterName": "Filter",
-                        "optionId": "O2",
-                        "optionName": "Two",
-                        "synonyms": ["Second"],
-                    }
-                ]
-            ]
-        )
-    
-        args = cli.parse_args([
-            "--input",
-            str(csv_path),
-            "--output",
-            str(output_path),
-            "--batch-size",
-            "1",
-            "--model",
-            "dummy",
-        ])
-    
-        def mock_read_input_rows(path: Path):
-            assert path == csv_path
-            return read_input_rows(csv_path)
-    
-        monkeypatch.setattr(cli, "read_input_rows", mock_read_input_rows)
-        monkeypatch.setattr(cli, "ResponsesAPI", lambda **kwargs: dummy_client)
->       cli.run(args)
+E402 Module level import not at top of file
+  --> backend/app/dependencies.py:45:1
+   |
+43 | from .pipeline.dialog import DialogOrchestrator
+44 | from .pipeline.pipeline import HolidaySearchPipeline
+45 | from .pipeline.preferences import PreferencesPipeline
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
 
-backend\tests\tools\test_synonyms_lexicon.py:116: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+F821 Undefined name `SearchConfiguration`
+  --> backend/app/pipeline/extractor_rules.py:44:69
+   |
+42 |     }
+43 |
+44 |     def __init__(self, fixtures: FixtureRepository, configuration: "SearchConfiguration") -> None:
+   |                                                                     ^^^^^^^^^^^^^^^^^^^
+45 |         airports_base: Dict[str, Dict[str, object]] = {}
+46 |         for meta in fixtures.list_airports():
+   |
 
-args = Namespace(input='C:\\Users\\votu\\AppData\\Local\\Temp\\pytest-of-votu\\pytest-402\\test_resume_merges_existing_re0\\d...ture=0.3, max_synonyms=10, resume=False, raw_dir=None, dry_run=False, rate_limit_sleep=2.0, max_retries=5, timeout=120)
+F401 [*] `typing.Iterable` imported but unused
+ --> backend/app/services/import_summary.py:6:25
+  |
+4 | import random
+5 | from dataclasses import dataclass
+6 | from typing import Any, Iterable, Mapping, Sequence
+  |                         ^^^^^^^^
+7 |
+8 | from ..config import Settings
+  |
+help: Remove unused import: `typing.Iterable`
 
-    def run(args: argparse.Namespace) -> None:
-        load_environment()
-        _ensure_max_synonyms(args.max_synonyms)
-        input_path = Path(args.input)
-        output_path = Path(args.output)
-        raw_dir = Path(args.raw_dir) if args.raw_dir else None
-    
-        try:
-            rows = read_input_rows(input_path)
-        except (InputValidationError, FileNotFoundError) as exc:
-            logger.error("Input validation failed: %s", exc)
-            raise SystemExit(1)
-    
-        existing: List[Dict[str, object]] = []
-        processed_index: Dict[tuple, Dict[str, object]] = {}
-        if args.resume and output_path.exists():
-            existing = load_existing_output(output_path)
-            processed_index = build_processed_index(existing)
-            logger.info("Resuming run: %s existing rows detected", len(processed_index))
-    
-        pending_rows = [row for row in rows if (row.filterId, row.optionId) not in processed_index]
-        if args.dry_run:
-            logger.info(
-                "Dry run complete: total rows=%s, pending=%s, batch_size=%s",
-                len(rows),
-                len(pending_rows),
-                args.batch_size,
-            )
-            raise DryRunComplete()
-    
-        instructions = load_prompt_text()
-        client = ResponsesAPI(
-            model=args.model,
-            temperature=args.temperature,
-            timeout=args.timeout,
-            max_retries=args.max_retries,
-            rate_limit_sleep=args.rate_limit_sleep,
-        )
-    
-        batches = chunk_rows(pending_rows, args.batch_size)
-        try:
-            new_results = process_batches(
-                batches=batches,
-                client=client,
-                instructions=instructions,
-                max_synonyms=args.max_synonyms,
-                raw_dir=raw_dir,
-                resume_offset=len(processed_index) // max(args.batch_size, 1),
-            )
-        except ResponseValidationError as exc:
-            logger.error("Response validation failed: %s", exc)
->           raise SystemExit(1)
-E           SystemExit: 1
+F401 [*] `fastapi.HTTPException` imported but unused
+  --> backend/tests/pipeline/test_pipeline_components.py:30:21
+   |
+28 | )
+29 | from backend.app.pipeline.validator import ValidationError
+30 | from fastapi import HTTPException
+   |                     ^^^^^^^^^^^^^
+31 | from backend.app.services import import_runner
+32 | from backend.app.telemetry import resource_monitor
+   |
+help: Remove unused import: `fastapi.HTTPException`
 
-tools\synonyms_lexicon\cli.py:225: SystemExit
--------------------------------------------------------------------------------- Captured log call --------------------------------------------------------------------------------
-ERROR    tools.synonyms_lexicon.cli:cli.py:224 Response validation failed: Item 0: Missing required field: notes
-_________________________________________________________________________ test_process_batches_saves_raw __________________________________________________________________________
+F401 [*] `backend.app.services.import_runner` imported but unused
+  --> backend/tests/pipeline/test_pipeline_components.py:31:34
+   |
+29 | from backend.app.pipeline.validator import ValidationError
+30 | from fastapi import HTTPException
+31 | from backend.app.services import import_runner
+   |                                  ^^^^^^^^^^^^^
+32 | from backend.app.telemetry import resource_monitor
+   |
+help: Remove unused import: `backend.app.services.import_runner`
 
-tmp_path = WindowsPath('C:/Users/votu/AppData/Local/Temp/pytest-of-votu/pytest-402/test_process_batches_saves_raw0')
+F401 [*] `backend.app.telemetry.resource_monitor` imported but unused
+  --> backend/tests/pipeline/test_pipeline_components.py:32:35
+   |
+30 | from fastapi import HTTPException
+31 | from backend.app.services import import_runner
+32 | from backend.app.telemetry import resource_monitor
+   |                                   ^^^^^^^^^^^^^^^^
+   |
+help: Remove unused import: `backend.app.telemetry.resource_monitor`
 
-    def test_process_batches_saves_raw(tmp_path: Path) -> None:
-        rows = [cli.InputRow("1", "F", "Filter", "O", "Option")]
-        client = DummyClient(
-            [
-                [
-                    {
-                        "ID": "1",
-                        "filterId": "F",
-                        "filterName": "Filter",
-                        "optionId": "O",
-                        "optionName": "Option",
-                        "synonyms": ["value"],
-                    }
-                ]
-            ]
-        )
-        raw_dir = tmp_path / "raw"
->       results = cli.process_batches([rows], client, "instr", 5, raw_dir)
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+F401 [*] `backend.tests.pipeline.test_pipeline_methods.pipeline_factory` imported but unused
+ --> backend/tests/pipeline/test_regression_scenarios.py:7:58
+  |
+5 | import pytest
+6 |
+7 | from backend.tests.pipeline.test_pipeline_methods import pipeline_factory
+  |                                                          ^^^^^^^^^^^^^^^^
+  |
+help: Remove unused import: `backend.tests.pipeline.test_pipeline_methods.pipeline_factory`
 
-backend\tests\tools\test_synonyms_lexicon.py:140: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-tools\synonyms_lexicon\cli.py:132: in process_batches
-    enforce_schema(raw_results)
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+F811 Redefinition of unused `pipeline_factory` from line 7
+  --> backend/tests/pipeline/test_regression_scenarios.py:27:5
+   |
+25 | @pytest.mark.parametrize("method", ["gemini-2.5-flash", "hybrid"])
+26 | def test_llm_based_southern_hemisphere_trips(
+27 |     pipeline_factory, method: str, utterance: str, expected_from: dict, expected_dests: set[str]
+   |     ^^^^^^^^^^^^^^^^ `pipeline_factory` redefined here
+28 | ) -> None:
+29 |     llm_payloads = {
+   |
+  ::: backend/tests/pipeline/test_regression_scenarios.py:7:58
+   |
+ 5 | import pytest
+ 6 |
+ 7 | from backend.tests.pipeline.test_pipeline_methods import pipeline_factory
+   |                                                          ---------------- previous definition of `pipeline_factory` here
+   |
+help: Remove definition: `pipeline_factory`
 
-batch = [{'ID': '1', 'filterId': 'F', 'filterName': 'Filter', 'optionId': 'O', ...}]
+F811 Redefinition of unused `pipeline_factory` from line 7
+  --> backend/tests/pipeline/test_regression_scenarios.py:79:5
+   |
+77 | )
+78 | def test_rules_basic_southern_hemisphere_trips(
+79 |     pipeline_factory, utterance: str, expected_from: dict
+   |     ^^^^^^^^^^^^^^^^ `pipeline_factory` redefined here
+80 | ) -> None:
+81 |     pipeline = pipeline_factory()
+   |
+  ::: backend/tests/pipeline/test_regression_scenarios.py:7:58
+   |
+ 5 | import pytest
+ 6 |
+ 7 | from backend.tests.pipeline.test_pipeline_methods import pipeline_factory
+   |                                                          ---------------- previous definition of `pipeline_factory` here
+   |
+help: Remove definition: `pipeline_factory`
 
-    def enforce_schema(batch: List[Dict[str, object]]) -> None:
-        errors: List[str] = []
-        for idx, item in enumerate(batch):
-            item_errors = validate_response_item(item)
-            if item_errors:
-                errors.append(f"Item {idx}: {', '.join(item_errors)}")
-        if errors:
->           raise ResponseValidationError("; ".join(errors))
-E           tools.synonyms_lexicon.validate.ResponseValidationError: Item 0: Missing required field: notes
+Found 13 errors.
+[*] 5 fixable with the `--fix` option (2 hidden fixes can be enabled with the `--unsafe-fixes` option).
 
-tools\synonyms_lexicon\validate.py:60: ResponseValidationError
-============================================================================= short test summary info =============================================================================
-FAILED backend/tests/tools/test_synonyms_lexicon.py::test_resume_merges_existing_results - SystemExit: 1
-FAILED backend/tests/tools/test_synonyms_lexicon.py::test_process_batches_saves_raw - tools.synonyms_lexicon.validate.ResponseValidationError: Item 0: Missing required field: notes
-2 failed, 5 passed in 0.22s
+section_end:1767874434:step_script
+[0Ksection_start:1767874434:cleanup_file_variables
+[0K[0K[36;1mCleaning up project directory and file based variables[0;m[0;m
+
+section_end:1767874435:cleanup_file_variables
+[0K[31;1mERROR: Job failed: command terminated with exit code 1[0;m
